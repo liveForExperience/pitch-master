@@ -57,7 +57,7 @@ sequenceDiagram
     participant GameCtrl as MatchGameController
     participant GameSvc as MatchGameServiceImpl
     participant GoalSvc as MatchGoalServiceImpl
-    database DB as MySQL
+    participant DB as MySQL (DB)
 
     Referee->>GameCtrl: POST /{id}/start (duration=45)
     GameCtrl->>GameSvc: startGame()
