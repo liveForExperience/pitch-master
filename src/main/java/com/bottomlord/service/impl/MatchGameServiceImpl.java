@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.bottomlord.entity.MatchGame;
 import com.bottomlord.entity.MatchGoal;
+import com.bottomlord.entity.User;
 import com.bottomlord.mapper.MatchGameMapper;
 import com.bottomlord.service.MatchGameService;
 import com.bottomlord.service.MatchGoalService;
+import org.apache.shiro.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,59 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     @Autowired
     private MatchGoalService goalService;
 
+    private static final int LOCK_TIMEOUT_MINUTES = 5;
+
+    private Long getCurrentUserId() {
+        Object principal = SecurityUtils.getSubject().getPrincipal();
+        if (principal instanceof User) {
+            return ((User) principal).getId();
+        }
+        return null;
+    }
+
+    private void checkLock(MatchGame game) {
+        Long currentUserId = getCurrentUserId();
+        if (game.getLockUserId() != null) {
+            // 如果锁没过期且不是自己持有的，禁止操作
+            if (game.getLockTime().plusMinutes(LOCK_TIMEOUT_MINUTES).isAfter(LocalDateTime.now())
+                    && !game.getLockUserId().equals(currentUserId)) {
+                throw new IllegalStateException("当前比赛正在被其他球员录入比分，请稍后再试");
+            }
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean tryLockGame(Long gameId) {
+        MatchGame game = this.getById(gameId);
+        if (game == null) return false;
+
+        Long currentUserId = getCurrentUserId();
+        if (currentUserId == null) return false;
+
+        // 逻辑：无人锁定 OR 锁定已超时 OR 锁定人是自己
+        if (game.getLockUserId() == null 
+                || game.getLockTime().plusMinutes(LOCK_TIMEOUT_MINUTES).isBefore(LocalDateTime.now())
+                || game.getLockUserId().equals(currentUserId)) {
+            
+            game.setLockUserId(currentUserId);
+            game.setLockTime(LocalDateTime.now());
+            return this.updateById(game);
+        }
+        return false;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void unlockGame(Long gameId) {
+        MatchGame game = this.getById(gameId);
+        if (game != null && game.getLockUserId().equals(getCurrentUserId())) {
+            game.setLockUserId(null);
+            game.setLockTime(null);
+            this.updateById(game);
+        }
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MatchGame startGame(Long gameId, int durationMinutes) {
@@ -36,6 +91,7 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
             game.setStatus("PLAYING");
             game.setScoreA(0);
             game.setScoreB(0);
+            game.setUpdatedBy(getCurrentUserId());
             this.updateById(game);
         }
         return game;
@@ -47,10 +103,10 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         MatchGame game = this.getById(gameId);
         if (game != null) {
             game.setOvertimeMinutes(game.getOvertimeMinutes() + extraMinutes);
-            // 预计结束时间相应顺延
             if (game.getEndTime() != null) {
                 game.setEndTime(game.getEndTime().plusMinutes(extraMinutes));
             }
+            game.setUpdatedBy(getCurrentUserId());
             this.updateById(game);
         }
         return game;
@@ -59,22 +115,27 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void recordGoal(MatchGoal goal) {
-        // 1. 保存进球记录
+        MatchGame game = this.getById(goal.getGameId());
+        if (game == null) return;
+        
+        // 强制锁校验
+        checkLock(game);
+
+        Long currentUserId = getCurrentUserId();
         if (goal.getOccurredAt() == null) {
             goal.setOccurredAt(LocalDateTime.now());
         }
+        goal.setCreatedBy(currentUserId);
+        goal.setUpdatedBy(currentUserId);
         goalService.save(goal);
 
-        // 2. 自动更新场次比分
-        MatchGame game = this.getById(goal.getGameId());
-        if (game != null) {
-            if (goal.getTeamIndex() == 0) {
-                game.setScoreA(game.getScoreA() + 1);
-            } else {
-                game.setScoreB(game.getScoreB() + 1);
-            }
-            this.updateById(game);
+        if (goal.getTeamIndex() == 0) {
+            game.setScoreA(game.getScoreA() + 1);
+        } else {
+            game.setScoreB(game.getScoreB() + 1);
         }
+        game.setUpdatedBy(currentUserId);
+        this.updateById(game);
     }
 
     @Override
@@ -83,34 +144,45 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         MatchGame game = this.getById(gameId);
         if (game == null) return;
 
-        // 处理 A 队占位
+        // 强制锁校验
+        checkLock(game);
+
+        Long currentUserId = getCurrentUserId();
+
         long currentA = goalService.countByTeam(gameId, 0);
         if (scoreA > currentA) {
             for (int i = 0; i < (scoreA - currentA); i++) {
-                createPlaceholderGoal(gameId, 0);
+                createPlaceholderGoal(gameId, 0, currentUserId);
             }
         }
 
-        // 处理 B 队占位
         long currentB = goalService.countByTeam(gameId, 1);
         if (scoreB > currentB) {
             for (int i = 0; i < (scoreB - currentB); i++) {
-                createPlaceholderGoal(gameId, 1);
+                createPlaceholderGoal(gameId, 1, currentUserId);
             }
         }
 
         game.setScoreA(scoreA);
         game.setScoreB(scoreB);
+        game.setUpdatedBy(currentUserId);
+        
+        // 修改完比分后，自动释放锁
+        game.setLockUserId(null);
+        game.setLockTime(null);
+        
         this.updateById(game);
     }
 
-    private void createPlaceholderGoal(Long gameId, int teamIndex) {
+    private void createPlaceholderGoal(Long gameId, int teamIndex, Long operatorId) {
         MatchGoal placeholder = new MatchGoal();
         placeholder.setGameId(gameId);
         placeholder.setTeamIndex(teamIndex);
-        placeholder.setScorerId(null); // 未知
+        placeholder.setScorerId(null);
         placeholder.setType("NORMAL");
         placeholder.setOccurredAt(LocalDateTime.now());
+        placeholder.setCreatedBy(operatorId);
+        placeholder.setUpdatedBy(operatorId);
         goalService.save(placeholder);
     }
 
@@ -119,6 +191,8 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         MatchGame game = this.getById(gameId);
         if (game != null) {
             game.setStatus("FINISHED");
+            game.setLockUserId(null);
+            game.setLockTime(null);
             this.updateById(game);
         }
     }

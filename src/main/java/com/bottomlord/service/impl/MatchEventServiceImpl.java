@@ -46,6 +46,12 @@ public class MatchEventServiceImpl extends ServiceImpl<MatchEventMapper, MatchEv
     private GroupingStrategyFactory strategyFactory;
 
     @Override
+    public List<MatchEvent> listUpcomingMatches() {
+        return this.list(new LambdaQueryWrapper<MatchEvent>()
+                .orderByDesc(MatchEvent::getStartTime));
+    }
+
+    @Override
     @RequiresRoles("ADMIN")
     @Transactional(rollbackFor = Exception.class)
     public MatchEvent publishMatch(MatchEvent match) {

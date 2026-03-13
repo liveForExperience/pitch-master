@@ -29,18 +29,25 @@
 
 ```text
 .
-├── docs/                # 详尽的架构设计文档 (ER图、时序图、类图、API规范)
-├── src/main/java/       # 业务代码实现
+├── docs/                # 详尽的架构设计文档 (ER图、时序图、API规范、UI设计)
+├── frontend/            # React + TypeScript + AntD Mobile 前端工程
+├── src/main/java/       # Spring Boot 后端业务代码
 ├── src/main/resources/  # 配置文件与数据库脚本
 └── src/test/java/       # 完整的集成测试用例
 ```
 
 ## 🚀 快速开始
 
+### 后端启动
 1.  **数据库准备**: 创建 MySQL 数据库 `oldboy_club_manager`。
 2.  **配置修改**: 修改 `src/main/resources/application.yml` 中的数据库账号密码。
-3.  **运行项目**: 运行 `com.bottomlord.Main` 类，Flyway 将自动初始化表结构。
-4.  **接口测试**: 参考 `docs/API_SPEC.md` 使用 Postman 或 cURL 进行测试。
+3.  **运行项目**: 运行 `com.bottomlord.Main` 类。
+
+### 前端启动
+1.  **进入目录**: `cd frontend`
+2.  **安装依赖**: `npm install`
+3.  **运行开发服务器**: `npm run dev`
+4.  **访问接口**: 默认代理至 `http://localhost:8080`。
 
 ## 📖 开发者文档
 

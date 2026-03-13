@@ -14,6 +14,13 @@ import java.util.Map;
 public interface MatchEventService extends IService<MatchEvent> {
 
     /**
+     * 获取近期赛事列表
+     *
+     * @return 赛事列表
+     */
+    List<MatchEvent> listUpcomingMatches();
+
+    /**
      * 发布新赛事（仅限 ADMIN）
      *
      * @param match 赛事基本信息

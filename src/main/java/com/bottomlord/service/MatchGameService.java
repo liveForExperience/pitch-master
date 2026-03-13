@@ -54,6 +54,21 @@ public interface MatchGameService extends IService<MatchGame> {
     void updateScoreManually(Long gameId, int scoreA, int scoreB);
 
     /**
+     * 尝试获取比分修改锁
+     *
+     * @param gameId 场次ID
+     * @return 是否加锁成功
+     */
+    boolean tryLockGame(Long gameId);
+
+    /**
+     * 手动释放锁
+     *
+     * @param gameId 场次ID
+     */
+    void unlockGame(Long gameId);
+
+    /**
      * 完成比赛场次
      *
      * @param gameId 场次ID

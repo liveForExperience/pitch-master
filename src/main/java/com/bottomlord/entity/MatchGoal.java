@@ -47,4 +47,8 @@ public class MatchGoal implements Serializable {
      * 进球发生时间
      */
     private LocalDateTime occurredAt;
+
+    private Long createdBy;
+
+    private Long updatedBy;
 }

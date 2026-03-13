@@ -7,12 +7,19 @@ import com.bottomlord.service.MatchGameService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/game")
 public class MatchGameController {
 
     @Autowired
     private MatchGameService matchGameService;
+
+    @GetMapping("/list")
+    public Result<List<MatchGame>> listGames(@RequestParam Long matchId) {
+        return Result.success(matchGameService.listByMatchId(matchId));
+    }
 
     @PostMapping("/{gameId}/start")
     public Result<MatchGame> startGame(@PathVariable Long gameId, @RequestParam int durationMinutes) {
@@ -22,6 +29,22 @@ public class MatchGameController {
     @PostMapping("/{gameId}/overtime")
     public Result<MatchGame> addOvertime(@PathVariable Long gameId, @RequestParam int extraMinutes) {
         return Result.success(matchGameService.addOvertime(gameId, extraMinutes));
+    }
+
+    @PostMapping("/{gameId}/lock")
+    public Result<Boolean> tryLock(@PathVariable Long gameId) {
+        boolean locked = matchGameService.tryLockGame(gameId);
+        if (locked) {
+            return Result.success(true);
+        } else {
+            return Result.error(409, "该场次正在被他人编辑");
+        }
+    }
+
+    @PostMapping("/{gameId}/unlock")
+    public Result<Void> unlock(@PathVariable Long gameId) {
+        matchGameService.unlockGame(gameId);
+        return Result.success();
     }
 
     @PostMapping("/goal")

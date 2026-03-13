@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    # 使用 MySQL 兼容模式
+    url: jdbc:h2:mem:oldboy_club;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        trace: false
+        web-allow-others: false

@@ -20,6 +20,16 @@ public class MatchEventController {
     @Autowired
     private MatchReportExporter reportExporter;
 
+    @GetMapping("/list")
+    public Result<List<MatchEvent>> listMatches() {
+        return Result.success(matchEventService.listUpcomingMatches());
+    }
+
+    @GetMapping("/{id}")
+    public Result<MatchEvent> getMatch(@PathVariable Long id) {
+        return Result.success(matchEventService.getById(id));
+    }
+
     @PostMapping("/publish")
     public Result<MatchEvent> publishMatch(@RequestBody MatchEvent matchEvent) {
         return Result.success(matchEventService.publishMatch(matchEvent));

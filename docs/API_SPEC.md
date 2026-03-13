@@ -42,8 +42,11 @@
 | `/goal` | POST | 录入进球/助攻/乌龙 | Body: `MatchGoal` |
 | `/{id}/score` | POST | 手动修正比分 | Query: `scoreA`, `scoreB` (触发占位逻辑) |
 | `/{id}/finish` | POST | 标记单场比赛结束 | 状态变更为 FINISHED |
+| `/{id}/lock` | POST | 尝试获取比分修改锁 | 冲突返回 409 |
+| `/{id}/unlock` | POST | 手动释放修改锁 | 用户主动取消编辑时调用 |
 
 ## 5. 关键实体模型 (DTO/VO)
 前端应严格对齐以下字段名：
 *   **MatchEvent**: `numGroups`, `playersPerGroup`, `cancelDeadline`, `totalCost`, `perPersonCost`
+*   **MatchGame**: `lockUserId`, `lockTime` (用于判断锁定状态)
 *   **MatchGoal**: `teamIndex`, `scorerId` (可为 null), `assistantId`, `type` ("NORMAL" | "OWN_GOAL")

@@ -1,9 +1,6 @@
 spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/oldboy_club_manager?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false
-    username: root
-    password: 
-    driver-class-name: com.mysql.cj.jdbc.Driver
+  profiles:
+    active: h2 # 默认激活 H2 配置
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -20,3 +17,7 @@ mybatis-plus:
 logging:
   level:
     com.bottomlord: debug
+
+match:
+  grouping:
+    default-strategy: SIMPLE_SKILL_BALANCE

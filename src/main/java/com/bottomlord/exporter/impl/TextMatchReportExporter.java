@@ -6,10 +6,12 @@ import com.bottomlord.entity.MatchEvent;
 import com.bottomlord.entity.MatchGame;
 import com.bottomlord.entity.MatchGoal;
 import com.bottomlord.entity.Player;
+import com.bottomlord.entity.User;
 import com.bottomlord.exporter.MatchReportExporter;
 import com.bottomlord.service.MatchGameService;
 import com.bottomlord.service.MatchGoalService;
 import com.bottomlord.service.PlayerService;
+import com.bottomlord.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -35,6 +37,9 @@ public class TextMatchReportExporter implements MatchReportExporter {
     @Autowired
     private PlayerService playerService;
 
+    @Autowired
+    private UserService userService;
+
     @Override
     public Object export(MatchEvent matchEvent) {
         StringBuilder sb = new StringBuilder();
@@ -53,8 +58,12 @@ public class TextMatchReportExporter implements MatchReportExporter {
             for (MatchGame game : games) {
                 sb.append("场次: 队").append(game.getTeamAIndex() + 1)
                   .append(" ").append(game.getScoreA()).append(" : ")
-                  .append(game.getScoreB()).append(" 队").append(game.getTeamBIndex() + 1)
-                  .append("\n");
+                  .append(game.getScoreB()).append(" 队").append(game.getTeamBIndex() + 1);
+                
+                if (game.getUpdatedBy() != null) {
+                    sb.append(" [最后修正: ").append(getRealName(game.getUpdatedBy())).append("]");
+                }
+                sb.append("\n");
 
                 List<MatchGoal> goals = goalService.listByGameId(game.getId());
                 for (MatchGoal goal : goals) {
@@ -64,6 +73,9 @@ public class TextMatchReportExporter implements MatchReportExporter {
                     }
                     if ("OWN_GOAL".equals(goal.getType())) {
                         sb.append(" [乌龙球]");
+                    }
+                    if (goal.getCreatedBy() != null) {
+                        sb.append(" (录入: ").append(getRealName(goal.getCreatedBy())).append(")");
                     }
                     sb.append("\n");
                 }
@@ -84,6 +96,12 @@ public class TextMatchReportExporter implements MatchReportExporter {
         }
         Player player = playerService.getById(playerId);
         return player != null ? player.getNickname() : "未知";
+    }
+
+    private String getRealName(Long userId) {
+        if (userId == null) return "未知";
+        User user = userService.getById(userId);
+        return user != null ? user.getRealName() : "未知";
     }
 
     private void generateStats(Long matchId, StringBuilder sb) {
