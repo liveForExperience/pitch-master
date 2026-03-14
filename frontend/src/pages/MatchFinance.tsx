@@ -17,12 +17,16 @@ const MatchFinance: React.FC = () => {
       const regs: any = await apiClient.get(`/api/match/${id}/registrations`);
       setRegistrations(regs);
 
-      // 2. 获取对应的球员详情
-      const playerMap: Record<number, any> = {};
+      // 2. 批量或按需获取对应的球员详情
+      const playerMap: Record<number, any> = { ...players };
       for (const reg of regs) {
         if (!playerMap[reg.playerId]) {
-          const p: any = await apiClient.get(`/api/player/${reg.playerId}`);
-          playerMap[reg.playerId] = p;
+          try {
+            const p: any = await apiClient.get(`/api/player/${reg.playerId}`);
+            playerMap[reg.playerId] = p;
+          } catch (e) {
+            playerMap[reg.playerId] = { nickname: `球员 #${reg.playerId}` };
+          }
         }
       }
       setPlayers(playerMap);
@@ -54,7 +58,7 @@ const MatchFinance: React.FC = () => {
   };
 
   const getPlayerName = (playerId: number) => {
-    return players[playerId]?.nickname || `球员ID:${playerId}`;
+    return players[playerId]?.nickname || `加载中...`;
   };
 
   return (
@@ -65,17 +69,17 @@ const MatchFinance: React.FC = () => {
 
       <div className="p-4">
         {loading ? (
-          <Space direction='vertical' block>
+          <Space direction='vertical' block className="mt-4">
             <Skeleton.Title animated />
-            <Skeleton.Paragraph lineCount={5} animated />
+            <Skeleton.Paragraph lineCount={8} animated />
           </Space>
         ) : (
           <div className="bg-neutral-900 rounded-3xl overflow-hidden border border-neutral-800">
-            <List header={<span className="text-neutral-500 font-bold">待支付列表 ({registrations.filter(r => r.paymentStatus !== 'PAID').length})</span>}>
+            <List header={<span className="text-neutral-500 font-bold px-2">待支付列表 ({registrations.filter(r => r.paymentStatus !== 'PAID').length})</span>}>
               {registrations.map(reg => (
                 <List.Item
                   key={reg.id}
-                  prefix={<User className="text-neutral-600" size={20} />}
+                  prefix={<div className="bg-neutral-800 p-2 rounded-full"><User className="text-primary" size={18} /></div>}
                   extra={
                     <Switch
                       checked={reg.paymentStatus === 'PAID'}
@@ -85,13 +89,13 @@ const MatchFinance: React.FC = () => {
                   }
                   description={
                     <div className="flex space-x-2 mt-1">
-                      <Tag color={reg.status === 'NO_SHOW' ? 'danger' : 'success'} fill="outline">
+                      <Tag color={reg.status === 'NO_SHOW' ? 'danger' : 'success'} fill="outline" className="text-[10px] scale-90 origin-left">
                         {reg.status === 'NO_SHOW' ? '补缴(缺席)' : '正常出勤'}
                       </Tag>
                     </div>
                   }
                 >
-                  <span className={reg.paymentStatus === 'PAID' ? 'text-neutral-500 line-through' : 'text-white font-medium'}>
+                  <span className={reg.paymentStatus === 'PAID' ? 'text-neutral-600 line-through' : 'text-neutral-100 font-semibold'}>
                     {getPlayerName(reg.playerId)}
                   </span>
                 </List.Item>
@@ -100,15 +104,25 @@ const MatchFinance: React.FC = () => {
           </div>
         )}
 
-        <div className="mt-6 p-4 bg-primary/10 border border-primary/20 rounded-2xl">
-          <div className="text-xs text-primary font-bold mb-1 uppercase">Summary</div>
-          <div className="flex justify-between items-end">
-            <div className="text-2xl font-black text-white">
-              {registrations.filter(r => r.paymentStatus === 'PAID').length} / {registrations.length}
+        {!loading && (
+          <div className="mt-6 p-6 bg-gradient-to-br from-neutral-900 to-neutral-800 border border-neutral-800 rounded-3xl shadow-2xl">
+            <div className="text-[10px] text-primary font-black mb-2 uppercase tracking-widest">Financial Summary</div>
+            <div className="flex justify-between items-end">
+              <div>
+                <div className="text-3xl font-black text-white tracking-tighter">
+                  {registrations.filter(r => r.paymentStatus === 'PAID').length} / {registrations.length}
+                </div>
+                <div className="text-xs text-neutral-500 mt-1 font-medium">已完成缴费确认</div>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-bold text-primary">
+                  {Math.round((registrations.filter(r => r.paymentStatus === 'PAID').length / (registrations.length || 1)) * 100)}%
+                </div>
+                <div className="text-[10px] text-neutral-600 uppercase font-bold">Progress</div>
+              </div>
             </div>
-            <div className="text-sm text-neutral-400">已缴费人数</div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

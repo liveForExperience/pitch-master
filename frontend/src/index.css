@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -9,7 +7,7 @@
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #0a0a0a; /* 更深邃的背景，对齐 UI 设计 */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -21,4 +19,16 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #0a0a0a;
+}
+
+/* 自定义 antd-mobile 样式对齐足球风 */
+:root {
+  --adm-color-primary: #1DB954;
+  --adm-font-family: 'Inter', system-ui, sans-serif;
+}
+
+.adm-nav-bar {
+  --adm-font-size-main: 18px;
+  font-weight: 800;
 }
