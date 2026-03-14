@@ -64,8 +64,7 @@ public class MatchEventServiceImpl extends ServiceImpl<MatchEventMapper, MatchEv
         return match;
     }
 
-    @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Override @Transactional(rollbackFor = Exception.class)
     public void registerForMatch(Long matchId, Long playerId) {
         // 检查是否已报名
         long count = registrationService.count(new LambdaQueryWrapper<MatchRegistration>()

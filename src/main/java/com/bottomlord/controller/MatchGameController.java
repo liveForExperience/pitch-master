@@ -64,4 +64,9 @@ public class MatchGameController {
         matchGameService.finishGame(gameId);
         return Result.success();
     }
+
+    @GetMapping("/{gameId}/logs")
+    public Result<List<com.bottomlord.entity.MatchScoreLog>> getScoreLogs(@PathVariable Long gameId) {
+        return Result.success(matchGameService.getScoreLogs(gameId));
+    }
 }

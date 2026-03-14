@@ -1,30 +1,40 @@
-# 项目总体架构与指引 (Architecture & Guide)
+# 系统架构设计说明书 (System Architecture Specification)
 
-## 1. 项目概述
-**Oldboy Club Manager** 是一个专为业余足球爱好者设计的俱乐部与赛事管理平台。其核心价值在于提供自动化的比赛分组（基于多维度能力的平衡算法）、比赛过程管理（进球、加时、比分演进）以及赛后数据统计。
+## 1. 核心设计原则 (Design Principles)
+*   **多租户隔离 (Multi-tenancy)**: 所有核心实体（Player, MatchEvent）均通过 `club_id` 进行逻辑隔离，支持未来横向扩展至多俱乐部平台。
+*   **审计留痕 (Audit Trail)**: 针对高频变动的核心数据（如比分），系统不仅记录最终状态，还通过 `match_score_log` 实现全量版本快照记录。
+*   **低延迟交互 (Real-time)**: 采用 **SSE (Server-Sent Events)** 技术栈，实现“服务端推”模式，确保比分变动在毫秒级同步至所有在线终端。
 
-## 2. 技术栈 (Tech Stack)
-*   **语言**: Java 23
-*   **核心框架**: Spring Boot 3.4.0
-*   **持久层**: MyBatis-Plus 3.5.9, MySQL
-*   **版本控制**: Flyway (数据库迁移脚本位于 `src/main/resources/db/migration/`)
-*   **安全框架**: Apache Shiro 2.0.2 (基于 SHA-256 + 随机盐的密码验证)
-*   **工具库**: Hutool 5.8.34, Lombok
+## 2. 技术栈深度定义 (Technology Stack)
+*   **通信协议**: RESTful API + SSE (Real-time updates)
+*   **并发控制**: 业务互斥锁 (Business Mutual Exclusion) + 数据库行级锁。
+*   **前端状态**: React Hooks + SSE EventSource 订阅模式。
 
-## 3. 核心模块与职责边界
+## 3. 实时性架构 (Real-time Architecture)
 
-系统遵循严格的**面向接口编程 (Interface-based Programming)** 原则。所有业务模块之间不直接依赖实现类。
+```mermaid
+sequenceDiagram
+    participant P as Player A (Operator)
+    participant S as Spring Boot (Backend)
+    participant M as SseManager
+    participant DB as MySQL (Audit Log)
+    participant L as Player B (Viewer)
 
-*   **Auth Module (`com.bottomlord.shiro`, `UserController`)**: 负责基于 Shiro 的用户登录、注册、角色控制（ADMIN/USER）。
-*   **Player Module (`PlayerService`)**: 维护球员的身体机能与技术评分数据（Rating, Position, Preferred Foot）。
-*   **Match Event Module (`MatchEventService`)**: 大赛事生命周期管理（发布 -> 报名 -> 分组 -> 结算）。
-*   **Grouping Strategy Module (`GroupingStrategyFactory`)**: **核心算法模块**。采用策略模式和工厂模式，支持动态切换不同的分组算法。
-*   **Match Game Module (`MatchGameService`, `MatchGoalService`)**: 具体场次管理。支持动态时长、进球事件驱动的比分计算以及比分占位符（Placeholder）机制。
-*   **Report Exporter Module (`MatchReportExporter`)**: 采用策略模式生成战报（当前支持 Text 格式）。
+    L->>S: GET /api/realtime/subscribe/{matchId}
+    S->>M: Register SseEmitter
+    Note over L, M: SSE Connection Established
 
-## 4. 给其他 Agent/开发者的重构与重建指南
-如果您需要基于本文档重建或重构该系统，请严格遵循以下顺序：
-1.  **阅读数据模型**：查看 `DATA_MODEL.md`，使用 Flyway 脚本重建数据库。
-2.  **构建核心实体**：根据 `CLASS_DIAGRAM.md` 定义实体（Entity）和 Mapper。
-3.  **实现策略模式**：先实现 `GroupingStrategy` 和 `MatchReportExporter` 接口，这保证了核心算法与业务流解耦。
-4.  **实现服务流转**：参考 `WORKFLOW.md` 中的时序图，实现 Service 层的状态流转。
+    P->>S: POST /api/game/{id}/score (Updated)
+    S->>DB: INSERT INTO match_score_log
+    S->>M: broadcast(matchId, gameData)
+    M-->>L: Push data via SSE
+    L->>L: Update UI State (Scoreboard)
+```
+
+## 4. 多租户数据模型映射
+目前系统采用 **共享数据库、共享 Schema (Shared Schema)** 的租户模式：
+*   所有查询强制携带 `club_id` 过滤（当前默认 1）。
+*   通过 MyBatis-Plus 的 `Interceptor` 拦截器可实现自动化的租户 ID 注入（待实现）。
+
+## 5. 开发者建议
+重构或二次开发时，如涉及比分或状态变更，必须调用 `MatchGameServiceImpl.logAndBroadcast` 方法以确保数据一致性与前端实时同步。

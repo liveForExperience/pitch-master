@@ -2,8 +2,10 @@ package com.bottomlord.controller;
 
 import com.bottomlord.common.base.Result;
 import com.bottomlord.entity.MatchEvent;
+import com.bottomlord.entity.MatchRegistration;
 import com.bottomlord.exporter.MatchReportExporter;
 import com.bottomlord.service.MatchEventService;
+import com.bottomlord.service.MatchRegistrationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +18,9 @@ public class MatchEventController {
 
     @Autowired
     private MatchEventService matchEventService;
+
+    @Autowired
+    private MatchRegistrationService registrationService;
 
     @Autowired
     private MatchReportExporter reportExporter;
@@ -55,6 +60,17 @@ public class MatchEventController {
     @PostMapping("/{matchId}/finish")
     public Result<Void> finishMatch(@PathVariable Long matchId) {
         matchEventService.finishMatch(matchId);
+        return Result.success();
+    }
+
+    @GetMapping("/{id}/registrations")
+    public Result<List<MatchRegistration>> listRegistrations(@PathVariable Long id) {
+        return Result.success(registrationService.getBillableRegistrations(id));
+    }
+
+    @PostMapping("/{id}/payment")
+    public Result<Void> updatePayment(@PathVariable Long id, @RequestParam Long playerId, @RequestParam String status) {
+        registrationService.updatePaymentStatus(id, playerId, status);
         return Result.success();
     }
 

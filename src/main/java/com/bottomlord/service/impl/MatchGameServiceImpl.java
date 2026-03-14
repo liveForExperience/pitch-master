@@ -2,10 +2,13 @@ package com.bottomlord.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.bottomlord.common.util.SseManager;
 import com.bottomlord.entity.MatchGame;
 import com.bottomlord.entity.MatchGoal;
+import com.bottomlord.entity.MatchScoreLog;
 import com.bottomlord.entity.User;
 import com.bottomlord.mapper.MatchGameMapper;
+import com.bottomlord.mapper.MatchScoreLogMapper;
 import com.bottomlord.service.MatchGameService;
 import com.bottomlord.service.MatchGoalService;
 import org.apache.shiro.SecurityUtils;
@@ -27,6 +30,12 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     @Autowired
     private MatchGoalService goalService;
 
+    @Autowired
+    private MatchScoreLogMapper scoreLogMapper;
+
+    @Autowired
+    private SseManager sseManager;
+
     private static final int LOCK_TIMEOUT_MINUTES = 5;
 
     private Long getCurrentUserId() {
@@ -37,10 +46,24 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         return null;
     }
 
+    private void logAndBroadcast(MatchGame game, String type) {
+        // 1. 记录审计日志
+        MatchScoreLog log = new MatchScoreLog();
+        log.setGameId(game.getId());
+        log.setScoreA(game.getScoreA());
+        log.setScoreB(game.getScoreB());
+        log.setOperatorId(getCurrentUserId());
+        log.setType(type);
+        log.setCreatedAt(LocalDateTime.now());
+        scoreLogMapper.insert(log);
+
+        // 2. 实时广播 (推送给该赛事下的所有监听者)
+        sseManager.broadcast(game.getMatchId(), game);
+    }
+
     private void checkLock(MatchGame game) {
         Long currentUserId = getCurrentUserId();
         if (game.getLockUserId() != null) {
-            // 如果锁没过期且不是自己持有的，禁止操作
             if (game.getLockTime().plusMinutes(LOCK_TIMEOUT_MINUTES).isAfter(LocalDateTime.now())
                     && !game.getLockUserId().equals(currentUserId)) {
                 throw new IllegalStateException("当前比赛正在被其他球员录入比分，请稍后再试");
@@ -57,7 +80,6 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         Long currentUserId = getCurrentUserId();
         if (currentUserId == null) return false;
 
-        // 逻辑：无人锁定 OR 锁定已超时 OR 锁定人是自己
         if (game.getLockUserId() == null 
                 || game.getLockTime().plusMinutes(LOCK_TIMEOUT_MINUTES).isBefore(LocalDateTime.now())
                 || game.getLockUserId().equals(currentUserId)) {
@@ -118,7 +140,6 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         MatchGame game = this.getById(goal.getGameId());
         if (game == null) return;
         
-        // 强制锁校验
         checkLock(game);
 
         Long currentUserId = getCurrentUserId();
@@ -136,6 +157,8 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         }
         game.setUpdatedBy(currentUserId);
         this.updateById(game);
+
+        logAndBroadcast(game, "GOAL");
     }
 
     @Override
@@ -144,7 +167,6 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         MatchGame game = this.getById(gameId);
         if (game == null) return;
 
-        // 强制锁校验
         checkLock(game);
 
         Long currentUserId = getCurrentUserId();
@@ -166,12 +188,11 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         game.setScoreA(scoreA);
         game.setScoreB(scoreB);
         game.setUpdatedBy(currentUserId);
-        
-        // 修改完比分后，自动释放锁
         game.setLockUserId(null);
         game.setLockTime(null);
-        
         this.updateById(game);
+
+        logAndBroadcast(game, "MANUAL");
     }
 
     private void createPlaceholderGoal(Long gameId, int teamIndex, Long operatorId) {
@@ -195,6 +216,13 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
             game.setLockTime(null);
             this.updateById(game);
         }
+    }
+
+    @Override
+    public List<MatchScoreLog> getScoreLogs(Long gameId) {
+        return scoreLogMapper.selectList(new LambdaQueryWrapper<MatchScoreLog>()
+                .eq(MatchScoreLog::getGameId, gameId)
+                .orderByDesc(MatchScoreLog::getCreatedAt));
     }
 
     @Override

@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { NavBar, Card, Button, Tag, Toast, Space, Stepper } from 'antd-mobile';
-import { Edit, Save, X, Trophy, Clock } from 'lucide-react';
+import { NavBar, Card, Button, Tag, Toast, Space, Divider, Steps } from 'antd-mobile';
+import { Edit, Save, X, Trophy, Clock, History, User, CircleDollarSign } from 'lucide-react';
 import apiClient from '../api/client';
 import dayjs from 'dayjs';
+import MatchPoster from '../components/MatchPoster';
+
+const { Step } = Steps;
 
 const MatchDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -13,143 +16,208 @@ const MatchDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingGameId, setEditingGameId] = useState<number | null>(null);
   const [tempScores, setTempScores] = useState({ scoreA: 0, scoreB: 0 });
+  const [logs, setLogs] = useState<any[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
+  
+  const sseRef = useRef<EventSource | null>(null);
 
   const fetchData = async () => {
     try {
-      // 1. 获取赛事详情
       const matchData: any = await apiClient.get(`/api/match/${id}`);
       setMatch(matchData);
-      
-      // 2. 获取该赛事下的场次列表
       const gamesData: any = await apiClient.get(`/api/game/list?matchId=${id}`);
       setGames(gamesData);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) {}
+  };
+
+  const fetchLogs = async (gameId: number) => {
+    try {
+      const logData: any = await apiClient.get(`/api/game/${gameId}/logs`);
+      setLogs(logData);
+      setShowLogs(true);
+    } catch (err) {}
   };
 
   useEffect(() => {
     fetchData();
+
+    // 建立 SSE 实时连接
+    sseRef.current = new EventSource(`/api/realtime/subscribe/${id}`);
+    sseRef.current.onmessage = (event) => {
+      const updatedGame = JSON.parse(event.data);
+      setGames(prev => prev.map(g => g.id === updatedGame.id ? updatedGame : g));
+      Toast.show({ content: '比分已实时更新', duration: 1000 });
+    };
+
+    return () => {
+      sseRef.current?.close();
+    };
   }, [id]);
 
-  // 尝试加锁并进入编辑模式
   const handleStartEdit = async (game: any) => {
     try {
       await apiClient.post(`/api/game/${game.id}/lock`);
       setEditingGameId(game.id);
       setTempScores({ scoreA: game.scoreA, scoreB: game.scoreB });
       setIsEditing(true);
-      Toast.show('已锁定该场次，您可以开始录入比分');
-    } catch (err) {
-      // 锁定失败
-    }
+    } catch (err) {}
   };
 
-  // 保存比分并释放锁
   const handleSaveScore = async () => {
     if (!editingGameId) return;
     try {
       await apiClient.post(`/api/game/${editingGameId}/score`, null, {
         params: { scoreA: tempScores.scoreA, scoreB: tempScores.scoreB }
       });
-      Toast.show({ icon: 'success', content: '比分已保存' });
+      Toast.show({ icon: 'success', content: '更新成功' });
       setIsEditing(false);
       setEditingGameId(null);
       fetchData();
     } catch (err) {}
   };
 
-  // 取消编辑并手动释放锁
-  const handleCancelEdit = async () => {
-    if (!editingGameId) return;
-    try {
-      await apiClient.post(`/api/game/${editingGameId}/unlock`);
-      setIsEditing(false);
-      setEditingGameId(null);
-    } catch (err) {}
-  };
-
-  if (!match) return <div className="p-10 text-center text-neutral-500">加载中...</div>;
+  if (!match) return null;
 
   return (
-    <div className="pb-10">
-      <NavBar onBack={() => navigate(-1)} className="sticky top-0 bg-neutral-900 border-b border-neutral-800">
+    <div className="pb-10 bg-neutral-950 min-h-screen text-white">
+      <NavBar onBack={() => navigate(-1)} className="bg-neutral-900 border-b border-neutral-800">
         赛事详情
       </NavBar>
 
-      {/* 赛事基础信息卡片 */}
       <div className="p-4">
-        <div className="bg-gradient-to-br from-primary to-green-700 rounded-3xl p-6 shadow-lg mb-6">
-          <h1 className="text-2xl font-bold mb-2">{match.title}</h1>
-          <div className="flex items-center text-green-100 text-sm space-x-4">
-            <span className="flex items-center"><Clock size={14} className="mr-1" /> {dayjs(match.startTime).format('MM-DD HH:mm')}</span>
-            <span>📍 {match.location}</span>
+        {/* 核心赛事卡片 */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 mb-6">
+          <div className="flex justify-between items-start mb-4">
+            <h1 className="text-xl font-bold">{match.title}</h1>
+            <Tag color="primary" fill="outline" className="rounded-full">
+              {match.status === 'ONGOING' ? '进行中' : '报名中'}
+            </Tag>
           </div>
+          <div className="grid grid-cols-2 gap-4 text-xs text-neutral-400 mb-4">
+            <div className="flex items-center"><Clock size={12} className="mr-1"/> {dayjs(match.startTime).format('YYYY-MM-DD HH:mm')}</div>
+            <div className="flex items-center text-right justify-end">📍 {match.location}</div>
+          </div>
+          
+          <Divider style={{ borderColor: 'rgba(255,255,255,0.05)' }} />
+          
           <div className="mt-4 flex justify-between items-end">
             <div className="bg-black/20 px-3 py-1 rounded-full text-xs text-white">
               人均: ¥{match.perPersonCost || '--'}
             </div>
-            <Button size="mini" color="primary" fill="solid" className="bg-white text-green-700 rounded-full font-bold">
-              一键报名
-            </Button>
+            <Space>
+              <Button 
+                size="mini" 
+                fill="none" 
+                className="text-white/80 border border-white/20 rounded-full"
+                onClick={() => navigate(`/matches/${id}/finance`)}
+              >
+                <CircleDollarSign size={14} className="mr-1" /> 费用管理
+              </Button>
+              <Button size="mini" color="primary" fill="solid" className="bg-white text-green-700 rounded-full font-bold">
+                一键报名
+              </Button>
+            </Space>
           </div>
         </div>
 
-        <h3 className="text-lg font-bold mb-4 flex items-center">
-          <Trophy size={18} className="mr-2 text-yellow-500" /> 对阵实况
-        </h3>
+        {/* 现场记分牌模式 */}
+        <div className="space-y-6">
+          {games.map((game) => (
+            <div key={game.id} className="bg-neutral-900 rounded-3xl p-1 border border-neutral-800 overflow-hidden">
+              <div className="flex items-center p-6">
+                {/* 队 A */}
+                <div className="flex-1 text-center">
+                  <div className="text-sm text-neutral-500 mb-2 font-medium">队 {game.teamAIndex + 1}</div>
+                  {isEditing && editingGameId === game.id ? (
+                    <button 
+                      onClick={() => setTempScores(s => ({...s, scoreA: s.scoreA + 1}))}
+                      className="w-20 h-20 bg-primary/10 border-2 border-primary text-primary rounded-2xl text-3xl font-bold active:scale-95 transition-transform"
+                    >
+                      {tempScores.scoreA}
+                    </button>
+                  ) : (
+                    <div className="text-5xl font-black">{game.scoreA}</div>
+                  )}
+                </div>
 
-        {/* 场次列表 */}
-        {games.map((game) => (
-          <Card key={game.id} className="mb-4 bg-neutral-800 border-none rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between p-4">
-              <div className="text-center flex-1">
-                <div className="w-12 h-12 bg-neutral-700 rounded-full mx-auto mb-2 flex items-center justify-center font-bold text-xl">A</div>
-                <div className="text-xs text-neutral-400">队 {game.teamAIndex + 1}</div>
+                {/* 分割线与状态 */}
+                <div className="px-4 flex flex-col items-center">
+                  <div className="text-2xl font-black text-neutral-700">:</div>
+                  {!isEditing && (
+                    <Button fill="none" size="mini" onClick={() => fetchLogs(game.id)} className="text-neutral-500 mt-2">
+                      <History size={14} />
+                    </Button>
+                  )}
+                </div>
+
+                {/* 队 B */}
+                <div className="flex-1 text-center">
+                  <div className="text-sm text-neutral-500 mb-2 font-medium">队 {game.teamBIndex + 1}</div>
+                  {isEditing && editingGameId === game.id ? (
+                    <button 
+                      onClick={() => setTempScores(s => ({...s, scoreB: s.scoreB + 1}))}
+                      className="w-20 h-20 bg-primary/10 border-2 border-primary text-primary rounded-2xl text-3xl font-bold active:scale-95 transition-transform"
+                    >
+                      {tempScores.scoreB}
+                    </button>
+                  ) : (
+                    <div className="text-5xl font-black">{game.scoreB}</div>
+                  )}
+                </div>
               </div>
 
-              <div className="flex flex-col items-center px-4">
+              {/* 底部控制区 */}
+              <div className="bg-neutral-800/50 p-3 flex justify-center">
                 {isEditing && editingGameId === game.id ? (
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <Stepper value={tempScores.scoreA} onChange={v => setTempScores(s => ({...s, scoreA: v}))} />
-                      <span className="text-2xl font-black">:</span>
-                      <Stepper value={tempScores.scoreB} onChange={v => setTempScores(s => ({...s, scoreB: v}))} />
-                    </div>
-                    <Space>
-                      <Button color="primary" size="mini" onClick={handleSaveScore} className="flex items-center">
-                        <Save size={14} className="mr-1" /> 保存
-                      </Button>
-                      <Button size="mini" onClick={handleCancelEdit} className="flex items-center">
-                        <X size={14} className="mr-1" /> 取消
-                      </Button>
-                    </Space>
-                  </div>
+                  <Space>
+                    <Button color="primary" onClick={handleSaveScore} className="px-8 rounded-full">保存比分</Button>
+                    <Button onClick={() => {setIsEditing(false); apiClient.post(`/api/game/${game.id}/unlock`);}} className="rounded-full">取消</Button>
+                  </Space>
                 ) : (
-                  <div className="text-center">
-                    <div className="text-4xl font-black mb-1">{game.scoreA} : {game.scoreB}</div>
-                    {game.status === 'PLAYING' && <Tag color="success" fill="outline">进行中</Tag>}
-                    {game.status === 'FINISHED' && <Tag color="default">已结束</Tag>}
-                    <Button 
-                      size="mini" 
-                      fill="none" 
-                      className="mt-2 text-primary flex items-center"
-                      onClick={() => handleStartEdit(game)}
-                      disabled={isEditing}
-                    >
-                      <Edit size={14} className="mr-1" /> 修改比分
-                    </Button>
-                  </div>
+                  <Button 
+                    fill="none" 
+                    color="primary" 
+                    onClick={() => handleStartEdit(game)}
+                    disabled={isEditing}
+                    className="flex items-center text-sm"
+                  >
+                    <Edit size={14} className="mr-1" /> 录入实况
+                  </Button>
                 )}
               </div>
-
-              <div className="text-center flex-1">
-                <div className="w-12 h-12 bg-neutral-700 rounded-full mx-auto mb-2 flex items-center justify-center font-bold text-xl">B</div>
-                <div className="text-xs text-neutral-400">队 {game.teamBIndex + 1}</div>
-              </div>
             </div>
-          </Card>
-        ))}
+          ))}
+        </div>
+
+        {/* 战报卡片生成 */}
+        <MatchPoster match={match} games={games} />
+
+        {/* 审计日志抽屉 (简化版) */}
+        {showLogs && (
+          <div className="mt-10 animate-in slide-in-from-bottom duration-300">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold flex items-center text-neutral-300">
+                <History size={18} className="mr-2" /> 比分修正记录
+              </h3>
+              <Button size="mini" fill="none" onClick={() => setShowLogs(false)}><X size={16}/></Button>
+            </div>
+            <Steps direction='vertical' className="text-sm">
+              {logs.map((log: any) => (
+                <Step 
+                  key={log.id} 
+                  title={`${log.scoreA} : ${log.scoreB}`} 
+                  description={
+                    <div className="text-neutral-500 flex items-center mt-1">
+                      <User size={12} className="mr-1"/> ID:{log.operatorId} · {dayjs(log.createdAt).format('HH:mm:ss')}
+                      <Tag size="mini" className="ml-2">{log.type}</Tag>
+                    </div>
+                  }
+                  status='finish'
+                />
+              ))}
+            </Steps>
+          </div>
+        )}
       </div>
     </div>
   );

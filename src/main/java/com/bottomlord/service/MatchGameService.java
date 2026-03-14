@@ -76,6 +76,14 @@ public interface MatchGameService extends IService<MatchGame> {
     void finishGame(Long gameId);
     
     /**
+     * 获取指定赛事的比分变动日志
+     *
+     * @param gameId 场次ID
+     * @return 日志列表
+     */
+    List<com.bottomlord.entity.MatchScoreLog> getScoreLogs(Long gameId);
+
+    /**
      * 获取指定赛事的所有比赛场次
      *
      * @param matchId 大赛事ID

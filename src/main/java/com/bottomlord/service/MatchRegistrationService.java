@@ -13,6 +13,15 @@ import java.util.List;
 public interface MatchRegistrationService extends IService<MatchRegistration> {
 
     /**
+     * 更新支付状态
+     *
+     * @param matchId 赛事ID
+     * @param playerId 球员ID
+     * @param paymentStatus 新状态
+     */
+    void updatePaymentStatus(Long matchId, Long playerId, String paymentStatus);
+
+    /**
      * 获取指定赛事的所有有效报名（未取消）
      *
      * @param matchId 赛事ID

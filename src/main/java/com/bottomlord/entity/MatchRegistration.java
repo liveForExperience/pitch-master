@@ -35,5 +35,10 @@ public class MatchRegistration implements Serializable {
      */
     private String status;
 
+    /**
+     * 支付状态：UNPAID, PAID
+     */
+    private String paymentStatus;
+
     private LocalDateTime createdAt;
 }

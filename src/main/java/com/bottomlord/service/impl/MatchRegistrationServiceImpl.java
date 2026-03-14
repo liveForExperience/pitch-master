@@ -1,6 +1,7 @@
 package com.bottomlord.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.bottomlord.entity.MatchRegistration;
 import com.bottomlord.mapper.MatchRegistrationMapper;
@@ -16,6 +17,14 @@ import java.util.List;
  */
 @Service
 public class MatchRegistrationServiceImpl extends ServiceImpl<MatchRegistrationMapper, MatchRegistration> implements MatchRegistrationService {
+
+    @Override
+    public void updatePaymentStatus(Long matchId, Long playerId, String paymentStatus) {
+        this.update(new LambdaUpdateWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .eq(MatchRegistration::getPlayerId, playerId)
+                .set(MatchRegistration::getPaymentStatus, paymentStatus));
+    }
 
     @Override
     public List<MatchRegistration> getValidRegistrations(Long matchId) {
