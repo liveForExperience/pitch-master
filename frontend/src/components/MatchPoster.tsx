@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { Button, Toast } from 'antd-mobile';
-import { ShareAltOutline } from 'antd-mobile-icons';
+import { Share2 } from 'lucide-react';
 import dayjs from 'dayjs';
 
 interface MatchPosterProps {
@@ -40,7 +40,7 @@ const MatchPoster: React.FC<MatchPosterProps> = ({ match, games }) => {
 
   return (
     <div className="mt-8 px-4">
-      {/* 隐藏的导出区域：使用绝对定位移出屏幕而非 display:none，否则 html2canvas 无法捕获 */}
+      {/* 隐藏的导出区域 */}
       <div className="fixed -left-[9999px] top-0">
         <div 
           ref={posterRef}
@@ -100,7 +100,7 @@ const MatchPoster: React.FC<MatchPosterProps> = ({ match, games }) => {
         onClick={handleDownload}
         className="rounded-2xl py-4 flex items-center justify-center font-bold"
       >
-        <ShareAltOutline className="mr-2 text-xl" /> 生成朋友圈战报卡片
+        <Share2 className="mr-2 text-xl" /> 生成朋友圈战报卡片
       </Button>
     </div>
   );

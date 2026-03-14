@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  * @author Gemini
  */
 @Data
-@TableName("user")
+@TableName("`user`")
 public class User implements Serializable {
 
     private static final long serialVersionUID = 1L;

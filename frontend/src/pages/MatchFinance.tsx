@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NavBar, List, Switch, Toast, Tag, Skeleton, Space } from 'antd-mobile';
-import { CheckCircle, Circle, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import apiClient from '../api/client';
 
 const MatchFinance: React.FC = () => {
@@ -17,8 +17,7 @@ const MatchFinance: React.FC = () => {
       const regs: any = await apiClient.get(`/api/match/${id}/registrations`);
       setRegistrations(regs);
 
-      // 2. 获取对应的球员详情（用于显示昵称）
-      // 这里可以优化为批量查询接口，暂时循环获取或假设前端已有缓存
+      // 2. 获取对应的球员详情
       const playerMap: Record<number, any> = {};
       for (const reg of regs) {
         if (!playerMap[reg.playerId]) {
@@ -86,7 +85,7 @@ const MatchFinance: React.FC = () => {
                   }
                   description={
                     <div className="flex space-x-2 mt-1">
-                      <Tag color={reg.status === 'NO_SHOW' ? 'danger' : 'success'} fill="outline" size="mini">
+                      <Tag color={reg.status === 'NO_SHOW' ? 'danger' : 'success'} fill="outline">
                         {reg.status === 'NO_SHOW' ? '补缴(缺席)' : '正常出勤'}
                       </Tag>
                     </div>

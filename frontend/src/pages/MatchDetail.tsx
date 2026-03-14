@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { NavBar, Card, Button, Tag, Toast, Space, Divider, Steps } from 'antd-mobile';
-import { Edit, Save, X, Trophy, Clock, History, User, CircleDollarSign } from 'lucide-react';
+import { NavBar, Button, Tag, Toast, Space, Divider, Steps } from 'antd-mobile';
+import { Edit, X, Clock, History, User, CircleDollarSign } from 'lucide-react';
 import apiClient from '../api/client';
 import dayjs from 'dayjs';
 import MatchPoster from '../components/MatchPoster';
@@ -209,7 +209,7 @@ const MatchDetail: React.FC = () => {
                   description={
                     <div className="text-neutral-500 flex items-center mt-1">
                       <User size={12} className="mr-1"/> ID:{log.operatorId} · {dayjs(log.createdAt).format('HH:mm:ss')}
-                      <Tag size="mini" className="ml-2">{log.type}</Tag>
+                      <Tag className="ml-2">{log.type}</Tag>
                     </div>
                   }
                   status='finish'
