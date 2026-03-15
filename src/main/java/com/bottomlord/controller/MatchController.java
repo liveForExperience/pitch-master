@@ -1,10 +1,10 @@
 package com.bottomlord.controller;
 
 import com.bottomlord.common.base.Result;
-import com.bottomlord.entity.MatchEvent;
+import com.bottomlord.entity.Match;
 import com.bottomlord.entity.MatchRegistration;
 import com.bottomlord.exporter.MatchReportExporter;
-import com.bottomlord.service.MatchEventService;
+import com.bottomlord.service.MatchService;
 import com.bottomlord.service.MatchRegistrationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -14,10 +14,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/match")
-public class MatchEventController {
+public class MatchController {
 
     @Autowired
-    private MatchEventService matchEventService;
+    private MatchService matchService;
 
     @Autowired
     private MatchRegistrationService registrationService;
@@ -26,40 +26,52 @@ public class MatchEventController {
     private MatchReportExporter reportExporter;
 
     @GetMapping("/list")
-    public Result<List<MatchEvent>> listMatches() {
-        return Result.success(matchEventService.listUpcomingMatches());
+    public Result<List<Match>> listMatches() {
+        return Result.success(matchService.listUpcomingMatches());
     }
 
     @GetMapping("/{id}")
-    public Result<MatchEvent> getMatch(@PathVariable Long id) {
-        return Result.success(matchEventService.getById(id));
+    public Result<Match> getMatch(@PathVariable Long id) {
+        return Result.success(matchService.getById(id));
     }
 
     @PostMapping("/publish")
-    public Result<MatchEvent> publishMatch(@RequestBody MatchEvent matchEvent) {
-        return Result.success(matchEventService.publishMatch(matchEvent));
+    public Result<Match> publishMatch(@RequestBody Match match) {
+        return Result.success(matchService.publishMatch(match));
+    }
+
+    @PostMapping("/{id}/publish")
+    public Result<Void> startRegistration(@PathVariable Long id) {
+        matchService.startRegistration(id);
+        return Result.success();
     }
 
     @PostMapping("/{matchId}/register")
     public Result<Void> register(@PathVariable Long matchId, @RequestParam Long playerId) {
-        matchEventService.registerForMatch(matchId, playerId);
+        matchService.registerForMatch(matchId, playerId);
         return Result.success();
     }
 
     @PostMapping("/{matchId}/cancel")
     public Result<Void> cancelRegistration(@PathVariable Long matchId, @RequestParam Long playerId) {
-        matchEventService.cancelRegistration(matchId, playerId);
+        matchService.cancelRegistration(matchId, playerId);
         return Result.success();
     }
 
     @PostMapping("/{matchId}/group")
     public Result<Map<Integer, List<Long>>> confirmAndGroup(@PathVariable Long matchId) {
-        return Result.success(matchEventService.confirmAndGroup(matchId));
+        return Result.success(matchService.confirmAndGroup(matchId));
+    }
+
+    @PostMapping("/{matchId}/start-with-groups")
+    public Result<Void> startWithGroups(@PathVariable Long matchId, @RequestBody Map<Integer, List<Long>> finalGroups) {
+        matchService.startWithGroups(matchId, finalGroups);
+        return Result.success();
     }
 
     @PostMapping("/{matchId}/finish")
     public Result<Void> finishMatch(@PathVariable Long matchId) {
-        matchEventService.finishMatch(matchId);
+        matchService.finishMatch(matchId);
         return Result.success();
     }
 
@@ -76,7 +88,7 @@ public class MatchEventController {
 
     @GetMapping("/{matchId}/report")
     public Result<Object> getMatchReport(@PathVariable Long matchId) {
-        MatchEvent match = matchEventService.getById(matchId);
+        Match match = matchService.getById(matchId);
         if (match == null) {
             return Result.error(404, "赛事不存在");
         }

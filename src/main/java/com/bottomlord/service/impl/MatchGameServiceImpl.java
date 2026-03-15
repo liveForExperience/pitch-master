@@ -58,7 +58,7 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         scoreLogMapper.insert(log);
 
         // 2. 实时广播 (推送给该赛事下的所有监听者)
-        sseManager.broadcast(game.getMatchId(), game);
+        sseManager.broadcastToMatch(game.getMatchId(), game);
     }
 
     private void checkLock(MatchGame game) {

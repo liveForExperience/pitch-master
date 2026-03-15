@@ -2,10 +2,10 @@ package com.bottomlord.service;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.bottomlord.entity.MatchEvent;
+import com.bottomlord.entity.Match;
 import com.bottomlord.entity.MatchRegistration;
-import com.bottomlord.mapper.MatchEventMapper;
-import com.bottomlord.service.impl.MatchEventServiceImpl;
+import com.bottomlord.mapper.MatchMapper;
+import com.bottomlord.service.impl.MatchServiceImpl;
 import com.bottomlord.strategy.GroupingStrategy;
 import com.bottomlord.strategy.GroupingStrategyFactory;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -32,10 +32,10 @@ import static org.mockito.Mockito.*;
 class MatchLifecycleTest {
 
     @InjectMocks
-    private MatchEventServiceImpl matchEventService;
+    private MatchServiceImpl matchService;
 
     @Mock
-    private MatchEventMapper matchEventMapper;
+    private MatchMapper matchMapper;
 
     @Mock
     private MatchRegistrationService registrationService;
@@ -44,10 +44,16 @@ class MatchLifecycleTest {
     private MatchGameService gameService;
 
     @Mock
+    private PlayerService playerService;
+
+    @Mock
     private GroupingStrategyFactory strategyFactory;
 
     @Mock
     private GroupingStrategy mockStrategy;
+
+    @Mock
+    private com.bottomlord.common.util.SseManager sseManager;
 
     @BeforeAll
     static void initMybatisPlus() {
@@ -58,19 +64,20 @@ class MatchLifecycleTest {
     @BeforeEach
     void setUp() {
         // 解决 MyBatis-Plus ServiceImpl 中的 baseMapper 无法通过 @InjectMocks 注入的问题
-        ReflectionTestUtils.setField(matchEventService, "baseMapper", matchEventMapper);
+        ReflectionTestUtils.setField(matchService, "baseMapper", matchMapper);
     }
 
     @Test
     @DisplayName("测试赛事发布、分组及生成场次完整流程")
     void testMatchLifecycle() {
         // 1. 模拟发布赛事
-        MatchEvent match = new MatchEvent();
+        Match match = new Match();
         match.setId(1L);
         match.setNumGroups(2);
         match.setPlayersPerGroup(5);
+        match.setStatus(Match.STATUS_PUBLISHED);
         
-        when(matchEventMapper.selectById(1L)).thenReturn(match);
+        when(matchMapper.selectById(1L)).thenReturn(match);
 
         // 2. 模拟获取报名人员
         List<MatchRegistration> mockRegs = new ArrayList<>();
@@ -89,12 +96,19 @@ class MatchLifecycleTest {
         when(strategyFactory.getDefaultStrategy()).thenReturn(mockStrategy);
         when(mockStrategy.allocate(anyList(), eq(2), anyMap())).thenReturn(mockAllocation);
 
-        // Act - 执行分组并开赛
-        Map<Integer, List<Long>> result = matchEventService.confirmAndGroup(1L);
+        // Act - 1. 执行分组草拟
+        Map<Integer, List<Long>> allocation = matchService.confirmAndGroup(1L);
 
-        // Assert - 验证分组结果
-        assertNotNull(result);
-        assertEquals(2, result.size());
+        // Assert - 验证草拟结果
+        assertNotNull(allocation);
+        assertEquals(2, allocation.size());
+        assertEquals(Match.STATUS_GROUPING_DRAFT, match.getStatus());
+
+        // Act - 2. 确认分组并正式开始赛事 (此步会生成场次并更新报名分组索引)
+        matchService.startWithGroups(1L, allocation);
+
+        // Assert - 验证最终状态与副作用
+        assertEquals(Match.STATUS_ONGOING, match.getStatus());
         
         // 验证报名状态更新被调用 (由于是两组，每组5人，总共更新10次)
         verify(registrationService, times(10)).update(any());

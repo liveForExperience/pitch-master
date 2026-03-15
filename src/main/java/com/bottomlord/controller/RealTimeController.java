@@ -20,7 +20,8 @@ public class RealTimeController {
     @GetMapping("/subscribe/{matchId}")
     public SseEmitter subscribe(@PathVariable Long matchId) {
         User user = (User) SecurityUtils.getSubject().getPrincipal();
-        String userId = user != null ? user.getId().toString() : "anonymous-" + System.currentTimeMillis();
-        return sseManager.subscribe(matchId, userId);
+        // 确保使用 Long 类型的 userId，或者在匿名情况下处理为特殊值（SseManager 期待 Long）
+        Long userId = user != null ? user.getId() : -1L; 
+        return sseManager.subscribeMatch(matchId, userId);
     }
 }

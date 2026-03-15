@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: h2 # 默认激活 H2 配置
+    active: mysql # 默认激活 MySQL 配置
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -21,3 +21,8 @@ logging:
 match:
   grouping:
     default-strategy: SIMPLE_SKILL_BALANCE
+
+app:
+  rating:
+    decay:
+      enabled: true # 是否开启球员评分自动衰减功能

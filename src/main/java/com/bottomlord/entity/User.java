@@ -1,6 +1,7 @@
 package com.bottomlord.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -29,10 +30,16 @@ public class User implements Serializable {
 
     private String realName;
 
+    @TableField(exist = false)
+    private java.util.List<Role> roles;
+
     /**
-     * 角色：ADMIN, USER
+     * 获取角色名称列表
      */
-    private String role;
+    public java.util.List<String> getRoleNames() {
+        if (roles == null) return new java.util.ArrayList<>();
+        return roles.stream().map(Role::getName).collect(java.util.stream.Collectors.toList());
+    }
 
     /**
      * 状态：1-正常，0-禁用

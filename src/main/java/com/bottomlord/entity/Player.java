@@ -1,6 +1,7 @@
 package com.bottomlord.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -21,6 +22,29 @@ public class Player implements Serializable {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+
+    /**
+     * 所属赛事租户ID
+     */
+    private Long tournamentId;
+
+    /**
+     * 所属俱乐部ID
+     */
+    @TableField("real_club_id")
+    private Long clubId;
+
+    /**
+     * 冗余字段：所属俱乐部名称 (仅用于前端展示，不持久化)
+     */
+    @TableField(exist = false)
+    private String clubName;
+
+    /**
+     * 冗余字段：所属赛事名称 (仅用于前端展示，不持久化)
+     */
+    @TableField(exist = false)
+    private String tournamentName;
 
     private Long userId;
 
@@ -50,6 +74,11 @@ public class Player implements Serializable {
      * 状态：1-活跃，0-隐退
      */
     private Integer status;
+
+    /**
+     * 最后一次参加比赛的时间 (用于计算评分衰减)
+     */
+    private LocalDateTime lastMatchTime;
 
     private LocalDateTime createdAt;
 

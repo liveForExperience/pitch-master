@@ -1,7 +1,7 @@
 package com.bottomlord.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bottomlord.entity.MatchEvent;
+import com.bottomlord.entity.Match;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
@@ -10,5 +10,5 @@ import org.apache.ibatis.annotations.Mapper;
  * @author Gemini
  */
 @Mapper
-public interface MatchEventMapper extends BaseMapper<MatchEvent> {
+public interface MatchMapper extends BaseMapper<Match> {
 }

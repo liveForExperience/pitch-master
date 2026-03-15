@@ -1,6 +1,5 @@
 package com.bottomlord.shiro;
 
-import cn.hutool.crypto.SecureUtil;
 import com.bottomlord.entity.User;
 import com.bottomlord.service.UserService;
 import org.apache.shiro.authc.*;
@@ -22,7 +21,7 @@ import org.springframework.stereotype.Component;
 public class UserRealm extends AuthorizingRealm {
 
     @Autowired
-    @Lazy // 解决循环依赖问题
+    @Lazy
     private UserService userService;
 
     /**
@@ -32,9 +31,13 @@ public class UserRealm extends AuthorizingRealm {
     protected AuthorizationInfo doGetAuthorizationInfo(PrincipalCollection principals) {
         User user = (User) principals.getPrimaryPrincipal();
         SimpleAuthorizationInfo info = new SimpleAuthorizationInfo();
-        // 加载角色标识
-        if (cn.hutool.core.util.StrUtil.isNotBlank(user.getRole())) {
-            info.addRole(user.getRole());
+        
+        // 重新从数据库获取最新角色（或者在 User 对象里已经带了）
+        java.util.List<com.bottomlord.entity.Role> roles = userService.getUserRoles(user.getId());
+        if (roles != null) {
+            for (com.bottomlord.entity.Role role : roles) {
+                info.addRole(role.getName());
+            }
         }
         return info;
     }
@@ -56,25 +59,12 @@ public class UserRealm extends AuthorizingRealm {
             throw new LockedAccountException("账号已被锁定");
         }
 
-        // 注意：此处 Shiro 会自动进行密码校验，但由于我们使用了自定义盐值逻辑，
-        // 这里返回 SimpleAuthenticationInfo 时需告知 Shiro 密码和盐。
+        // 返回认证信息，Shiro 会使用 HashedCredentialsMatcher 进行自动校验
         return new SimpleAuthenticationInfo(
                 user, 
                 user.getPassword(), 
-                new ShiroSalt(user.getSalt()), 
+                ByteSource.Util.bytes(user.getSalt()), 
                 getName()
         );
-    }
-
-    /**
-     * 自定义盐值包装类，适配 Shiro
-     */
-    public static class ShiroSalt implements ByteSource {
-        private final String salt;
-        public ShiroSalt(String salt) { this.salt = salt; }
-        @Override public byte[] getBytes() { return salt.getBytes(); }
-        @Override public String toHex() { return cn.hutool.core.util.HexUtil.encodeHexStr(salt); }
-        @Override public String toBase64() { return cn.hutool.core.codec.Base64.encode(salt); }
-        @Override public boolean isEmpty() { return salt == null || salt.isEmpty(); }
     }
 }

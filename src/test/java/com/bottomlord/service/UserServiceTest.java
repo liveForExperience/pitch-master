@@ -42,8 +42,8 @@ class UserServiceTest {
         assertNotNull(registeredUser.getSalt(), "盐值不能为空");
         assertNotEquals("123456", registeredUser.getPassword(), "密码应被加密");
         
-        // 验证加密结果是否符合预期 (SHA-256: password + salt)
-        String expectedPassword = SecureUtil.sha256("123456" + registeredUser.getSalt());
+        // 验证加密结果是否符合预期 (SHA-256: salt + password)
+        String expectedPassword = SecureUtil.sha256(registeredUser.getSalt() + "123456");
         assertEquals(expectedPassword, registeredUser.getPassword(), "加密算法不正确");
         
         verify(userMapper, times(1)).insert(any(User.class));

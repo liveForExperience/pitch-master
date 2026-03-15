@@ -1,34 +1,93 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  /* Apple Design Palette */
+  --apple-black: #000000;
+  --apple-dark-gray: #1c1c1e;
+  --apple-soft-gray: #2c2c2e;
+  --apple-blue: #007aff;
+  --apple-green: #30d158;
+  --primary-glow: rgba(48, 209, 88, 0.15);
+}
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #0a0a0a; /* 更深邃的背景，对齐 UI 设计 */
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
+  background-color: var(--apple-black);
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+/* 全局滚动条美化 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--apple-black);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--apple-soft-gray);
+  border-radius: 10px;
+}
+
+#root {
   min-height: 100vh;
-  background-color: #0a0a0a;
 }
 
-/* 自定义 antd-mobile 样式对齐足球风 */
-:root {
-  --adm-color-primary: #1DB954;
-  --adm-font-family: 'Inter', system-ui, sans-serif;
+/* 磨砂玻璃效果 */
+.glass {
+  background: rgba(28, 28, 30, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
-.adm-nav-bar {
-  --adm-font-size-main: 18px;
-  font-weight: 800;
+/* 呼吸灯动效 */
+@keyframes glow {
+  0% { box-shadow: 0 0 5px var(--primary-glow); }
+  50% { box-shadow: 0 0 20px var(--primary-glow); }
+  100% { box-shadow: 0 0 5px var(--primary-glow); }
 }
+
+.animate-glow {
+  animation: glow 3s infinite;
+}
+
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus,
+.auth-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 1000px transparent inset;
+  box-shadow: 0 0 0 1000px transparent inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.auth-selector .adm-selector-item {
+  min-height: 56px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #a3a3a3;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.auth-selector .adm-selector-item-active {
+  border-color: rgba(29, 185, 84, 0.35);
+  background: rgba(29, 185, 84, 0.14);
+  color: #ffffff;
+}
+
+.auth-selector .adm-selector-item-check-mark-wrapper {
+  color: #1db954;
+}
+

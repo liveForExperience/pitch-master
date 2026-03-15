@@ -2,7 +2,7 @@ package com.bottomlord.exporter.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateUtil;
-import com.bottomlord.entity.MatchEvent;
+import com.bottomlord.entity.Match;
 import com.bottomlord.entity.MatchGame;
 import com.bottomlord.entity.MatchGoal;
 import com.bottomlord.entity.Player;
@@ -41,17 +41,17 @@ public class TextMatchReportExporter implements MatchReportExporter {
     private UserService userService;
 
     @Override
-    public Object export(MatchEvent matchEvent) {
+    public Object export(Match match) {
         StringBuilder sb = new StringBuilder();
         sb.append("==============================\n");
-        sb.append("      赛事战报: ").append(matchEvent.getTitle()).append("\n");
+        sb.append("      赛事战报: ").append(match.getTitle()).append("\n");
         sb.append("==============================\n");
-        sb.append("日期: ").append(DateUtil.format(matchEvent.getStartTime(), "yyyy-MM-dd HH:mm")).append("\n");
-        sb.append("地点: ").append(matchEvent.getLocation()).append("\n");
-        sb.append("费用: ").append(matchEvent.getPerPersonCost()).append(" 元/人\n");
+        sb.append("日期: ").append(DateUtil.format(match.getStartTime(), "yyyy-MM-dd HH:mm")).append("\n");
+        sb.append("地点: ").append(match.getLocation()).append("\n");
+        sb.append("费用: ").append(match.getPerPersonCost()).append(" 元/人\n");
         sb.append("------------------------------\n");
 
-        List<MatchGame> games = gameService.listByMatchId(matchEvent.getId());
+        List<MatchGame> games = gameService.listByMatchId(match.getId());
         if (CollUtil.isEmpty(games)) {
             sb.append("暂无比赛记录。\n");
         } else {
@@ -84,7 +84,7 @@ public class TextMatchReportExporter implements MatchReportExporter {
 
         sb.append("------------------------------\n");
         sb.append("射手榜与助攻榜:\n");
-        generateStats(matchEvent.getId(), sb);
+        generateStats(match.getId(), sb);
         sb.append("==============================\n");
 
         return sb.toString();

@@ -3,10 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { NavBar, List, Switch, Toast, Tag, Skeleton, Space } from 'antd-mobile';
 import { User } from 'lucide-react';
 import apiClient from '../api/client';
+import useAuthStore from '../store/useAuthStore';
 
 const MatchFinance: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin, fetched } = useAuthStore();
+
+  useEffect(() => {
+    if (fetched && !isAdmin()) {
+      Toast.show({ icon: 'fail', content: '权限不足' });
+      navigate(`/matches/${id}`, { replace: true });
+    }
+  }, [fetched, isAdmin, navigate, id]);
+
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [players, setPlayers] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(true);
@@ -57,8 +67,19 @@ const MatchFinance: React.FC = () => {
     } catch (err) {}
   };
 
-  const getPlayerName = (playerId: number) => {
-    return players[playerId]?.nickname || `加载中...`;
+  const getPlayerDisplay = (playerId: number) => {
+    const p = players[playerId];
+    if (!p) return <span className="text-neutral-600 italic">加载中...</span>;
+    return (
+      <div className="flex flex-col">
+        <span className="font-bold text-white text-base">{p.nickname}</span>
+        {p.clubName && (
+          <span className="text-[10px] text-primary font-black uppercase tracking-widest mt-0.5">
+            {p.clubName}
+          </span>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -95,9 +116,9 @@ const MatchFinance: React.FC = () => {
                     </div>
                   }
                 >
-                  <span className={reg.paymentStatus === 'PAID' ? 'text-neutral-600 line-through' : 'text-neutral-100 font-semibold'}>
-                    {getPlayerName(reg.playerId)}
-                  </span>
+                  <div className={reg.paymentStatus === 'PAID' ? 'opacity-40 grayscale pointer-events-none' : ''}>
+                    {getPlayerDisplay(reg.playerId)}
+                  </div>
                 </List.Item>
               ))}
             </List>

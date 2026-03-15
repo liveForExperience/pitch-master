@@ -1,6 +1,6 @@
-# Oldboy Club Manager (老男孩俱乐部管理平台)
+# PitchMaster (球场大师)
 
-**Oldboy Club Manager** 是一个专为业余足球爱好者设计的开源赛事与俱乐部管理平台。它不仅是一个报名工具，更是一个集成了自动化平衡分组算法、比赛过程管理及赛后战报生成的闭环管理系统。
+**PitchMaster** 是一个专为业余足球爱好者设计的开源赛事与俱乐部管理平台。它不仅是一个报名工具，更是一个集成了自动化平衡分组算法、比赛过程管理及赛后战报生成的闭环管理系统。
 
 ## 🌟 核心特性 (Features)
 
@@ -39,7 +39,7 @@
 ## 🚀 快速开始
 
 ### 后端启动
-1.  **数据库准备**: 创建 MySQL 数据库 `oldboy_club_manager`。
+1.  **数据库准备**: 创建 MySQL 数据库 `pitch_master`。
 2.  **配置修改**: 修改 `src/main/resources/application.yml` 中的数据库账号密码。
 3.  **运行项目**: 运行 `com.bottomlord.Main` 类。
 

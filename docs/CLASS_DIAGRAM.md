@@ -29,7 +29,7 @@ classDiagram
     GroupingStrategyFactoryImpl o-- GroupingStrategy : Manages
 
     %% 赛事与场次管理服务
-    class MatchEventService {
+    class MatchService {
         <<interface>>
         +publishMatch()
         +registerForMatch()
@@ -45,19 +45,19 @@ classDiagram
         +updateScoreManually()
     }
     
-    class MatchEventServiceImpl {
+    class MatchServiceImpl {
         -MatchRegistrationService regService
         -MatchGameService gameService
         -GroupingStrategyFactory strategyFactory
     }
-    MatchEventService <|.. MatchEventServiceImpl
-    MatchEventServiceImpl --> GroupingStrategyFactory : uses
-    MatchEventServiceImpl --> MatchGameService : generates games
+    MatchService <|.. MatchServiceImpl
+    MatchServiceImpl --> GroupingStrategyFactory : uses
+    MatchServiceImpl --> MatchGameService : generates games
 
     %% 报表导出系统 (策略模式)
     class MatchReportExporter {
         <<interface>>
-        +export(matchEvent: MatchEvent) Object
+        +export(match: Match) Object
         +getExportType() String
     }
     class TextMatchReportExporter {

@@ -5,6 +5,8 @@ import org.apache.shiro.authc.credential.HashedCredentialsMatcher;
 import org.apache.shiro.mgt.SecurityManager;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
+import org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor;
+import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -33,6 +35,9 @@ public class ShiroConfig {
         filterChainDefinitionMap.put("/auth/unauthenticated", "anon");
         filterChainDefinitionMap.put("/static/**", "anon");
         
+        // SSE 订阅地址也需要开放，或根据业务需求进行认证
+        filterChainDefinitionMap.put("/api/realtime/subscribe/**", "anon");
+        
         // 其他所有请求均需认证
         filterChainDefinitionMap.put("/**", "authc");
 
@@ -45,11 +50,8 @@ public class ShiroConfig {
     @Bean
     public HashedCredentialsMatcher hashedCredentialsMatcher() {
         HashedCredentialsMatcher matcher = new HashedCredentialsMatcher();
-        // 设置加密算法为 SHA-256
         matcher.setHashAlgorithmName("SHA-256");
-        // 设为 1 次 Hash
         matcher.setHashIterations(1);
-        // 是否将存储的凭据进行 16 进制编码
         matcher.setStoredCredentialsHexEncoded(true);
         return matcher;
     }
@@ -66,5 +68,19 @@ public class ShiroConfig {
         DefaultWebSecurityManager securityManager = new DefaultWebSecurityManager();
         securityManager.setRealm(userRealm);
         return securityManager;
+    }
+
+    @Bean
+    public DefaultAdvisorAutoProxyCreator defaultAdvisorAutoProxyCreator() {
+        DefaultAdvisorAutoProxyCreator creator = new DefaultAdvisorAutoProxyCreator();
+        creator.setProxyTargetClass(true);
+        return creator;
+    }
+
+    @Bean
+    public AuthorizationAttributeSourceAdvisor authorizationAttributeSourceAdvisor(SecurityManager securityManager) {
+        AuthorizationAttributeSourceAdvisor advisor = new AuthorizationAttributeSourceAdvisor();
+        advisor.setSecurityManager(securityManager);
+        return advisor;
     }
 }

@@ -38,6 +38,9 @@ public class AdvancedWeightedGroupingStrategy implements GroupingStrategy {
         // 1. 加载数据
         List<Player> players = playerService.listByIds(playerIds);
         List<PlayerRelationship> relations = relationshipService.listBatchRelationships(playerIds);
+        
+        // 构建关系快速索引网 (from -> to -> score)
+        Map<Long, Map<Long, Integer>> relationMap = buildRelationMap(relations);
 
         // 2. 初始化分组容器
         Map<Integer, List<Player>> groups = new HashMap<>();
@@ -46,7 +49,6 @@ public class AdvancedWeightedGroupingStrategy implements GroupingStrategy {
         }
 
         // 3. 按位置分组并排序
-        // 顺序：GK -> DF -> MF -> FW -> UNKNOWN
         Map<String, List<Player>> positionMap = players.stream()
                 .peek(p -> { if(p.getRating() == null) p.setRating(new BigDecimal("5.0")); })
                 .collect(Collectors.groupingBy(p -> p.getPosition() != null ? p.getPosition() : "UNKNOWN"));
@@ -59,14 +61,12 @@ public class AdvancedWeightedGroupingStrategy implements GroupingStrategy {
 
         for (String pos : posOrder) {
             List<Player> posPlayers = positionMap.getOrDefault(pos, new ArrayList<>());
-            // 同位置内部按 Rating 降序并打乱相同分的
             posPlayers.sort(Comparator.comparing(Player::getRating).reversed()
                     .thenComparing(p -> RandomUtil.randomInt()));
 
             for (Player p : posPlayers) {
                 groups.get(currentGroup).add(p);
                 
-                // 蛇形索引移动
                 if (forward) {
                     if (currentGroup < groupCount - 1) { currentGroup++; } 
                     else { forward = false; }
@@ -78,8 +78,8 @@ public class AdvancedWeightedGroupingStrategy implements GroupingStrategy {
         }
 
         // 5. 局部搜索优化 (Local Search / Swapping)
-        // 目标：微调各组之间的 Rating 总和，通过交换同位置的球员来平衡
-        optimizeBalance(groups, groupCount);
+        // 目标：在保持战力平衡的前提下，优化位置重叠处的 Chemistry
+        optimizeBalance(groups, groupCount, relationMap);
 
         // 6. 转换为结果格式
         return groups.entrySet().stream()
@@ -89,9 +89,20 @@ public class AdvancedWeightedGroupingStrategy implements GroupingStrategy {
                 ));
     }
 
-    private void optimizeBalance(Map<Integer, List<Player>> groups, int groupCount) {
-        // 简单实现：尝试 10 次同位置交换，若能降低组间标准差则保留
-        for (int i = 0; i < 10; i++) {
+    private Map<Long, Map<Long, Integer>> buildRelationMap(List<PlayerRelationship> relations) {
+        Map<Long, Map<Long, Integer>> map = new HashMap<>();
+        for (PlayerRelationship r : relations) {
+            int score = (r.getWillingness() != null ? r.getWillingness() : 0) 
+                      + (r.getChemistry() != null ? r.getChemistry() : 0);
+            map.computeIfAbsent(r.getFromPlayerId(), k -> new HashMap<>())
+               .put(r.getToPlayerId(), score);
+        }
+        return map;
+    }
+
+    private void optimizeBalance(Map<Integer, List<Player>> groups, int groupCount, Map<Long, Map<Long, Integer>> relationMap) {
+        // 迭代优化：尝试 50 次同位置交换
+        for (int i = 0; i < 50; i++) {
             int g1 = RandomUtil.randomInt(groupCount);
             int g2 = RandomUtil.randomInt(groupCount);
             if (g1 == g2) continue;
@@ -111,20 +122,67 @@ public class AdvancedWeightedGroupingStrategy implements GroupingStrategy {
             if (p2Opt.isPresent()) {
                 Player p2 = p2Opt.get();
                 
-                double diffBefore = Math.abs(getGroupTotalRating(group1) - getGroupTotalRating(group2));
-                
-                // 模拟交换
+                double ratingDiffBefore = Math.abs(getGroupTotalRating(group1) - getGroupTotalRating(group2));
+                int chemistryTotalBefore = getGroupChemistry(group1, relationMap) + getGroupChemistry(group2, relationMap);
+
+                // 模拟交换后的评分
                 double rating1After = getGroupTotalRating(group1) - p1.getRating().doubleValue() + p2.getRating().doubleValue();
                 double rating2After = getGroupTotalRating(group2) - p2.getRating().doubleValue() + p1.getRating().doubleValue();
-                double diffAfter = Math.abs(rating1After - rating2After);
+                double ratingDiffAfter = Math.abs(rating1After - rating2After);
 
-                if (diffAfter < diffBefore) {
-                    // 确认交换
+                // 模拟交换后的默契度 (这里简化计算，仅计算交换者与组内其他成员的关系变动)
+                int chemistry1After = getGroupChemistryAfterSwap(group1, p1, p2, relationMap);
+                int chemistry2After = getGroupChemistryAfterSwap(group2, p2, p1, relationMap);
+                int chemistryTotalAfter = chemistry1After + chemistry2After;
+
+                // 决策逻辑：
+                // 1. 如果交换能减少战力方差且不严重破坏默契度
+                // 2. 或者战力方差在可接受范围内（如 < 1.0），且显著提升了默契度
+                boolean betterRating = ratingDiffAfter < ratingDiffBefore;
+                boolean significantBetterChem = chemistryTotalAfter > chemistryTotalBefore + 2;
+                boolean acceptableRating = ratingDiffAfter < 1.5;
+
+                if (betterRating || (acceptableRating && significantBetterChem)) {
                     group1.remove(p1); group1.add(p2);
                     group2.remove(p2); group2.add(p1);
                 }
             }
         }
+    }
+
+    private int getGroupChemistry(List<Player> group, Map<Long, Map<Long, Integer>> relationMap) {
+        int total = 0;
+        for (int i = 0; i < group.size(); i++) {
+            for (int j = i + 1; j < group.size(); j++) {
+                total += getRelationScore(group.get(i).getId(), group.get(j).getId(), relationMap);
+                total += getRelationScore(group.get(j).getId(), group.get(i).getId(), relationMap);
+            }
+        }
+        return total;
+    }
+
+    private int getGroupChemistryAfterSwap(List<Player> group, Player oldP, Player newP, Map<Long, Map<Long, Integer>> relationMap) {
+        int chemistry = getGroupChemistry(group, relationMap);
+        // 减去旧球员的关系
+        for (Player p : group) {
+            if (p.equals(oldP)) continue;
+            chemistry -= getRelationScore(oldP.getId(), p.getId(), relationMap);
+            chemistry -= getRelationScore(p.getId(), oldP.getId(), relationMap);
+        }
+        // 加上新球员的关系
+        for (Player p : group) {
+            if (p.equals(oldP)) continue;
+            chemistry += getRelationScore(newP.getId(), p.getId(), relationMap);
+            chemistry += getRelationScore(p.getId(), newP.getId(), relationMap);
+        }
+        return chemistry;
+    }
+
+    private int getRelationScore(Long p1, Long p2, Map<Long, Map<Long, Integer>> relationMap) {
+        if (relationMap.containsKey(p1)) {
+            return relationMap.get(p1).getOrDefault(p2, 0);
+        }
+        return 0;
     }
 
     private double getGroupTotalRating(List<Player> players) {
