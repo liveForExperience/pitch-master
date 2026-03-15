@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Toast } from 'antd-mobile';
-import { X, Clock, History, MapPin, ChevronLeft } from 'lucide-react';
+import { Toast, Dialog } from 'antd-mobile';
+import {
+  ChevronLeft, Clock, MapPin, Users, CalendarClock,
+  Share2, UserPlus, LogOut, Shield, Loader2, Undo2
+} from 'lucide-react';
 import apiClient from '../api/client';
 import dayjs from 'dayjs';
 import useAuthStore from '../store/useAuthStore';
-import MatchPoster from '../components/MatchPoster';
+import html2canvas from 'html2canvas';
 
 const matchStatusMeta: Record<string, { label: string; badgeClass: string; dotClass: string; accentClass: string }> = {
   PREPARING: {
@@ -58,12 +61,21 @@ const matchStatusMeta: Record<string, { label: string; badgeClass: string; dotCl
   },
 };
 
+const positionMeta: Record<string, { label: string; colorClass: string }> = {
+  GK: { label: '门将', colorClass: 'bg-amber-500/15 text-amber-400 border-amber-500/20' },
+  DF: { label: '后卫', colorClass: 'bg-sky-500/15 text-sky-400 border-sky-500/20' },
+  MF: { label: '中场', colorClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
+  FW: { label: '前锋', colorClass: 'bg-rose-500/15 text-rose-400 border-rose-500/20' },
+};
+
 const formatPosterDate = (value: string | number | Date) => {
   const parsed = dayjs(value);
   return {
     month: parsed.format('MM月'),
     day: parsed.format('DD'),
+    weekday: parsed.format('dddd'),
     full: parsed.format('YYYY年MM月DD日 HH:mm'),
+    short: parsed.format('MM.DD HH:mm'),
   };
 };
 
@@ -76,83 +88,139 @@ const getMatchStatusMeta = (status?: string) => {
   };
 };
 
-const getLogTypeText = (type?: string) => {
-  const map: Record<string, string> = {
-    MANUAL: '手动调整',
-    GOAL: '比分变更',
-  };
-  return map[type || ''] || '操作记录';
-};
-
 const MatchDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAdmin } = useAuthStore();
+  const { me, isAdmin } = useAuthStore();
   const admin = isAdmin();
+  const currentPlayerId = me?.player?.id;
 
   const [match, setMatch] = useState<any>(null);
-  const [games, setGames] = useState<any[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingGameId, setEditingGameId] = useState<number | null>(null);
-  const [tempScores, setTempScores] = useState({ scoreA: 0, scoreB: 0 });
-  const [logs, setLogs] = useState<any[]>([]);
-  const [showLogs, setShowLogs] = useState(false);
-  
-  const sseRef = useRef<EventSource | null>(null);
+  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [players, setPlayers] = useState<Record<number, any>>({});
+  const [pageLoading, setPageLoading] = useState(true);
+  const [registering, setRegistering] = useState(false);
+  const posterRef = useRef<HTMLDivElement>(null);
 
   const fetchData = async () => {
     try {
       const matchData: any = await apiClient.get(`/api/match/${id}`);
       setMatch(matchData);
-      const gamesData: any = await apiClient.get(`/api/game/list?matchId=${id}`);
-      setGames(gamesData);
-    } catch (err) {}
-  };
 
-  const fetchLogs = async (gameId: number) => {
-    try {
-      const logData: any = await apiClient.get(`/api/game/${gameId}/logs`);
-      setLogs(logData);
-      setShowLogs(true);
-    } catch (err) {}
-  };
-
-  useEffect(() => {
-    fetchData();
-    const sseUrl = `/api/realtime/subscribe/${id}`;
-    sseRef.current = new EventSource(sseUrl);
-    sseRef.current.onmessage = (event) => {
       try {
-        const updatedGame = JSON.parse(event.data);
-        setGames(prev => prev.map(g => g.id === updatedGame.id ? updatedGame : g));
-        if (!isEditing) Toast.show({ content: '比分已实时更新', duration: 1000 });
-      } catch (e) {}
-    };
-    return () => { sseRef.current?.close(); };
-  }, [id, isEditing]);
+        const regs: any = await apiClient.get(`/api/match/${id}/registrations`);
+        setRegistrations(regs || []);
 
-  const handleStartEdit = async (game: any) => {
-    try {
-      await apiClient.post(`/api/game/${game.id}/lock`);
-      setEditingGameId(game.id);
-      setTempScores({ scoreA: game.scoreA, scoreB: game.scoreB });
-      setIsEditing(true);
-    } catch (err) {}
+        const playerMap: Record<number, any> = {};
+        for (const reg of (regs || [])) {
+          if (!playerMap[reg.playerId]) {
+            try {
+              const p: any = await apiClient.get(`/api/player/${reg.playerId}`);
+              playerMap[reg.playerId] = p;
+            } catch {
+              playerMap[reg.playerId] = { nickname: `球员 #${reg.playerId}`, position: '' };
+            }
+          }
+        }
+        setPlayers(playerMap);
+      } catch {
+        setRegistrations([]);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPageLoading(false);
+    }
   };
 
-  const handleSaveScore = async () => {
-    if (!editingGameId) return;
+  useEffect(() => { fetchData(); }, [id]);
+
+  /* ── Derived state ── */
+  const activeRegs = registrations.filter(r => r.status === 'REGISTERED');
+  const registeredCount = activeRegs.length;
+  const totalCapacity = (match?.numGroups || 0) * (match?.playersPerGroup || 0);
+  const estimatedCost =
+    registeredCount > 0 && match?.totalCost > 0
+      ? (parseFloat(match.totalCost) / registeredCount).toFixed(2)
+      : null;
+  const canRegister = match?.status === 'PUBLISHED';
+  const isRegistered = activeRegs.some(r => r.playerId === currentPlayerId);
+
+  /* ── Registration handlers ── */
+  const handleRegister = async () => {
+    if (!currentPlayerId) {
+      Toast.show({ icon: 'fail', content: '请先完善球员信息' });
+      return;
+    }
+    setRegistering(true);
     try {
-      await apiClient.post(`/api/game/${editingGameId}/score`, null, {
-        params: { scoreA: tempScores.scoreA, scoreB: tempScores.scoreB }
-      });
-      Toast.show({ icon: 'success', content: '更新成功' });
-      setIsEditing(false);
-      setEditingGameId(null);
+      await apiClient.post(`/api/match/${id}/register`, null, { params: { playerId: currentPlayerId } });
+      Toast.show({ icon: 'success', content: '报名成功！' });
       fetchData();
-    } catch (err) {}
+    } catch { /* handled by interceptor */ }
+    finally { setRegistering(false); }
   };
 
+  const handleCancelRegistration = async () => {
+    const confirmed = await Dialog.confirm({
+      title: '取消报名',
+      content: dayjs().isAfter(dayjs(match?.cancelDeadline))
+        ? '已过免费取消时间，取消后仍需分摊费用。确定取消？'
+        : '确定要取消报名吗？',
+    });
+    if (!confirmed) return;
+    try {
+      await apiClient.post(`/api/match/${id}/cancel`, null, { params: { playerId: currentPlayerId } });
+      Toast.show({ icon: 'success', content: '已取消报名' });
+      fetchData();
+    } catch { /* handled by interceptor */ }
+  };
+
+  /* ── Admin: revert to preparing ── */
+  const handleRevertToPreparing = async () => {
+    const confirmed = await Dialog.confirm({
+      title: '回退到筹备',
+      content: '确定要将赛事回退到筹备状态吗？报名将暂停。',
+    });
+    if (!confirmed) return;
+    try {
+      await apiClient.post(`/api/match/${id}/revert-preparing`);
+      Toast.show({ icon: 'success', content: '已回退到筹备状态' });
+      fetchData();
+    } catch { /* handled by interceptor */ }
+  };
+
+  /* ── Poster generation ── */
+  const handleGeneratePoster = async () => {
+    if (!posterRef.current) return;
+    Toast.show({ icon: 'loading', content: '生成海报中...', duration: 0 });
+    try {
+      const canvas = await html2canvas(posterRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: '#0a0a0a',
+      });
+      const link = document.createElement('a');
+      link.download = `海报_${match.title}_${dayjs().format('MMDD')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      Toast.clear();
+      Toast.show({ icon: 'success', content: '海报已生成，请保存分享' });
+    } catch (err) {
+      console.error(err);
+      Toast.clear();
+      Toast.show({ icon: 'fail', content: '生成失败' });
+    }
+  };
+
+  /* ── Loading / Empty ── */
+  if (pageLoading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
   if (!match) return null;
 
   const statusMeta = getMatchStatusMeta(match.status);
@@ -160,194 +228,325 @@ const MatchDetail: React.FC = () => {
 
   return (
     <div className="relative mx-auto max-w-6xl px-6 py-8 sm:px-8 lg:px-10 lg:py-16">
-      <div className="pointer-events-none absolute left-[-8%] top-10 h-64 w-64 rounded-full bg-primary/8 blur-[140px]"></div>
-      <div className="pointer-events-none absolute right-[-6%] top-24 h-72 w-72 rounded-full bg-white/[0.04] blur-[160px]"></div>
+      {/* Background glows */}
+      <div className="pointer-events-none absolute left-[-8%] top-10 h-64 w-64 rounded-full bg-primary/8 blur-[140px]" />
+      <div className="pointer-events-none absolute right-[-6%] top-24 h-72 w-72 rounded-full bg-white/[0.04] blur-[160px]" />
 
+      {/* ── Nav ── */}
       <nav className="relative z-10 mb-10 flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="group flex items-center text-neutral-500 transition-colors font-bold hover:text-white">
-          <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" /> 返回列表
+        <button onClick={() => navigate('/matches')} className="group flex items-center text-neutral-500 font-bold hover:text-white transition-colors">
+          <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" /> 赛事广场
         </button>
-        <div className="flex space-x-4">
-          {admin && (
-            <button 
-              onClick={() => navigate(`/matches/${id}/finance`)}
-              className="hidden h-11 items-center rounded-full border border-white/10 bg-white px-5 text-xs font-black tracking-[0.16em] text-black shadow-[0_12px_30px_rgba(255,255,255,0.08)] transition-all hover:scale-[1.03] hover:shadow-[0_16px_36px_rgba(255,255,255,0.14)] md:flex"
-            >
-              费用管理
-            </button>
-          )}
-        </div>
+        {admin && match?.status === 'PUBLISHED' && (
+          <button
+            onClick={handleRevertToPreparing}
+            className="hidden h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 text-xs font-bold tracking-wide text-neutral-400 transition-all hover:border-neutral-600 hover:text-white md:flex"
+          >
+            <Undo2 size={14} /> 回退到筹备
+          </button>
+        )}
       </nav>
 
-      <header className="relative z-10 mx-auto mb-12 max-w-5xl overflow-hidden rounded-[2.75rem] border border-neutral-800 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_26%),linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] p-7 sm:p-8 lg:p-10">
-        <div className={`absolute right-[-8%] top-10 h-56 w-56 rounded-full bg-gradient-to-br ${statusMeta.accentClass} opacity-25 blur-3xl`}></div>
-        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
-        <div className="absolute right-7 top-8 text-[96px] font-black leading-none tracking-[-0.08em] text-white/[0.05] lg:text-[132px]">
-          {posterDate.day}
-        </div>
+      {/* ── Hero Header ── */}
+      <header className="relative z-10 mx-auto mb-10 max-w-5xl overflow-hidden rounded-[2rem] border border-neutral-800 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_26%),linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] px-6 py-5 sm:px-7 sm:py-6">
+        <div className={`absolute right-[-8%] top-6 h-40 w-40 rounded-full bg-gradient-to-br ${statusMeta.accentClass} opacity-25 blur-3xl`} />
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+
         <div className="relative z-10">
-          <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-            <div className="inline-flex items-center gap-2.5 px-0.5 py-1.5">
-              <span className={`h-2 w-2 rounded-full ${statusMeta.dotClass}`}></span>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div className="inline-flex items-center gap-2 px-0.5 py-1">
+              <span className={`h-2 w-2 rounded-full ${statusMeta.dotClass}`} />
               <div className="text-[12px] font-semibold tracking-[0.08em] text-primary/90">
                 {match.tournamentName || '默认周赛'}
               </div>
             </div>
             <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold tracking-[0.08em] backdrop-blur-sm ${statusMeta.badgeClass}`}>
-              <span className={`h-2 w-2 rounded-full ${statusMeta.dotClass} ${match.status === 'ONGOING' ? 'animate-pulse' : ''}`}></span>
+              <span className={`h-2 w-2 rounded-full ${statusMeta.dotClass} ${match.status === 'ONGOING' ? 'animate-pulse' : ''}`} />
               <span>{statusMeta.label}</span>
             </div>
           </div>
 
-          <div className="mb-4 flex items-end gap-3">
-            <div className="text-[11px] font-black tracking-[0.22em] text-neutral-500">{posterDate.month}</div>
-            <div className="h-px flex-1 bg-gradient-to-r from-white/12 to-transparent"></div>
-          </div>
-
-          <h1 className="max-w-3xl text-4xl font-black leading-[1.02] tracking-[-0.04em] text-white lg:text-6xl">
-              {match.title}
-            </h1>
-          <div className={`mt-5 mb-8 h-px w-24 bg-gradient-to-r ${statusMeta.accentClass}`}></div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.03] px-5 py-4">
-              <div className="mb-2 text-[10px] font-black tracking-[0.16em] text-neutral-600">开赛时间</div>
-              <div className="text-sm font-semibold text-white">{posterDate.full}</div>
-            </div>
-            <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.03] px-5 py-4">
-              <div className="mb-2 text-[10px] font-black tracking-[0.16em] text-neutral-600">比赛地点</div>
-              <div className="text-sm font-semibold text-white">{match.location}</div>
-            </div>
-            <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.03] px-5 py-4">
-              <div className="mb-2 text-[10px] font-black tracking-[0.16em] text-neutral-600">人均费用</div>
-              <div className="text-2xl font-black tracking-tight text-white">¥{match.perPersonCost || '0.00'}</div>
-            </div>
-          </div>
+          <h1 className="max-w-3xl text-3xl font-black leading-[1.08] tracking-[-0.03em] text-white lg:text-5xl">
+            {match.title}
+          </h1>
+          <div className={`mt-3 h-px w-20 bg-gradient-to-r ${statusMeta.accentClass}`} />
         </div>
       </header>
 
-      <div className="relative z-10 grid grid-cols-1 items-start gap-10 lg:grid-cols-3">
+      {/* ── Main Content Grid ── */}
+      <div className="relative z-10 mx-auto grid max-w-5xl grid-cols-1 items-start gap-10 lg:grid-cols-3">
+
+        {/* ── Left Column ── */}
         <div className="space-y-8 lg:col-span-2">
-          <div className="space-y-8">
-            {games.map((game) => (
-              <div key={game.id} className="relative overflow-hidden rounded-[3rem] border border-neutral-800 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_26%),linear-gradient(180deg,rgba(24,24,27,0.96)_0%,rgba(10,10,10,1)_100%)] p-8 shadow-2xl lg:p-10">
-                <div className="absolute inset-0 opacity-[0.035]" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '34px 34px' }}></div>
-                <div className={`absolute right-[-10%] top-8 h-40 w-40 rounded-full bg-gradient-to-br ${statusMeta.accentClass} opacity-20 blur-3xl`}></div>
-                <div className="flex items-center justify-around relative z-10">
-                  <div className="text-center">
-                    <div className="mb-6 text-[10px] font-black tracking-[0.2em] text-neutral-500">A 队 · 第 {game.teamAIndex + 1} 组</div>
-                    {isEditing && editingGameId === game.id ? (
-                      <button 
-                        onClick={() => setTempScores(s => ({...s, scoreA: s.scoreA + 1}))}
-                        className="w-32 h-32 bg-primary text-black rounded-[2.5rem] text-5xl font-black shadow-[0_0_40px_rgba(29,185,84,0.3)] active:scale-95 transition-all"
-                      >
-                        {tempScores.scoreA}
-                      </button>
-                    ) : (
-                      <div className="text-8xl font-black text-white tracking-tighter">{game.scoreA}</div>
-                    )}
-                  </div>
 
-                  <div className="flex flex-col items-center">
-                    <div className="text-4xl font-black italic select-none text-neutral-800">VS</div>
-                    {!isEditing && (
-                      <button onClick={() => fetchLogs(game.id)} className="mt-6 p-2 text-neutral-700 transition-colors hover:text-primary">
-                        <History size={24} />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="text-center">
-                    <div className="mb-6 text-[10px] font-black tracking-[0.2em] text-neutral-500">B 队 · 第 {game.teamBIndex + 1} 组</div>
-                    {isEditing && editingGameId === game.id ? (
-                      <button 
-                        onClick={() => setTempScores(s => ({...s, scoreB: s.scoreB + 1}))}
-                        className="w-32 h-32 bg-primary text-black rounded-[2.5rem] text-5xl font-black shadow-[0_0_40px_rgba(29,185,84,0.3)] active:scale-95 transition-all"
-                      >
-                        {tempScores.scoreB}
-                      </button>
-                    ) : (
-                      <div className="text-8xl font-black text-white tracking-tighter">{game.scoreB}</div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-12 flex justify-center border-t border-white/5 pt-8">
-                  {isEditing && editingGameId === game.id ? (
-                    <div className="flex items-center justify-center space-x-6">
-                      <button onClick={handleSaveScore} className="rounded-full bg-white px-12 py-4 text-sm font-black tracking-[0.16em] text-black transition-all hover:scale-105 active:scale-95">确认比分</button>
-                      <button onClick={() => {setIsEditing(false); apiClient.post(`/api/game/${game.id}/unlock`);}} className="px-8 py-4 font-bold text-neutral-500 transition-colors hover:text-white">取消</button>
-                    </div>
-                  ) : (
-                    admin && (
-                      <button 
-                        onClick={() => handleStartEdit(game)}
-                        disabled={isEditing}
-                        className="text-xs font-black tracking-[0.28em] text-primary/60 transition-colors hover:text-primary disabled:opacity-20"
-                      >
-                        点击开始记分
-                      </button>
-                    )
-                  )}
-                </div>
+          {/* Match Info Cards */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.03] px-5 py-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Clock size={14} className="text-primary" />
+                <span className="text-[10px] font-black tracking-[0.16em] text-neutral-600">开赛时间</span>
               </div>
-            ))}
+              <div className="text-sm font-semibold text-white">{posterDate.full}</div>
+            </div>
+            <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.03] px-5 py-4">
+              <div className="mb-3 flex items-center gap-2">
+                <MapPin size={14} className="text-primary" />
+                <span className="text-[10px] font-black tracking-[0.16em] text-neutral-600">比赛地点</span>
+              </div>
+              <div className="text-sm font-semibold text-white">{match.location}</div>
+            </div>
+            <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.03] px-5 py-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Users size={14} className="text-primary" />
+                <span className="text-[10px] font-black tracking-[0.16em] text-neutral-600">比赛规模</span>
+              </div>
+              <div className="text-sm font-semibold text-white">
+                {match.numGroups}组 · 每组{match.playersPerGroup}人 · {match.plannedGameCount}场
+              </div>
+            </div>
+            <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.03] px-5 py-4">
+              <div className="mb-3 flex items-center gap-2">
+                <CalendarClock size={14} className="text-primary" />
+                <span className="text-[10px] font-black tracking-[0.16em] text-neutral-600">报名截止</span>
+              </div>
+              <div className="text-sm font-semibold text-white">
+                {match.registrationDeadline
+                  ? dayjs(match.registrationDeadline).format('MM月DD日 HH:mm')
+                  : '未设置'}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Registered Players ── */}
+          <div className="rounded-[2rem] border border-neutral-800 bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-8">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-xs font-black tracking-[0.2em] text-neutral-400">已报名球员</h3>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-white">{registeredCount}</span>
+                {totalCapacity > 0 && (
+                  <span className="text-sm font-medium text-neutral-600">/ {totalCapacity}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            {totalCapacity > 0 && (
+              <div className="mb-6 h-1.5 overflow-hidden rounded-full bg-neutral-800">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-700"
+                  style={{ width: `${Math.min((registeredCount / totalCapacity) * 100, 100)}%` }}
+                />
+              </div>
+            )}
+
+            {activeRegs.length === 0 ? (
+              <div className="py-12 text-center">
+                <Users size={36} className="mx-auto mb-3 text-neutral-800" />
+                <div className="text-sm font-medium text-neutral-600">暂无人报名，成为第一个吧</div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {activeRegs.map((reg, idx) => {
+                  const player = players[reg.playerId];
+                  const pos = positionMeta[player?.position] || {
+                    label: '球员',
+                    colorClass: 'bg-neutral-500/15 text-neutral-400 border-neutral-500/20',
+                  };
+                  const initial = (player?.nickname || '?')[0];
+                  return (
+                    <div
+                      key={reg.id}
+                      className="flex items-center gap-3 rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3 transition-colors hover:border-white/10 hover:bg-white/[0.04]"
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-black text-primary">
+                        {initial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-bold text-white">
+                          {player?.nickname || `球员 #${reg.playerId}`}
+                        </div>
+                        <div className="mt-0.5 text-[10px] font-medium text-neutral-500">#{idx + 1}</div>
+                      </div>
+                      <span className={`shrink-0 rounded-lg border px-2 py-0.5 text-[10px] font-bold ${pos.colorClass}`}>
+                        {pos.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="space-y-8 lg:sticky lg:top-16">
+        {/* ── Right Sidebar ── */}
+        <div className="space-y-6 lg:sticky lg:top-16">
+
+          {/* Cost Summary Card */}
           <div className="rounded-[2rem] border border-neutral-800 bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-8">
-            <h3 className="mb-6 text-xs font-black tracking-[0.2em] text-neutral-400">赛事信息</h3>
-            <div className="space-y-6">
-              <div className="flex items-start">
-                <Clock size={18} className="mr-4 text-primary mt-0.5" />
-                <div>
-                  <div className="text-sm font-bold text-white mb-1">开始时间</div>
-                  <div className="text-xs text-neutral-500 font-medium">{dayjs(match.startTime).format('YYYY年MM月DD日 HH:mm')}</div>
+            <h3 className="mb-6 text-xs font-black tracking-[0.2em] text-neutral-400">费用概览</h3>
+            <div className="space-y-4">
+              {match.totalCost > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-neutral-500">场地总费用</span>
+                  <span className="text-sm font-black text-white">¥{match.totalCost}</span>
                 </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-neutral-500">当前报名</span>
+                <span className="text-sm font-black text-white">{registeredCount} 人</span>
               </div>
-              <div className="flex items-start">
-                <MapPin size={18} className="mr-4 text-primary mt-0.5" />
-                <div>
-                  <div className="text-sm font-bold text-white mb-1">比赛地点</div>
-                  <div className="text-xs text-neutral-500 font-medium">{match.location}</div>
+
+              <div className="border-t border-neutral-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold tracking-[0.12em] text-neutral-400">预估人均</span>
+                  <span className="text-3xl font-black tracking-tight text-primary">
+                    ¥{estimatedCost || '--'}
+                  </span>
                 </div>
+                {estimatedCost && (
+                  <div className="mt-2 text-[10px] font-medium text-neutral-600">
+                    基于当前 {registeredCount} 人分摊，最终以结算为准
+                  </div>
+                )}
               </div>
-              <div className="pt-6 border-t border-neutral-800">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-xs font-bold tracking-[0.16em] text-neutral-500">人均费用</span>
-                  <span className="text-xl font-black text-white tracking-tighter">¥{match.perPersonCost || '0.00'}</span>
-                </div>
-                <button className="w-full py-4 bg-primary text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20">
-                  一键报名
+            </div>
+
+            {/* Register / Cancel */}
+            <div className="mt-6">
+              {canRegister && !isRegistered && (
+                <button
+                  onClick={handleRegister}
+                  disabled={registering}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-black uppercase tracking-widest shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                >
+                  {registering ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                  {registering ? '报名中...' : '立即报名'}
                 </button>
-              </div>
+              )}
+              {isRegistered && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 rounded-2xl border border-primary/20 bg-primary/8 py-3 text-xs font-bold text-primary">
+                    <Shield size={14} /> 您已成功报名
+                  </div>
+                  {canRegister && (
+                    <button
+                      onClick={handleCancelRegistration}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-neutral-500 transition-colors hover:text-red-400"
+                    >
+                      <LogOut size={14} /> 取消报名
+                    </button>
+                  )}
+                </div>
+              )}
+              {!canRegister && !isRegistered && (
+                <div className="flex items-center justify-center rounded-2xl border border-neutral-800 bg-neutral-900 py-4 text-xs font-bold text-neutral-500">
+                  {match.status === 'PREPARING' ? '报名尚未开始' : '报名已截止'}
+                </div>
+              )}
             </div>
           </div>
 
-          <MatchPoster match={match} games={games} />
+          {/* Generate Poster */}
+          <button
+            onClick={handleGeneratePoster}
+            className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-primary/20 bg-primary/8 py-4 text-sm font-bold text-primary transition-all hover:bg-primary/15 active:scale-[0.98]"
+          >
+            <Share2 size={16} /> 生成朋友圈海报
+          </button>
+        </div>
+      </div>
 
-          {showLogs && (
-            <div className="animate-in fade-in slide-in-from-right duration-500 rounded-[2rem] border border-neutral-800 bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xs font-black tracking-[0.2em] text-neutral-400">比分修订记录</h3>
-                <button onClick={() => setShowLogs(false)}><X size={16} className="text-neutral-600 hover:text-white" /></button>
+      {/* ── Hidden Poster Template (for html2canvas) ── */}
+      <div className="fixed -left-[9999px] top-0">
+        <div
+          ref={posterRef}
+          className="w-[375px] bg-neutral-950 text-white font-sans relative overflow-hidden"
+          style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(29,185,84,0.35) 0%, transparent 50%)' }}
+        >
+          {/* Decorative bg */}
+          <div className="absolute top-0 right-0 opacity-[0.06] text-[100px] font-black italic select-none pointer-events-none leading-none pr-4 pt-6">
+            OLDBOY
+          </div>
+          <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-neutral-950 to-transparent" />
+
+          <div className="relative z-10 p-8 pb-6">
+            {/* Header */}
+            <div className="mb-8">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[10px] font-bold tracking-[0.1em] text-primary uppercase mb-4">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                {match?.tournamentName || '默认周赛'}
               </div>
-              <div className="space-y-6">
-                {logs.map(log => (
-                  <div key={log.id} className="flex justify-between items-center">
-                    <div>
-                      <div className="text-sm font-black text-white">{log.scoreA} : {log.scoreB}</div>
-                      <div className="mt-1 text-[10px] font-bold text-neutral-600">{dayjs(log.createdAt).format('HH:mm:ss')}</div>
-                    </div>
-                    <span className="rounded-full border border-primary/20 bg-primary/8 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-primary/80">
-                      {getLogTypeText(log.type)}
-                    </span>
-                  </div>
-                ))}
+              <h1 className="text-[28px] font-black leading-tight tracking-tight mb-3">{match?.title}</h1>
+              <div className="h-px w-16 bg-gradient-to-r from-primary to-transparent mb-4" />
+              <div className="space-y-2 text-[13px] text-neutral-300">
+                <div className="flex items-center gap-2">
+                  <Clock size={13} className="text-primary shrink-0" />
+                  <span>{posterDate.full}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin size={13} className="text-primary shrink-0" />
+                  <span>{match?.location}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users size={13} className="text-primary shrink-0" />
+                  <span>{match?.numGroups}组 · 每组{match?.playersPerGroup}人 · {match?.plannedGameCount}场</span>
+                </div>
               </div>
             </div>
-          )}
+
+            {/* Stats row */}
+            <div className="grid grid-cols-3 gap-3 mb-8">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-center">
+                <div className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1">已报名</div>
+                <div className="text-xl font-black text-primary">{registeredCount}</div>
+                {totalCapacity > 0 && (
+                  <div className="text-[10px] font-medium text-neutral-600">/ {totalCapacity} 人</div>
+                )}
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-center">
+                <div className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1">预估人均</div>
+                <div className="text-xl font-black text-white">¥{estimatedCost || '--'}</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-center">
+                <div className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1">比赛规模</div>
+                <div className="text-xl font-black text-white">{match?.plannedGameCount || '-'}</div>
+                <div className="text-[10px] font-medium text-neutral-600">场</div>
+              </div>
+            </div>
+
+            {/* Player list */}
+            {activeRegs.length > 0 && (
+              <div className="mb-8">
+                <div className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-3">报名球员</div>
+                <div className="flex flex-wrap gap-2">
+                  {activeRegs.map(reg => (
+                    <span
+                      key={reg.id}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.08] px-3 py-1.5 text-[11px] font-bold"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />
+                      {players[reg.playerId]?.nickname || `#${reg.playerId}`}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Footer branding */}
+            <div className="pt-5 border-t border-neutral-800 flex justify-between items-end">
+              <div>
+                <div className="text-[9px] text-neutral-600 font-bold mb-1 uppercase tracking-widest">Powered by</div>
+                <div className="text-lg font-black italic tracking-tighter">
+                  OLDBOY <span className="text-primary">CLUB</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="rounded-lg bg-primary/15 border border-primary/25 px-3 py-1.5 text-[10px] font-black text-primary tracking-wide">
+                  扫码报名
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
