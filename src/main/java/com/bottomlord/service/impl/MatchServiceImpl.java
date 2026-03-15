@@ -60,6 +60,67 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Autowired
     private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
+    /**
+     * 根据时间字段同步赛事状态（链式推进）。
+     * <ul>
+     *   <li>PUBLISHED → REGISTRATION_CLOSED：当前时间已超过 registrationDeadline</li>
+     *   <li>REGISTRATION_CLOSED / GROUPING_DRAFT → ONGOING：当前时间已超过 startTime</li>
+     * </ul>
+     * 多个条件可在一次调用中连续触发，确保状态追赶到与当前时间一致。
+     *
+     * @param match 赛事实体（非空）
+     * @return true 如果状态发生了变更并已持久化
+     */
+    private boolean syncMatchStatusByTime(Match match) {
+        if (match == null) {
+            return false;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        boolean changed = false;
+
+        // PUBLISHED -> REGISTRATION_CLOSED：报名截止时间已过
+        if (Match.STATUS_PUBLISHED.equals(match.getStatus())
+                && match.getRegistrationDeadline() != null
+                && now.isAfter(match.getRegistrationDeadline())) {
+            match.setStatus(Match.STATUS_REGISTRATION_CLOSED);
+            changed = true;
+        }
+
+        // REGISTRATION_CLOSED / GROUPING_DRAFT -> ONGOING：比赛开始时间已过
+        if ((Match.STATUS_REGISTRATION_CLOSED.equals(match.getStatus())
+                || Match.STATUS_GROUPING_DRAFT.equals(match.getStatus()))
+                && match.getStartTime() != null
+                && now.isAfter(match.getStartTime())) {
+            match.setStatus(Match.STATUS_ONGOING);
+            changed = true;
+        }
+
+        if (changed) {
+            this.updateById(match);
+        }
+        return changed;
+    }
+
+    /**
+     * 加载赛事并同步时间驱动的状态。所有需要读取赛事的业务方法都应使用此方法代替 getById。
+     *
+     * @param matchId 赛事ID
+     * @return 状态已同步的赛事实体，若不存在返回 null
+     */
+    private Match getMatchWithStatusSync(Long matchId) {
+        Match match = this.getById(matchId);
+        if (match != null) {
+            syncMatchStatusByTime(match);
+        }
+        return match;
+    }
+
+    @Override
+    public Match getMatchDetail(Long matchId) {
+        return getMatchWithStatusSync(matchId);
+    }
+
     @Override
     public List<Match> listUpcomingMatches() {
         boolean isAdmin = SecurityUtils.getSubject().hasRole("admin");
@@ -73,6 +134,8 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         List<Match> matches = this.list(wrapper);
         
         if (CollUtil.isNotEmpty(matches)) {
+            matches.forEach(this::syncMatchStatusByTime);
+
             List<Tournament> tournaments = tournamentMapper.selectList(null);
             Map<Long, String> tournamentMap = tournaments.stream()
                     .collect(Collectors.toMap(Tournament::getId, Tournament::getName));
@@ -107,7 +170,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void startRegistration(Long matchId) {
-        Match match = this.getById(matchId);
+        Match match = getMatchWithStatusSync(matchId);
         if (match == null) throw new IllegalArgumentException("赛事不存在");
         if (!Match.STATUS_PREPARING.equals(match.getStatus())) {
             throw new IllegalStateException("只有处于筹备中的赛事才能开启报名");
@@ -121,7 +184,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void revertToPreparing(Long matchId) {
-        Match match = this.getById(matchId);
+        Match match = getMatchWithStatusSync(matchId);
         if (match == null) return;
         if (!Match.STATUS_PUBLISHED.equals(match.getStatus())) {
             throw new IllegalStateException("只有在报名阶段才能撤回至筹备阶段");
@@ -134,7 +197,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void updateRegistrationDeadline(Long matchId, LocalDateTime newDeadline) {
-        Match match = this.getById(matchId);
+        Match match = getMatchWithStatusSync(matchId);
         if (match == null) return;
         
         match.setRegistrationDeadline(newDeadline);
@@ -151,7 +214,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void deleteMatch(Long matchId) {
-        Match match = this.getById(matchId);
+        Match match = getMatchWithStatusSync(matchId);
         if (match == null) return;
         if (!Match.STATUS_PREPARING.equals(match.getStatus())) {
             throw new IllegalStateException("只有处于筹备中的赛事才能直接删除");
@@ -162,19 +225,12 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override 
     @Transactional(rollbackFor = Exception.class)
     public void registerForMatch(Long matchId, Long playerId) {
-        Match match = this.getById(matchId);
+        Match match = getMatchWithStatusSync(matchId);
         if (match == null) throw new IllegalArgumentException("赛事不存在");
 
-        // 核心动态逻辑：判断当前是否允许报名
+        // 状态已由 syncMatchStatusByTime 同步，直接判断
         if (!Match.STATUS_PUBLISHED.equals(match.getStatus())) {
             throw new IllegalStateException("当前赛事未开放报名");
-        }
-        
-        // 检查时间：如果已过截止时间，尝试自动切换状态并报错
-        if (LocalDateTime.now().isAfter(match.getRegistrationDeadline())) {
-            match.setStatus(Match.STATUS_REGISTRATION_CLOSED);
-            this.updateById(match);
-            throw new IllegalStateException("报名已截止");
         }
 
         long count = registrationService.count(new LambdaQueryWrapper<MatchRegistration>()
@@ -195,7 +251,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void cancelRegistration(Long matchId, Long playerId) {
-        Match match = this.getById(matchId);
+        Match match = getMatchWithStatusSync(matchId);
         MatchRegistration reg = registrationService.getOne(new LambdaQueryWrapper<MatchRegistration>()
                 .eq(MatchRegistration::getMatchId, matchId)
                 .eq(MatchRegistration::getPlayerId, playerId)
@@ -214,7 +270,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Map<Integer, List<Long>> confirmAndGroup(Long matchId) {
-        Match match = this.getById(matchId);
+        Match match = getMatchWithStatusSync(matchId);
         
         // 只要不是已经开赛或结算，允许强制进入分组阶段（含从 PUBLISHED 提前进入）
         String currentStatus = match.getStatus();
@@ -238,7 +294,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void startWithGroups(Long matchId, Map<Integer, List<Long>> finalGroups) {
-        Match match = this.getById(matchId);
+        Match match = getMatchWithStatusSync(matchId);
         List<Long> allParticipantIds = new ArrayList<>();
 
         for (Map.Entry<Integer, List<Long>> entry : finalGroups.entrySet()) {
@@ -300,7 +356,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void finishMatch(Long matchId) {
-        Match match = this.getById(matchId);
+        Match match = getMatchWithStatusSync(matchId);
         match.setStatus(Match.STATUS_MATCH_FINISHED);
         this.updateById(match);
         sseManager.broadcastToClub(match.getTournamentId(), "match_finished", match.getTitle() + " 已结束");
@@ -310,7 +366,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void settleFees(Long matchId) {
-        Match match = this.getById(matchId);
+        Match match = getMatchWithStatusSync(matchId);
         if (!Match.STATUS_MATCH_FINISHED.equals(match.getStatus())) {
             throw new IllegalStateException("只有在 MATCH_FINISHED 状态下才能进行结算");
         }

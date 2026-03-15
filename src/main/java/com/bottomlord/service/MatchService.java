@@ -15,6 +15,14 @@ import java.time.LocalDateTime;
 public interface MatchService extends IService<Match> {
 
     /**
+     * 获取赛事详情（含时间驱动的状态同步）
+     *
+     * @param matchId 赛事ID
+     * @return 状态已同步的赛事实体
+     */
+    Match getMatchDetail(Long matchId);
+
+    /**
      * 获取近期赛事列表
      *
      * @return 赛事列表

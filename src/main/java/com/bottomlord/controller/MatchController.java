@@ -32,7 +32,7 @@ public class MatchController {
 
     @GetMapping("/{id}")
     public Result<Match> getMatch(@PathVariable Long id) {
-        return Result.success(matchService.getById(id));
+        return Result.success(matchService.getMatchDetail(id));
     }
 
     @PostMapping("/publish")
@@ -43,6 +43,12 @@ public class MatchController {
     @PostMapping("/{id}/publish")
     public Result<Void> startRegistration(@PathVariable Long id) {
         matchService.startRegistration(id);
+        return Result.success();
+    }
+
+    @PostMapping("/{id}/revert-preparing")
+    public Result<Void> revertToPreparing(@PathVariable Long id) {
+        matchService.revertToPreparing(id);
         return Result.success();
     }
 
@@ -88,7 +94,7 @@ public class MatchController {
 
     @GetMapping("/{matchId}/report")
     public Result<Object> getMatchReport(@PathVariable Long matchId) {
-        Match match = matchService.getById(matchId);
+        Match match = matchService.getMatchDetail(matchId);
         if (match == null) {
             return Result.error(404, "赛事不存在");
         }
