@@ -13,7 +13,10 @@ CREATE TABLE `match_game` (
     `status` VARCHAR(20) DEFAULT 'READY' COMMENT 'READY, PLAYING, FINISHED',
     `lock_user_id` BIGINT DEFAULT NULL COMMENT '锁定用户',
     `lock_time` DATETIME DEFAULT NULL COMMENT '锁定时间',
+    `created_by` BIGINT DEFAULT NULL,
     `updated_by` BIGINT DEFAULT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT `fk_game_match` FOREIGN KEY (`match_id`) REFERENCES `match` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='比赛对阵场次';
 
@@ -28,6 +31,8 @@ CREATE TABLE `match_goal` (
     `occurred_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `created_by` BIGINT DEFAULT NULL,
     `updated_by` BIGINT DEFAULT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT `fk_goal_game` FOREIGN KEY (`game_id`) REFERENCES `match_game` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='进球明细';
 
@@ -40,6 +45,10 @@ CREATE TABLE `game_participant` (
     `assists` INT DEFAULT 0,
     `is_mvp` TINYINT DEFAULT 0,
     `rating` DECIMAL(3, 1) DEFAULT 6.0,
+    `created_by` BIGINT DEFAULT NULL,
+    `updated_by` BIGINT DEFAULT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT `fk_part_game` FOREIGN KEY (`game_id`) REFERENCES `match_game` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_part_player` FOREIGN KEY (`player_id`) REFERENCES `player` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='单场比赛球员数据';
@@ -50,9 +59,11 @@ CREATE TABLE `match_score_log` (
     `game_id` BIGINT NOT NULL,
     `score_a` INT NOT NULL,
     `score_b` INT NOT NULL,
-    `operator_id` BIGINT,
     `type` VARCHAR(20) DEFAULT 'GOAL' COMMENT 'GOAL, MANUAL, CORRECTION',
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+    `created_by` BIGINT DEFAULT NULL,
+    `updated_by` BIGINT DEFAULT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='比分变动流水';
 
 -- 5. 球员互评记录表
@@ -67,6 +78,9 @@ CREATE TABLE `player_mutual_rating` (
     `rating_vision` DECIMAL(3, 1),
     `is_mvp_vote` TINYINT DEFAULT 0,
     `comment` VARCHAR(255),
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `created_by` BIGINT DEFAULT NULL,
+    `updated_by` BIGINT DEFAULT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT `fk_rate_match` FOREIGN KEY (`match_id`) REFERENCES `match` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='球员互评';

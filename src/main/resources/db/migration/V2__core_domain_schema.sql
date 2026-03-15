@@ -5,7 +5,10 @@ CREATE TABLE `tournament` (
     `name` VARCHAR(128) NOT NULL COMMENT '赛事名称',
     `description` TEXT COMMENT '赛事描述',
     `status` TINYINT NOT NULL DEFAULT 1 COMMENT '1:活跃, 0:归档',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `created_by` BIGINT DEFAULT NULL,
+    `updated_by` BIGINT DEFAULT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='赛事(租户)';
 
 -- 2. 俱乐部表
@@ -14,7 +17,10 @@ CREATE TABLE `club` (
     `tournament_id` BIGINT NOT NULL COMMENT '所属赛事ID',
     `name` VARCHAR(64) NOT NULL COMMENT '俱乐部名称',
     `description` VARCHAR(255),
+    `created_by` BIGINT DEFAULT NULL,
+    `updated_by` BIGINT DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT `fk_club_tournament` FOREIGN KEY (`tournament_id`) REFERENCES `tournament` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='俱乐部';
 
@@ -31,6 +37,8 @@ CREATE TABLE `player` (
     `preferred_foot` VARCHAR(10) DEFAULT 'RIGHT' COMMENT '擅长脚：LEFT, RIGHT, BOTH',
     `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1-活跃，0-隐退',
     `last_match_time` DATETIME DEFAULT NULL COMMENT '最后一次比赛时间 (用于衰减)',
+    `created_by` BIGINT DEFAULT NULL,
+    `updated_by` BIGINT DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY `idx_user_id` (`user_id`),
@@ -46,13 +54,17 @@ CREATE TABLE `match` (
     `registration_deadline` DATETIME NOT NULL COMMENT '报名截止时间',
     `cancel_deadline` DATETIME DEFAULT NULL COMMENT '取消报名截止时间',
     `location` VARCHAR(255) DEFAULT NULL COMMENT '地点',
+    `registration_type` VARCHAR(20) DEFAULT 'PLAYER' COMMENT '报名主体类型: PLAYER (散拼), CLUB (整队)',
     `num_groups` INT NOT NULL DEFAULT 2 COMMENT '需要分配的小组数量',
     `players_per_group` INT DEFAULT 8 COMMENT '每组建议人数',
     `planned_game_count` INT DEFAULT 1 COMMENT '计划进行的场次数量',
     `total_cost` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '总费用',
     `per_person_cost` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '人均费用',
     `status` VARCHAR(20) DEFAULT 'PREPARING' COMMENT 'PREPARING, PUBLISHED, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, SETTLED, CANCELLED',
+    `created_by` BIGINT DEFAULT NULL,
+    `updated_by` BIGINT DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT `fk_match_tournament` FOREIGN KEY (`tournament_id`) REFERENCES `tournament` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='赛事活动';
 
@@ -66,7 +78,10 @@ CREATE TABLE `match_registration` (
     `payment_status` VARCHAR(20) DEFAULT 'UNPAID' COMMENT 'UNPAID, PAID',
     `is_exempt` TINYINT(1) DEFAULT 0 COMMENT '是否豁免费用',
     `is_mvp` TINYINT DEFAULT 0 COMMENT '是否为本场MVP',
+    `created_by` BIGINT DEFAULT NULL,
+    `updated_by` BIGINT DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY `uk_match_player` (`match_id`, `player_id`),
     CONSTRAINT `fk_reg_match` FOREIGN KEY (`match_id`) REFERENCES `match` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_reg_player` FOREIGN KEY (`player_id`) REFERENCES `player` (`id`) ON DELETE CASCADE
@@ -79,6 +94,8 @@ CREATE TABLE `player_relationship` (
     `to_player_id` BIGINT NOT NULL,
     `willingness` INT DEFAULT 0 COMMENT '配合意愿分',
     `chemistry` INT DEFAULT 0 COMMENT '历史共同参赛次数',
+    `created_by` BIGINT DEFAULT NULL,
+    `updated_by` BIGINT DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY `uk_relationship` (`from_player_id`, `to_player_id`)

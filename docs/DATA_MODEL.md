@@ -58,7 +58,7 @@ erDiagram
         int planned_game_count
         decimal total_cost
         decimal per_person_cost
-        string status "PREPARING, PUBLISHED, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, SETTLED, CANCELLED"
+        string status "PREPARING, PUBLISHED, GROUPING_DRAFT, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, SETTLED, CANCELLED"
     }
 
     MATCH_REGISTRATION {
@@ -69,7 +69,7 @@ erDiagram
         string status "REGISTERED, CANCELLED, NO_SHOW"
         string payment_status "UNPAID, PAID"
         boolean is_exempt "Exempt from fees"
-        tinyint is_mvp "Final MVP flag"
+        tinyint is_mvp "Final Match MVP flag (Global per activity)"
     }
 
     MATCH_GAME ||--o{ MATCH_GOAL : contains
@@ -96,7 +96,7 @@ erDiagram
         bigint player_id FK
         int goals
         int assists
-        tinyint is_mvp
+        tinyint is_mvp "Game performance MVP (Local per single game)"
         decimal rating "Performance rating"
     }
 

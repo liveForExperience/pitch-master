@@ -3,10 +3,10 @@ package com.bottomlord.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.bottomlord.common.base.BaseEntity;
 import lombok.Data;
-import java.io.Serializable;
+import lombok.EqualsAndHashCode;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 /**
  * 场次参与者表现 (L5 统计单元)
@@ -14,10 +14,9 @@ import java.time.LocalDateTime;
  * @author Gemini
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("game_participant")
-public class GameParticipant implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class GameParticipant extends BaseEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -36,6 +35,4 @@ public class GameParticipant implements Serializable {
      * 本场评分
      */
     private BigDecimal rating;
-
-    private LocalDateTime createdAt;
 }

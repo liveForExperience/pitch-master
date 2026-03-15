@@ -4,8 +4,9 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.bottomlord.common.base.BaseEntity;
 import lombok.Data;
-import java.io.Serializable;
+import lombok.EqualsAndHashCode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -15,10 +16,9 @@ import java.time.LocalDateTime;
  * @author Gemini
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("player")
-public class Player implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class Player extends BaseEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -79,8 +79,4 @@ public class Player implements Serializable {
      * 最后一次参加比赛的时间 (用于计算评分衰减)
      */
     private LocalDateTime lastMatchTime;
-
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
 }

@@ -52,7 +52,6 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         log.setGameId(game.getId());
         log.setScoreA(game.getScoreA());
         log.setScoreB(game.getScoreB());
-        log.setOperatorId(getCurrentUserId());
         log.setType(type);
         log.setCreatedAt(LocalDateTime.now());
         scoreLogMapper.insert(log);

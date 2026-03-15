@@ -4,9 +4,9 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.bottomlord.common.base.BaseEntity;
 import lombok.Data;
-import java.io.Serializable;
-import java.time.LocalDateTime;
+import lombok.EqualsAndHashCode;
 
 /**
  * 系统用户实体
@@ -14,10 +14,9 @@ import java.time.LocalDateTime;
  * @author Gemini
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("`user`")
-public class User implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class User extends BaseEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -30,6 +29,11 @@ public class User implements Serializable {
 
     private String realName;
 
+    /**
+     * 状态：1-正常，0-禁用
+     */
+    private Integer status;
+
     @TableField(exist = false)
     private java.util.List<Role> roles;
 
@@ -40,13 +44,4 @@ public class User implements Serializable {
         if (roles == null) return new java.util.ArrayList<>();
         return roles.stream().map(Role::getName).collect(java.util.stream.Collectors.toList());
     }
-
-    /**
-     * 状态：1-正常，0-禁用
-     */
-    private Integer status;
-
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
 }

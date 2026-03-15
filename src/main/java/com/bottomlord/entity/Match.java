@@ -4,8 +4,9 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.bottomlord.common.base.BaseEntity;
 import lombok.Data;
-import java.io.Serializable;
+import lombok.EqualsAndHashCode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -16,10 +17,9 @@ import java.time.LocalDateTime;
  * @author Gemini
  */
 @Data
-@TableName("match_event")
-public class Match implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+@EqualsAndHashCode(callSuper = true)
+@TableName("`match`")
+public class Match extends BaseEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -85,6 +85,4 @@ public class Match implements Serializable {
      * 状态：PREPARING, PUBLISHED, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, SETTLED, CANCELLED
      */
     private String status;
-
-    private LocalDateTime createdAt;
 }

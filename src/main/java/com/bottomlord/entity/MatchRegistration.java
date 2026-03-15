@@ -3,9 +3,9 @@ package com.bottomlord.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.bottomlord.common.base.BaseEntity;
 import lombok.Data;
-import java.io.Serializable;
-import java.time.LocalDateTime;
+import lombok.EqualsAndHashCode;
 
 /**
  * 赛事报名关系实体
@@ -13,10 +13,9 @@ import java.time.LocalDateTime;
  * @author Gemini
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("match_registration")
-public class MatchRegistration implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class MatchRegistration extends BaseEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -49,6 +48,4 @@ public class MatchRegistration implements Serializable {
      * 是否为本场 MVP
      */
     private Boolean isMvp;
-
-    private LocalDateTime createdAt;
 }

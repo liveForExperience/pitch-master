@@ -3,27 +3,16 @@ package com.bottomlord.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.bottomlord.common.base.BaseEntity;
 import lombok.Data;
-import java.io.Serializable;
-import java.time.LocalDateTime;
+import lombok.EqualsAndHashCode;
 
-/**
- * 用户-角色关联实体
- *
- * @author Gemini
- */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("user_role")
-public class UserRole implements Serializable {
-
-    private static final long serialVersionUID = 1L;
-
+public class UserRole extends BaseEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
-
     private Long userId;
-
     private Long roleId;
-
-    private LocalDateTime createdAt;
 }

@@ -3,8 +3,9 @@ package com.bottomlord.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.bottomlord.common.base.BaseEntity;
 import lombok.Data;
-import java.io.Serializable;
+import lombok.EqualsAndHashCode;
 import java.time.LocalDateTime;
 
 /**
@@ -13,10 +14,9 @@ import java.time.LocalDateTime;
  * @author Gemini
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("match_goal")
-public class MatchGoal implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class MatchGoal extends BaseEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -47,8 +47,4 @@ public class MatchGoal implements Serializable {
      * 进球发生时间
      */
     private LocalDateTime occurredAt;
-
-    private Long createdBy;
-
-    private Long updatedBy;
 }

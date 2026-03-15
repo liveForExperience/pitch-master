@@ -3,21 +3,20 @@ package com.bottomlord.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.bottomlord.common.base.BaseEntity;
 import lombok.Data;
-import java.io.Serializable;
+import lombok.EqualsAndHashCode;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
 
 /**
  * 球员互评实体
  * 支持多维度评分与 MVP 评选
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("player_mutual_rating")
-public class PlayerMutualRating implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class PlayerMutualRating extends BaseEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -57,8 +56,6 @@ public class PlayerMutualRating implements Serializable {
      * 评语
      */
     private String comment;
-
-    private LocalDateTime createdAt;
 
     /**
      * 获取多维度平均分 (用于一键展示)
