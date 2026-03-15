@@ -30,7 +30,8 @@
 | `/list` | GET | 获取待开赛赛事列表 | 无 |
 | `/{id}` | GET | 获取赛事详情 | 无 |
 | `/publish` | POST | 创建赛事草稿 | 需 ADMIN 角色，Body: `Match` |
-| `/{id}/publish` | POST | 发布赛事并开始报名 | 状态由 DRAFT 变为 REGISTRATION |
+| `/{id}/publish` | POST | 发布赛事并开始报名 | 状态由 PREPARING 变为 PUBLISHED |
+| `/{id}/revert-preparing` | POST | 撤回至筹备阶段 | 仅限从 PUBLISHED 撤回，需 ADMIN 角色 |
 | `/{matchId}/register` | POST | 球员报名 | Query: `playerId` |
 | `/{matchId}/cancel` | POST | 取消报名 | 处理 Late Cancellation 逻辑 |
 | `/{matchId}/group` | POST | 触发自动分组算法 | 返回 Map<GroupIndex, List<PlayerId>> |

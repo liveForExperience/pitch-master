@@ -15,6 +15,9 @@
 - **构建工具**: Maven / npm
 
 ## 3. 编码标准 (Engineering Standards)
+- **待办管理**: 
+  - 所有待实现的功能或发现的 Bug 均记录在根目录的 `TODO.md` 中。
+  - 任务完成后，必须从 `TODO.md` 中移除相应条目。
 - **UI 规范**: 遵循现有 Tailwind CSS 布局方案。
 - **费用逻辑**: 
   - 引入 `registration_deadline` (报名截止时间)。

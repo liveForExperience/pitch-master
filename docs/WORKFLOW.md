@@ -2,47 +2,49 @@
 
 ## 1. 赛事生命周期状态机 (Match Event Lifecycle)
 
-赛事流转遵循严格的状态机逻辑，管理员通过触发特定动作推动状态变更。
+赛事流转遵循严格的状态机逻辑，包含管理员手动触发、基于时间的自动同步以及回退机制。
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PREPARING : 发布赛事 (草稿)
-    PREPARING --> PUBLISHED : 开始报名 (Open)
-    PUBLISHED --> PREPARING : 撤回筹备 (Revert)
-    PREPARING --> [*] : 删除赛事 (仅筹备期)
+    [*] --> PREPARING : 发布赛事 (publishMatch)
+    PREPARING --> PUBLISHED : 开启报名 (startRegistration)
+    PUBLISHED --> PREPARING : 撤回至筹备 (revertToPreparing)
+    PREPARING --> [*] : 删除赛事 (deleteMatch)
     
-    PUBLISHED --> REGISTRATION_CLOSED : 到达截止时间
-    REGISTRATION_CLOSED --> PUBLISHED : 延长截止时间 (Re-open)
+    PUBLISHED --> REGISTRATION_CLOSED : 到达截止时间 (Auto/Sync)
+    REGISTRATION_CLOSED --> PUBLISHED : 延长截止时间 (Auto/Sync)
     
-    PUBLISHED --> CANCELLED : 取消赛事
+    PUBLISHED --> CANCELLED : 取消赛事 (TODO)
     
-    REGISTRATION_CLOSED --> GROUPING_DRAFT : 生成分组建议 (Draft)
-    GROUPING_DRAFT --> GROUPING_DRAFT : 手动拖拽调整 (Manual)
-    GROUPING_DRAFT --> ONGOING : 锁定分组并开赛 (Start Game)
-    ONGOING --> MATCH_FINISHED : 比赛结束 (Finish Match)
-    MATCH_FINISHED --> SETTLED : 确认结算 (Settle)
+    PUBLISHED --> GROUPING_DRAFT : 触发分组 (confirmAndGroup)
+    REGISTRATION_CLOSED --> GROUPING_DRAFT : 触发分组 (confirmAndGroup)
+    
+    GROUPING_DRAFT --> ONGOING : 锁定分组并开赛 (startWithGroups)
+    ONGOING --> MATCH_FINISHED : 比赛结束 (finishMatch)
+    MATCH_FINISHED --> SETTLED : 确认结算 (settleFees)
     SETTLED --> [*]
 ```
 
 ### 状态详细说明：
-| 状态 | 说明 | 允许的操作 | 触发接口/代码 | UI 语义与页面 |
+| 状态 | 说明 | 允许的操作 | 触发逻辑 | UI 语义与页面 |
 | :--- | :--- | :--- | :--- | :--- |
-| **PREPARING** | 筹备中 | 编辑信息、**物理删除** | `publishMatch` (初始) | **筹备中** (管理后台编辑) |
-| **PUBLISHED** | 报名阶段 | **球员报名**、撤回至筹备、修改截止时间 | `startRegistration` | **报名中** (球员报名页可见) |
-| **REGISTRATION_CLOSED** | 报名锁定 | **延长截止时间回退至 PUBLISHED** | 时间触发或管理员修改 | **报名已截止** (等待分组) |
-| **GROUPING_DRAFT** | 分组草稿 | **核心阶段**：执行算法生成草稿、管理员微调 | `confirmAndGroup` | **分组中** (排兵布阵/手动微调) |
-| **ONGOING** | 比赛进行中 | 实时比分录入、进球审计 | `startWithGroups` | **比赛中** (实时比分/动态流) |
-| **MATCH_FINISHED** | 待核算 | 手动修正数据、设置费用豁免 | `finishMatch` | **待核算** (赛后核对比分与数据) |
-| **SETTLED** | 已结算 | 查看费用，**触发 ELO 评分演进** | `settleFees` | **已完结** (查看战报与费用单) |
-| **CANCELLED** | 已取消 | 赛事终止 | `cancelMatch` | **已取消** (赛事失效) |
+| **PREPARING** | 筹备中 | 编辑、物理删除、开启报名 | 管理员创建时的初始状态 | **筹备中** (仅管理后台可见) |
+| **PUBLISHED** | 报名中 | **球员报名**、撤回至筹备、修改时间 | 管理员点击“发布”或自动同步 | **报名中** (球员端可见) |
+| **REGISTRATION_CLOSED** | 报名截止 | **无法报名**、可触发分组、可延长截止时间回跳 | 时间超过 `registrationDeadline` | **报名已截止** (球员可见) |
+| **GROUPING_DRAFT** | 分组草稿 | **核心阶段**：微调分组、确认开赛 | 管理员触发自动分组算法 | **分组中** (排兵布阵/手动微调) |
+| **ONGOING** | 比赛中 | 比分/进球录入、SSE 实时同步 | 确认分组并生成场次后进入 | **比赛中** (实时比分流) |
+| **MATCH_FINISHED** | 待核算 | 修正数据、设置豁免、结算费用 | 管理员点击“完成比赛” | **待核算** (赛后数据审计) |
+| **SETTLED** | 已完结 | 查看战报、查看费用分摊、**触发评分演进** | 管理员点击“结算费用” | **已完结** (战报与结算单) |
+| **CANCELLED** | 已取消 | 无 | 管理员手动取消赛事 | **已取消** |
 
-## 2. 核心控制逻辑规则
-*   **撤回机制**：在 `PUBLISHED` 阶段若未进入分组，管理员可手动回退至 `PREPARING`。
-*   **报名动态开关**：
-    - 是否允许报名取决于 `(status == PUBLISHED && now < registrationDeadline)`。
-    - **自动翻转**：若当前状态为 `REGISTRATION_CLOSED` 且管理员将截止时间修改为未来，状态应自动回退为 `PUBLISHED`。
-*   **费用结算与评分演进**：
-    - 状态转为 `SETTLED` 时自动发布 `MatchSettledEvent`。
+### 关键逻辑规则：
+*   **状态自动同步 (`syncMatchStatusByTime`)**: 
+    - 每次加载赛事详情或列表时，系统会自动检查当前时间并推进状态（如 `PUBLISHED` -> `REGISTRATION_CLOSED`）。
+    - 若管理员将截止时间改回未来，状态会自动回跳（`REGISTRATION_CLOSED` -> `PUBLISHED`）。
+*   **分组前提**: 只要赛事未开赛/未结束，管理员可随时重新触发分组算法生成草稿。
+*   **费用分摊与豁免**:
+    - 在 `MATCH_FINISHED` 阶段，管理员可标记特定人员 `isExempt`。
+    - 结算时，总金额由 `(REGISTERED + NO_SHOW - EXEMPT)` 的人员向上取整平摊。
 
 
 ## 3. 赛事自动分组与场次生成时序图
