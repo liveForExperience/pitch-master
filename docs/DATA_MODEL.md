@@ -28,6 +28,7 @@ erDiagram
     PLAYER ||--o{ MATCH_REGISTRATION : registers
     PLAYER ||--o{ GAME_PARTICIPANT : "plays in"
     PLAYER ||--o{ PLAYER_MUTUAL_RATING : "rates/is rated"
+    PLAYER ||--o| PLAYER_RATING_PROFILE : "has profile"
     PLAYER {
         bigint id PK
         bigint user_id FK
@@ -35,11 +36,13 @@ erDiagram
         bigint real_club_id FK
         string nickname
         string position "GK, DF, MF, FW"
-        decimal rating "1.0-10.0"
+        decimal rating "1.0-20.0 FM-style total rating"
+        int rating_version "Rating system version"
         int age
         string preferred_foot "LEFT, RIGHT, BOTH"
         tinyint status "1:Active, 0:Inactive"
         datetime last_match_time "Used for rating decay"
+        datetime last_attendance_time "Last attendance time"
     }
 
     MATCH_EVENT ||--o{ MATCH_REGISTRATION : contains
@@ -125,6 +128,38 @@ erDiagram
         string comment
     }
 
+    PLAYER_RATING_PROFILE {
+        bigint id PK
+        bigint player_id FK
+        decimal skill_rating "Skill dimension 1.0-20.0"
+        decimal performance_rating "Performance dimension 1.0-20.0"
+        decimal engagement_rating "Engagement dimension 1.0-20.0"
+        int provisional_matches "Games played (for protection)"
+        int appearance_count "Total appearances"
+        int active_streak_weeks "Continuous active weeks"
+        datetime last_attendance_time
+        datetime last_decay_time
+        int rating_version
+    }
+
+    PLAYER_RATING_HISTORY {
+        bigint id PK
+        bigint player_id FK
+        bigint match_id FK
+        string dimension "SKILL/PERFORMANCE/ENGAGEMENT/TOTAL/DECAY"
+        string source_type "MATCH_SETTLEMENT/INACTIVITY_DECAY/ADMIN_CORRECTION"
+        decimal old_rating
+        decimal new_rating
+        decimal old_value
+        decimal new_value
+        decimal delta
+        string change_reason
+        string reason_code
+        string reason_detail
+        bigint operator_user_id FK
+        datetime create_time
+    }
+
     PLAYER_RELATIONSHIP {
         bigint id PK
         bigint from_player_id FK
@@ -164,5 +199,12 @@ erDiagram
     - `MATCH_SCORE_LOG`：专门用于追踪单场比赛比分的每一次跳动，记录操作轨迹。
     - `lock_user_id`：管理员在编辑场次数据时会进行乐观锁定，防止并发修改。
 * **球员成长与衰减**：
-    - `last_match_time`：用于追踪球员活跃度，配合 `SYSTEM_STATUS` 中的 `LAST_DECAY_RUN_TIME` 执行评分衰减逻辑。
+    - `last_attendance_time`：用于追踪球员活跃度，超过30天不活跃触发衰减。
+    - `PLAYER_RATING_PROFILE`：存储三维评分档案（Skill/Performance/Engagement），支持 FM 风格 1-20 分制。
+    - `PLAYER_RATING_HISTORY`：记录所有评分变动的审计日志，包括维度、来源、操作人等详细信息。
     - `PLAYER_MUTUAL_RATING`：提供多维度的球员反馈，作为动态评分策略的输入。
+* **评分系统 (FM Style 1-20)**：
+    - 总评分 = Skill × 0.4 + Performance × 0.4 + Engagement × 0.2
+    - 新球员前3场享受保护期，变动幅度减小
+    - 超过30天不活跃触发衰减，每周 Engagement -0.1
+    - 所有评分下限为 1.00，上限为 20.00

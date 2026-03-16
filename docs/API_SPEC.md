@@ -62,7 +62,9 @@
 | 接口 | 方法 | 说明 | 备注 |
 | :--- | :--- | :--- | :--- |
 | `/player/{id}` | GET | 获取球员档案 | 基本信息、统计数据等 |
-| `/player/{id}/rating` | POST | 管理员手动修正评分 | Body: `newRating`, `reason` |
+| `/player/{id}/rating` | GET | 获取球员评分档案 | 返回总分与三维评分 (Skill/Performance/Engagement) |
+| `/admin/player/{playerId}/rating/total` | POST | 管理员修正总评分 | Query: `newRating` (1.00-20.00), `reason`, 需 ADMIN 角色 |
+| `/admin/player/{playerId}/rating/dimension` | POST | 管理员修正三维评分 | Query: `dimension` (SKILL/PERFORMANCE/ENGAGEMENT), `newValue` (1.00-20.00), `reason`, 需 ADMIN 角色 |
 | `/rating/submit` | POST | 提交球员互评/打分 | Body: `PlayerMutualRating`, Optional Query: `quickTotalScore` |
 | `/rating/mvp-votes/{matchId}` | GET | 获取 MVP 票数统计 | 返回 Map<PlayerId, VoteCount> |
 | `/rating/finalize-mvp/{matchId}` | POST | 最终确定本场 MVP | 需 ADMIN 角色，Optional Query: `manualPlayerId` |
