@@ -39,6 +39,11 @@ public class Match extends BaseEntity {
 
     private LocalDateTime startTime;
 
+    /**
+     * 比赛结束时间
+     */
+    private LocalDateTime endTime;
+
     private LocalDateTime registrationDeadline;
 
     private LocalDateTime cancelDeadline;
@@ -76,6 +81,11 @@ public class Match extends BaseEntity {
      * 计划进行的总场次
      */
     private Integer plannedGameCount;
+
+    /**
+     * 每场游戏时长（单位：分钟）
+     */
+    private Integer durationPerGame;
 
     private BigDecimal totalCost;
 

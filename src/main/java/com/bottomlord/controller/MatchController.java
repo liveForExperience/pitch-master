@@ -100,4 +100,10 @@ public class MatchController {
         }
         return Result.success(reportExporter.export(match));
     }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> deleteMatch(@PathVariable Long id) {
+        matchService.deleteMatch(id);
+        return Result.success();
+    }
 }

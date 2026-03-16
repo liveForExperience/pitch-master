@@ -1,17 +1,22 @@
 package com.bottomlord.service;
 
-import com.bottomlord.common.event.MatchSettledEvent;
-import org.springframework.context.event.EventListener;
+import com.bottomlord.entity.MatchGame;
+import java.time.LocalDateTime;
 
 /**
- * 球员评分演进服务 (脚手架)
- * 职责：监听结算事件，计算并更新球员能力分。
+ * 核心评分计算服务 (CPI Pipeline)
  */
 public interface RatingService {
     
     /**
-     * 自动处理结算后的评分更新
+     * 结算单场 Game 后的所有评分与统计变动
      */
-    @EventListener
-    void handleMatchSettled(MatchSettledEvent event);
+    void settleGameRating(Long gameId);
+    
+    /**
+     * 计算并更新评分衰减 (定时任务调用)
+     */
+    void processRatingDecay();
+
+    void processRatingDecay(LocalDateTime atTime);
 }

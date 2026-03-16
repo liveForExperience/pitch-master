@@ -1,7 +1,11 @@
 package com.bottomlord.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bottomlord.common.base.Result;
+import com.bottomlord.dto.PlayerRatingDTO;
 import com.bottomlord.entity.Player;
+import com.bottomlord.entity.PlayerRatingProfile;
+import com.bottomlord.mapper.PlayerRatingProfileMapper;
 import com.bottomlord.service.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -15,9 +19,45 @@ public class PlayerController {
     @Autowired
     private PlayerService playerService;
 
+    @Autowired
+    private PlayerRatingProfileMapper playerRatingProfileMapper;
+
     @GetMapping("/{id}")
     public Result<Player> getPlayer(@PathVariable Long id) {
         return Result.success(playerService.getById(id));
+    }
+
+    /**
+     * 查询球员评分档案（含三维评分）
+     */
+    @GetMapping("/{id}/rating")
+    public Result<PlayerRatingDTO> getPlayerRating(@PathVariable Long id) {
+        Player player = playerService.getById(id);
+        if (player == null) {
+            return Result.error(404, "球员不存在");
+        }
+
+        PlayerRatingProfile profile = playerRatingProfileMapper.selectOne(
+                new LambdaQueryWrapper<PlayerRatingProfile>().eq(PlayerRatingProfile::getPlayerId, id));
+
+        PlayerRatingDTO dto = new PlayerRatingDTO();
+        dto.setPlayerId(id);
+        dto.setPlayerName(player.getNickname());
+        dto.setTotalRating(player.getRating());
+        
+        if (profile != null) {
+            dto.setSkillRating(profile.getSkillRating());
+            dto.setPerformanceRating(profile.getPerformanceRating());
+            dto.setEngagementRating(profile.getEngagementRating());
+            dto.setProvisionalMatches(profile.getProvisionalMatches());
+            dto.setAppearanceCount(profile.getAppearanceCount());
+            dto.setActiveStreakWeeks(profile.getActiveStreakWeeks());
+            dto.setLastAttendanceTime(profile.getLastAttendanceTime());
+            dto.setLastDecayTime(profile.getLastDecayTime());
+            dto.setRatingVersion(profile.getRatingVersion());
+        }
+
+        return Result.success(dto);
     }
 
     /**

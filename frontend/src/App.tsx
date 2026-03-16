@@ -6,6 +6,7 @@ import MatchDetail from './pages/MatchDetail';
 import MatchFinance from './pages/MatchFinance';
 import MatchGrouping from './pages/MatchGrouping';
 import MatchPublish from './pages/MatchPublish';
+import PlayerRatingDemo from './pages/PlayerRatingDemo';
 import GlobalNav from './components/GlobalNav';
 
 // 导航包装组件：处理全局导航的显示逻辑
@@ -37,6 +38,7 @@ function App() {
           <Route path="/matches/:id" element={<MatchDetail />} />
           <Route path="/matches/:id/finance" element={<MatchFinance />} />
           <Route path="/matches/:id/grouping" element={<MatchGrouping />} />
+          <Route path="/player/rating-demo" element={<PlayerRatingDemo />} />
           <Route path="/" element={<Navigate to="/matches" replace />} />
           <Route path="*" element={<Navigate to="/matches" replace />} />
         </Routes>

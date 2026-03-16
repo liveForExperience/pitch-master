@@ -11,8 +11,10 @@ import com.bottomlord.mapper.MatchGameMapper;
 import com.bottomlord.mapper.MatchScoreLogMapper;
 import com.bottomlord.service.MatchGameService;
 import com.bottomlord.service.MatchGoalService;
+import com.bottomlord.service.RatingService;
 import org.apache.shiro.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,10 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     @Autowired
     private SseManager sseManager;
 
+    @Autowired
+    @Lazy
+    private RatingService ratingService;
+
     private static final int LOCK_TIMEOUT_MINUTES = 5;
 
     private Long getCurrentUserId() {
@@ -47,7 +53,6 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     }
 
     private void logAndBroadcast(MatchGame game, String type) {
-        // 1. 记录审计日志
         MatchScoreLog log = new MatchScoreLog();
         log.setGameId(game.getId());
         log.setScoreA(game.getScoreA());
@@ -55,8 +60,6 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         log.setType(type);
         log.setCreatedAt(LocalDateTime.now());
         scoreLogMapper.insert(log);
-
-        // 2. 实时广播 (推送给该赛事下的所有监听者)
         sseManager.broadcastToMatch(game.getMatchId(), game);
     }
 
@@ -75,14 +78,11 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     public boolean tryLockGame(Long gameId) {
         MatchGame game = this.getById(gameId);
         if (game == null) return false;
-
         Long currentUserId = getCurrentUserId();
         if (currentUserId == null) return false;
-
         if (game.getLockUserId() == null 
                 || game.getLockTime().plusMinutes(LOCK_TIMEOUT_MINUTES).isBefore(LocalDateTime.now())
                 || game.getLockUserId().equals(currentUserId)) {
-            
             game.setLockUserId(currentUserId);
             game.setLockTime(LocalDateTime.now());
             return this.updateById(game);
@@ -94,7 +94,7 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     @Transactional(rollbackFor = Exception.class)
     public void unlockGame(Long gameId) {
         MatchGame game = this.getById(gameId);
-        if (game != null && game.getLockUserId().equals(getCurrentUserId())) {
+        if (game != null && game.getLockUserId() != null && game.getLockUserId().equals(getCurrentUserId())) {
             game.setLockUserId(null);
             game.setLockTime(null);
             this.updateById(game);
@@ -138,25 +138,16 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     public void recordGoal(MatchGoal goal) {
         MatchGame game = this.getById(goal.getGameId());
         if (game == null) return;
-        
         checkLock(game);
-
         Long currentUserId = getCurrentUserId();
-        if (goal.getOccurredAt() == null) {
-            goal.setOccurredAt(LocalDateTime.now());
-        }
+        if (goal.getOccurredAt() == null) goal.setOccurredAt(LocalDateTime.now());
         goal.setCreatedBy(currentUserId);
         goal.setUpdatedBy(currentUserId);
         goalService.save(goal);
-
-        if (goal.getTeamIndex() == 0) {
-            game.setScoreA(game.getScoreA() + 1);
-        } else {
-            game.setScoreB(game.getScoreB() + 1);
-        }
+        if (goal.getTeamIndex() == 0) game.setScoreA(game.getScoreA() + 1);
+        else game.setScoreB(game.getScoreB() + 1);
         game.setUpdatedBy(currentUserId);
         this.updateById(game);
-
         logAndBroadcast(game, "GOAL");
     }
 
@@ -165,48 +156,19 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     public void updateScoreManually(Long gameId, int scoreA, int scoreB) {
         MatchGame game = this.getById(gameId);
         if (game == null) return;
-
         checkLock(game);
-
         Long currentUserId = getCurrentUserId();
-
-        long currentA = goalService.countByTeam(gameId, 0);
-        if (scoreA > currentA) {
-            for (int i = 0; i < (scoreA - currentA); i++) {
-                createPlaceholderGoal(gameId, 0, currentUserId);
-            }
-        }
-
-        long currentB = goalService.countByTeam(gameId, 1);
-        if (scoreB > currentB) {
-            for (int i = 0; i < (scoreB - currentB); i++) {
-                createPlaceholderGoal(gameId, 1, currentUserId);
-            }
-        }
-
         game.setScoreA(scoreA);
         game.setScoreB(scoreB);
         game.setUpdatedBy(currentUserId);
         game.setLockUserId(null);
         game.setLockTime(null);
         this.updateById(game);
-
         logAndBroadcast(game, "MANUAL");
     }
 
-    private void createPlaceholderGoal(Long gameId, int teamIndex, Long operatorId) {
-        MatchGoal placeholder = new MatchGoal();
-        placeholder.setGameId(gameId);
-        placeholder.setTeamIndex(teamIndex);
-        placeholder.setScorerId(null);
-        placeholder.setType("NORMAL");
-        placeholder.setOccurredAt(LocalDateTime.now());
-        placeholder.setCreatedBy(operatorId);
-        placeholder.setUpdatedBy(operatorId);
-        goalService.save(placeholder);
-    }
-
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void finishGame(Long gameId) {
         MatchGame game = this.getById(gameId);
         if (game != null) {
@@ -214,6 +176,11 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
             game.setLockUserId(null);
             game.setLockTime(null);
             this.updateById(game);
+            
+            // 核心评分流水线结算
+            ratingService.settleGameRating(gameId);
+            
+            logAndBroadcast(game, "FINISHED");
         }
     }
 

@@ -1,10 +1,8 @@
 package com.bottomlord.scheduler;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bottomlord.entity.Player;
 import com.bottomlord.entity.SystemStatus;
 import com.bottomlord.mapper.SystemStatusMapper;
-import com.bottomlord.service.PlayerService;
+import com.bottomlord.service.RatingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -14,14 +12,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
-import java.util.List;
 
 /**
  * 评分衰减任务 (增强版：支持补偿逻辑与可插拔配置)
@@ -32,14 +27,11 @@ import java.util.List;
 public class RatingDecayTask {
 
     @Autowired
-    private PlayerService playerService;
+    private RatingService ratingService;
 
     @Autowired
     private SystemStatusMapper systemStatusMapper;
 
-    private static final BigDecimal DECAY_STEP = new BigDecimal("0.05");
-    private static final BigDecimal RATING_FLOOR = new BigDecimal("5.00");
-    private static final int INACTIVE_WEEKS_THRESHOLD = 4;
     private static final String CONFIG_KEY = "LAST_DECAY_RUN_TIME";
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -66,8 +58,7 @@ public class RatingDecayTask {
      */
     @Transactional(rollbackFor = Exception.class)
     public synchronized void executeDecayWithCompensation() {
-        SystemStatus status = systemStatusMapper.selectById(CONFIG_KEY);
-        if (status == null) return;
+        SystemStatus status = ensureSystemStatus();
 
         // 处理数据库存储格式不一致的问题（部分版本带时区或毫秒）
         String rawValue = status.getConfigValue();
@@ -96,10 +87,11 @@ public class RatingDecayTask {
         log.warn("检测到遗漏执行周期！需要执行 {} 次衰减补偿。", missedWeeks);
 
         // 2. 循环执行补偿（模拟每个遗漏周一的衰减）
+        LocalDateTime firstScheduledRun = alignToNextScheduledRun(lastRun);
         for (int i = 0; i < missedWeeks; i++) {
             // 计算在该补偿点的逻辑时间
-            LocalDateTime logicalTime = lastRun.plusWeeks(i + 1);
-            applyDecay(logicalTime);
+            LocalDateTime logicalTime = firstScheduledRun.plusWeeks(i);
+            ratingService.processRatingDecay(logicalTime);
         }
 
         // 3. 更新全局执行状态为当前时间
@@ -109,28 +101,27 @@ public class RatingDecayTask {
     }
 
     /**
-     * 执行单次衰减逻辑
-     * @param atTime 逻辑执行时间点
+     * 确保衰减任务状态存在
      */
-    private void applyDecay(LocalDateTime atTime) {
-        LocalDateTime threshold = atTime.minusWeeks(INACTIVE_WEEKS_THRESHOLD);
-        
-        // 查询在逻辑时间点满足衰减条件的球员
-        List<Player> players = playerService.list(new LambdaQueryWrapper<Player>()
-                .eq(Player::getStatus, 1)
-                .lt(Player::getLastMatchTime, threshold)
-                .gt(Player::getRating, RATING_FLOOR));
-
-        if (players.isEmpty()) return;
-
-        for (Player player : players) {
-            BigDecimal newRating = player.getRating().subtract(DECAY_STEP).setScale(2, RoundingMode.HALF_UP);
-            if (newRating.compareTo(RATING_FLOOR) < 0) newRating = RATING_FLOOR;
-            
-            player.setRating(newRating);
-            playerService.updateById(player);
+    private SystemStatus ensureSystemStatus() {
+        SystemStatus status = systemStatusMapper.selectById(CONFIG_KEY);
+        if (status != null) {
+            return status;
         }
-        log.info("[逻辑时间: {}] 处理了 {} 名球员的评分衰减。", atTime.format(FORMATTER), players.size());
+        SystemStatus created = new SystemStatus();
+        created.setConfigKey(CONFIG_KEY);
+        created.setConfigValue(LocalDateTime.now().format(FORMATTER));
+        created.setDescription("球员评分衰减任务最后执行时间");
+        systemStatusMapper.insert(created);
+        return created;
+    }
+
+    private LocalDateTime alignToNextScheduledRun(LocalDateTime start) {
+        return start.with(TemporalAdjusters.next(DayOfWeek.MONDAY))
+                .withHour(3)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0);
     }
 
     /**
@@ -138,7 +129,7 @@ public class RatingDecayTask {
      */
     private long calculateMissedMondays(LocalDateTime start, LocalDateTime end) {
         // 将开始时间对齐到下一个周一的凌晨
-        LocalDateTime firstMonday = start.with(TemporalAdjusters.next(DayOfWeek.MONDAY)).withHour(3).withMinute(0).withSecond(0);
+        LocalDateTime firstMonday = alignToNextScheduledRun(start);
         
         if (firstMonday.isAfter(end)) return 0;
         

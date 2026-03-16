@@ -201,6 +201,9 @@ const MatchPublish: React.FC = () => {
     startDateCustom: '',
     startTimeMode: '15:00' as string | 'custom',
     startTimeCustom: '',
+    // 结束时间
+    endTimeMode: '2h' as '1h' | '2h' | '3h' | 'custom',
+    endTimeCustom: '',
     // 报名截止
     regDeadlineMode: 4 as number | 'custom',
     regDeadlineCustom: '',
@@ -210,6 +213,7 @@ const MatchPublish: React.FC = () => {
     numGroups: 2,
     playersPerGroup: 5,
     plannedGameCount: 3,
+    durationPerGame: 15,
     totalCost: '',
   });
 
@@ -244,6 +248,70 @@ const MatchPublish: React.FC = () => {
     return startTimeDayjs.subtract(h, 'hour');
   }, [startTimeDayjs, regDeadlineDayjs, form.cancelDeadlineMode, form.cancelDeadlineCustom]);
 
+  const endTimeDayjs = useMemo(() => {
+    if (form.endTimeMode === 'custom' && form.endTimeCustom) {
+      return dayjs(form.endTimeCustom);
+    }
+    const hours = form.endTimeMode === '1h' ? 1 : form.endTimeMode === '2h' ? 2 : 3;
+    return startTimeDayjs.add(hours, 'hour');
+  }, [startTimeDayjs, form.endTimeMode, form.endTimeCustom]);
+
+  // 计算总时长（分钟）
+  const totalDuration = useMemo(() => {
+    if (!startTimeDayjs.isValid() || !endTimeDayjs.isValid()) return 0;
+    return endTimeDayjs.diff(startTimeDayjs, 'minute');
+  }, [startTimeDayjs, endTimeDayjs]);
+
+  // 联动计算逻辑：修改场次时，更新每场时长
+  const handleGameCountChange = (newCount: number) => {
+    if (totalDuration > 0 && newCount > 0) {
+      const newDuration = Math.ceil(totalDuration / newCount);
+      setForm(prev => ({ ...prev, plannedGameCount: newCount, durationPerGame: newDuration }));
+    } else {
+      update('plannedGameCount', newCount);
+    }
+  };
+
+  // 联动计算逻辑：修改每场时长时，更新场次
+  const handleDurationChange = (newDuration: number) => {
+    if (totalDuration > 0 && newDuration > 0) {
+      const newCount = Math.ceil(totalDuration / newDuration);
+      setForm(prev => ({ ...prev, durationPerGame: newDuration, plannedGameCount: newCount }));
+    } else {
+      update('durationPerGame', newDuration);
+    }
+  };
+
+  // 联动计算逻辑：修改结束时间时，更新每场时长和场次
+  const handleEndTimeModeChange = (mode: '1h' | '2h' | '3h' | 'custom') => {
+    update('endTimeMode', mode);
+    // 计算新的总时长并联动更新
+    setTimeout(() => {
+      const newTotalDuration = endTimeDayjs.diff(startTimeDayjs, 'minute');
+      if (newTotalDuration > 0 && form.plannedGameCount > 0) {
+        const newDuration = Math.ceil(newTotalDuration / form.plannedGameCount);
+        setForm(prev => ({ ...prev, durationPerGame: newDuration }));
+      }
+    }, 0);
+  };
+
+  const handleEndTimeCustomChange = (value: string) => {
+    if (value && dayjs(value).isBefore(startTimeDayjs)) {
+      Toast.show({ icon: 'fail', content: '结束时间必须晚于开始时间' });
+      return;
+    }
+    update('endTimeCustom', value);
+    // 计算新的总时长并联动更新
+    if (value) {
+      const newEndTime = dayjs(value);
+      const newTotalDuration = newEndTime.diff(startTimeDayjs, 'minute');
+      if (newTotalDuration > 0 && form.plannedGameCount > 0) {
+        const newDuration = Math.ceil(newTotalDuration / form.plannedGameCount);
+        setForm(prev => ({ ...prev, durationPerGame: newDuration }));
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -274,15 +342,19 @@ const MatchPublish: React.FC = () => {
       const regDeadlineStr = regDeadlineDayjs.format('YYYY-MM-DDTHH:mm:ss');
       const cancelDeadlineStr = cancelDeadlineDayjs.format('YYYY-MM-DDTHH:mm:ss');
 
+      const endTimeStr = endTimeDayjs.format('YYYY-MM-DDTHH:mm:ss');
+
       const payload: Record<string, any> = {
         title: form.title.trim(),
         location: form.location.trim(),
         startTime: startTimeStr,
+        endTime: endTimeStr,
         registrationDeadline: regDeadlineStr,
         cancelDeadline: cancelDeadlineStr,
         numGroups: form.numGroups,
         playersPerGroup: form.playersPerGroup,
         plannedGameCount: form.plannedGameCount,
+        durationPerGame: form.durationPerGame,
         totalCost: form.totalCost ? Number(form.totalCost) : 0,
       };
 
@@ -434,6 +506,53 @@ const MatchPublish: React.FC = () => {
                 </div>
               </div>
 
+              {/* 结束时间：快捷选项 + 自定义 */}
+              <Field label="结束时间" hint={endTimeDayjs.format('M/D HH:mm') + ' 结束'}>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <Chip
+                    label="1 小时后"
+                    selected={form.endTimeMode === '1h'}
+                    onClick={() => handleEndTimeModeChange('1h')}
+                  />
+                  <Chip
+                    label="2 小时后"
+                    selected={form.endTimeMode === '2h'}
+                    onClick={() => handleEndTimeModeChange('2h')}
+                  />
+                  <Chip
+                    label="3 小时后"
+                    selected={form.endTimeMode === '3h'}
+                    onClick={() => handleEndTimeModeChange('3h')}
+                  />
+                  <Chip
+                    label="自定义"
+                    selected={form.endTimeMode === 'custom'}
+                    onClick={() => handleEndTimeModeChange('custom')}
+                  />
+                </div>
+                {form.endTimeMode === 'custom' && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <Timer size={14} className="text-neutral-600 shrink-0" />
+                    <input
+                      type="datetime-local"
+                      value={form.endTimeCustom}
+                      min={startTimeDayjs.format('YYYY-MM-DDTHH:mm')}
+                      onChange={(e) => handleEndTimeCustomChange(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-neutral-800 bg-black/40 px-4 text-[13px] font-bold text-white outline-none transition-all focus:border-primary/40 [color-scheme:dark]"
+                    />
+                  </div>
+                )}
+              </Field>
+
+              {/* 结束时间预览 */}
+              <div className="rounded-2xl border border-primary/12 bg-primary/[0.04] px-5 py-3.5 flex items-center gap-3">
+                <Timer size={16} className="text-primary shrink-0" />
+                <div className="text-sm font-bold text-white">
+                  结束时间：
+                  <span className="text-primary ml-1">{endTimeDayjs.format('YYYY年M月D日 (ddd) HH:mm')}</span>
+                </div>
+              </div>
+
               {/* 报名截止：相对时间 Chips + 自定义 */}
               <Field label="报名截止" hint={regDeadlineDayjs.format('M/D HH:mm') + ' 截止'}>
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
@@ -505,7 +624,7 @@ const MatchPublish: React.FC = () => {
             <section className="space-y-6">
               <SectionHeader icon={Users} title="分组配置" />
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <Field label="分组数量">
                   <Stepper
                     value={form.numGroups}
@@ -525,11 +644,23 @@ const MatchPublish: React.FC = () => {
                     unit="人"
                   />
                 </Field>
+              </div>
 
-                <Field label="计划场次">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <Field label="每场时长" hint={`${form.durationPerGame}分钟`}>
+                  <Stepper
+                    value={form.durationPerGame}
+                    onChange={handleDurationChange}
+                    min={5}
+                    max={120}
+                    unit="分钟"
+                  />
+                </Field>
+
+                <Field label="计划场次" hint={`共${form.plannedGameCount}场`}>
                   <Stepper
                     value={form.plannedGameCount}
-                    onChange={(v) => update('plannedGameCount', v)}
+                    onChange={handleGameCountChange}
                     min={1}
                     max={20}
                     unit="场"

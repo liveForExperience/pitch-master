@@ -63,6 +63,8 @@ public class Player extends BaseEntity {
      */
     private BigDecimal rating;
 
+    private Integer ratingVersion;
+
     private Integer age;
 
     /**
@@ -79,4 +81,6 @@ public class Player extends BaseEntity {
      * 最后一次参加比赛的时间 (用于计算评分衰减)
      */
     private LocalDateTime lastMatchTime;
+
+    private LocalDateTime lastAttendanceTime;
 }

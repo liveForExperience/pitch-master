@@ -100,3 +100,43 @@ CREATE TABLE `player_relationship` (
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY `uk_relationship` (`from_player_id`, `to_player_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='球员默契与意愿关系表';
+
+CREATE TABLE IF NOT EXISTS `player_attribute` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `player_id` BIGINT NOT NULL UNIQUE,
+    `pace` INT DEFAULT 10 COMMENT "速度 1-20",
+    `shooting` INT DEFAULT 10 COMMENT "射门 1-20",
+    `passing` INT DEFAULT 10 COMMENT "传球 1-20",
+    `dribbling` INT DEFAULT 10 COMMENT "盘带 1-20",
+    `defending` INT DEFAULT 10 COMMENT "防守 1-20",
+    `physical` INT DEFAULT 10 COMMENT "体能 1-20",
+    `market_value` DECIMAL(15,2) DEFAULT 0.00 COMMENT "虚拟身价",
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `player_stat` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `player_id` BIGINT NOT NULL UNIQUE,
+    `total_matches` INT DEFAULT 0,
+    `wins` INT DEFAULT 0,
+    `draws` INT DEFAULT 0,
+    `losses` INT DEFAULT 0,
+    `total_goals` INT DEFAULT 0,
+    `total_assists` INT DEFAULT 0,
+    `total_mvps` INT DEFAULT 0,
+    `clean_sheets` INT DEFAULT 0,
+    `recent_form` VARCHAR(50) DEFAULT "" COMMENT "近5场趋势",
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `player_rating_history` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `player_id` BIGINT NOT NULL,
+    `match_id` BIGINT,
+    `old_rating` DECIMAL(10,2),
+    `new_rating` DECIMAL(10,2),
+    `delta` DECIMAL(10,2),
+    `change_reason` VARCHAR(50),
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_player_id (player_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
