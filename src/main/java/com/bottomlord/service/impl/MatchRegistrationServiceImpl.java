@@ -40,4 +40,12 @@ public class MatchRegistrationServiceImpl extends ServiceImpl<MatchRegistrationM
                 .eq(MatchRegistration::getMatchId, matchId)
                 .in(MatchRegistration::getStatus, "REGISTERED", "NO_SHOW"));
     }
+
+    @Override
+    public List<MatchRegistration> getPendingRegistrations(Long matchId) {
+        return baseMapper.selectList(new LambdaQueryWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .eq(MatchRegistration::getStatus, "PENDING")
+                .orderByAsc(MatchRegistration::getCreatedAt));
+    }
 }

@@ -38,6 +38,15 @@ public interface MatchService extends IService<Match> {
     Match publishMatch(Match match);
 
     /**
+     * 更新赛事信息（仅限 PREPARING 状态）
+     *
+     * @param matchId 赛事ID
+     * @param match 更新的赛事信息
+     * @return 更新后的赛事
+     */
+    Match updateMatch(Long matchId, Match match);
+
+    /**
      * 开始报名（状态：PREPARING -> PUBLISHED）
      *
      * @param matchId 赛事ID
@@ -78,6 +87,22 @@ public interface MatchService extends IService<Match> {
      * 取消报名 (含反悔逻辑)
      */
     void cancelRegistration(Long matchId, Long playerId);
+
+    /**
+     * 批准待审批的报名（管理员操作，PENDING -> REGISTERED）
+     *
+     * @param matchId 赛事ID
+     * @param playerId 球员ID
+     */
+    void approveRegistration(Long matchId, Long playerId);
+
+    /**
+     * 拒绝待审批的报名（管理员操作，PENDING -> CANCELLED）
+     *
+     * @param matchId 赛事ID
+     * @param playerId 球员ID
+     */
+    void rejectRegistration(Long matchId, Long playerId);
 
     /**
      * 生成分组草稿（进入 GROUPING_DRAFT 状态）

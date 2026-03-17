@@ -30,6 +30,7 @@
 | `/list` | GET | 获取待开赛赛事列表 | 无 |
 | `/{id}` | GET | 获取赛事详情 | 无 |
 | `/publish` | POST | 创建赛事草稿 | 需 ADMIN 角色，Body: `Match` |
+| `/{id}` | PUT | 更新赛事信息 | 仅限 PREPARING 状态，需 ADMIN 角色，Body: `Match` |
 | `/{id}/publish` | POST | 发布赛事并开始报名 | 状态由 PREPARING 变为 PUBLISHED |
 | `/{id}/revert-preparing` | POST | 撤回至筹备阶段 | 仅限从 PUBLISHED 撤回，需 ADMIN 角色 |
 | `/{matchId}/register` | POST | 球员报名 | Query: `playerId` |

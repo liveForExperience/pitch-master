@@ -169,6 +169,26 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
+    public Match updateMatch(Long matchId, Match match) {
+        Match existing = getMatchWithStatusSync(matchId);
+        if (existing == null) {
+            throw new IllegalArgumentException("赛事不存在");
+        }
+        if (!Match.STATUS_PREPARING.equals(existing.getStatus())) {
+            throw new IllegalStateException("只能编辑筹备中的赛事");
+        }
+        match.setId(matchId);
+        match.setStatus(Match.STATUS_PREPARING);
+        if (match.getTournamentId() == null) {
+            match.setTournamentId(existing.getTournamentId());
+        }
+        this.updateById(match);
+        return match;
+    }
+
+    @Override
+    @RequiresRoles("admin")
+    @Transactional(rollbackFor = Exception.class)
     public void startRegistration(Long matchId) {
         Match match = getMatchWithStatusSync(matchId);
         if (match == null) throw new IllegalArgumentException("赛事不存在");
@@ -233,19 +253,43 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
             throw new IllegalStateException("当前赛事未开放报名");
         }
 
-        long count = registrationService.count(new LambdaQueryWrapper<MatchRegistration>()
+        // 检查是否已有有效报名
+        long activeCount = registrationService.count(new LambdaQueryWrapper<MatchRegistration>()
                 .eq(MatchRegistration::getMatchId, matchId)
                 .eq(MatchRegistration::getPlayerId, playerId)
-                .ne(MatchRegistration::getStatus, "CANCELLED"));
+                .in(MatchRegistration::getStatus, "REGISTERED", "PENDING"));
         
-        if (count > 0) throw new IllegalStateException("已报名该赛事");
+        if (activeCount > 0) throw new IllegalStateException("已报名该赛事");
 
-        MatchRegistration reg = new MatchRegistration();
-        reg.setMatchId(matchId);
-        reg.setPlayerId(playerId);
-        reg.setStatus("REGISTERED");
-        reg.setIsExempt(false);
-        registrationService.save(reg);
+        // 计算容量：numGroups * playersPerGroup
+        int capacity = match.getNumGroups() * match.getPlayersPerGroup();
+        long registeredCount = registrationService.count(new LambdaQueryWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .eq(MatchRegistration::getStatus, "REGISTERED"));
+
+        // 判断是否超出容量
+        String targetStatus = registeredCount >= capacity ? "PENDING" : "REGISTERED";
+        
+        // 检查是否存在已取消的记录，如果存在则复用，否则新建
+        MatchRegistration existingReg = registrationService.getOne(new LambdaQueryWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .eq(MatchRegistration::getPlayerId, playerId));
+        
+        if (existingReg != null) {
+            // 复用已有记录，更新状态
+            existingReg.setStatus(targetStatus);
+            existingReg.setGroupIndex(null);
+            existingReg.setPaymentStatus("UNPAID");
+            registrationService.updateById(existingReg);
+        } else {
+            // 新建记录
+            MatchRegistration reg = new MatchRegistration();
+            reg.setMatchId(matchId);
+            reg.setPlayerId(playerId);
+            reg.setStatus(targetStatus);
+            reg.setIsExempt(false);
+            registrationService.save(reg);
+        }
     }
 
     @Override
@@ -255,15 +299,48 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         MatchRegistration reg = registrationService.getOne(new LambdaQueryWrapper<MatchRegistration>()
                 .eq(MatchRegistration::getMatchId, matchId)
                 .eq(MatchRegistration::getPlayerId, playerId)
-                .eq(MatchRegistration::getStatus, "REGISTERED"));
+                .in(MatchRegistration::getStatus, "REGISTERED", "PENDING"));
 
         if (reg == null) return;
 
-        if (LocalDateTime.now().isAfter(match.getCancelDeadline())) {
+        // PENDING 状态取消时，直接变为 CANCELLED（无需付费）
+        if ("PENDING".equals(reg.getStatus())) {
+            reg.setStatus("CANCELLED");
+        } else if (LocalDateTime.now().isAfter(match.getCancelDeadline())) {
             reg.setStatus("NO_SHOW");
         } else {
             reg.setStatus("CANCELLED");
         }
+        registrationService.updateById(reg);
+    }
+
+    @Override
+    @RequiresRoles("admin")
+    @Transactional(rollbackFor = Exception.class)
+    public void approveRegistration(Long matchId, Long playerId) {
+        MatchRegistration reg = registrationService.getOne(new LambdaQueryWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .eq(MatchRegistration::getPlayerId, playerId)
+                .eq(MatchRegistration::getStatus, "PENDING"));
+        
+        if (reg == null) throw new IllegalArgumentException("未找到待审批的报名记录");
+        
+        reg.setStatus("REGISTERED");
+        registrationService.updateById(reg);
+    }
+
+    @Override
+    @RequiresRoles("admin")
+    @Transactional(rollbackFor = Exception.class)
+    public void rejectRegistration(Long matchId, Long playerId) {
+        MatchRegistration reg = registrationService.getOne(new LambdaQueryWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .eq(MatchRegistration::getPlayerId, playerId)
+                .eq(MatchRegistration::getStatus, "PENDING"));
+        
+        if (reg == null) throw new IllegalArgumentException("未找到待审批的报名记录");
+        
+        reg.setStatus("CANCELLED");
         registrationService.updateById(reg);
     }
 

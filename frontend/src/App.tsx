@@ -36,6 +36,7 @@ function App() {
           <Route path="/matches" element={<MatchList />} />
           <Route path="/matches/publish" element={<MatchPublish />} />
           <Route path="/matches/:id" element={<MatchDetail />} />
+          <Route path="/matches/:id/edit" element={<MatchPublish />} />
           <Route path="/matches/:id/finance" element={<MatchFinance />} />
           <Route path="/matches/:id/grouping" element={<MatchGrouping />} />
           <Route path="/player/rating-demo" element={<PlayerRatingDemo />} />

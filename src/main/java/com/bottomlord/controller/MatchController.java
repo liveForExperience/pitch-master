@@ -40,6 +40,11 @@ public class MatchController {
         return Result.success(matchService.publishMatch(match));
     }
 
+    @PutMapping("/{id}")
+    public Result<Match> updateMatch(@PathVariable Long id, @RequestBody Match match) {
+        return Result.success(matchService.updateMatch(id, match));
+    }
+
     @PostMapping("/{id}/publish")
     public Result<Void> startRegistration(@PathVariable Long id) {
         matchService.startRegistration(id);
@@ -62,6 +67,23 @@ public class MatchController {
     public Result<Void> cancelRegistration(@PathVariable Long matchId, @RequestParam Long playerId) {
         matchService.cancelRegistration(matchId, playerId);
         return Result.success();
+    }
+
+    @PostMapping("/{matchId}/approve")
+    public Result<Void> approveRegistration(@PathVariable Long matchId, @RequestParam Long playerId) {
+        matchService.approveRegistration(matchId, playerId);
+        return Result.success();
+    }
+
+    @PostMapping("/{matchId}/reject")
+    public Result<Void> rejectRegistration(@PathVariable Long matchId, @RequestParam Long playerId) {
+        matchService.rejectRegistration(matchId, playerId);
+        return Result.success();
+    }
+
+    @GetMapping("/{id}/pending")
+    public Result<List<MatchRegistration>> listPendingRegistrations(@PathVariable Long id) {
+        return Result.success(registrationService.getPendingRegistrations(id));
     }
 
     @PostMapping("/{matchId}/group")

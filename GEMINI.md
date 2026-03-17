@@ -1,49 +1,62 @@
-# GEMINI.md - 项目开发规约与上下文
+# GEMINI.md - AI Agent 项目上下文
 
-## 1. 项目背景 (Context)
-- **项目名称**: PitchMaster (球场大师)
-- **核心目标**: 构建一个业余足球爱好者管理平台，涵盖球赛管理、球队信息维护、球员录入、比赛分组自动分配以及赛后数据统计。
-- **当前阶段**: 概念构思与基础架构搭建。
+> 本文件为 AI Agent 开发辅助提供项目上下文，不属于正式技术文档。正式文档请查阅 `docs/` 目录。
 
-## 2. 技术栈 (Tech Stack)
-- **核心框架**: Spring Boot (最新稳定版)
-- **权限安全**: Apache Shiro
-- **持久层**: MyBatis-Plus
-- **数据库**: MySQL
-- **前端框架**: React + TypeScript + Tailwind CSS + Ant Design Mobile (优先使用 Tailwind 进行布局与样式定制)
-- **实时通信**: SSE (Server-Sent Events) 扩展为通用消息总线。
-- **构建工具**: Maven / npm
+## 1. 项目定义
 
-## 3. 编码标准 (Engineering Standards)
-- **待办管理**: 
-  - 所有待实现的功能或发现的 Bug 均记录在根目录的 `TODO.md` 中。
-  - 任务完成后，必须从 `TODO.md` 中移除相应条目。
-- **UI 规范**: 遵循现有 Tailwind CSS 布局方案。
-- **费用逻辑**: 
-  - 引入 `registration_deadline` (报名截止时间)。
-  - 截止后取消报名仍需分摊费用。
-  - 管理员拥有“豁免权”：可手动标记特定球员无需支付，剩余费用由非豁免人员向上取整 (Math.ceil) 平摊。
-- **质量保证**: 每个功能模块必须配有单元测试 (JUnit 5 + Mockito)。
+- **项目名称**: PitchMaster
+- **核心目标**: 业余足球爱好者的赛事与俱乐部管理平台
+- **当前阶段**: 核心功能已上线，包括赛事管理、分组算法、实时比分、FM 风格评分系统
 
-## 5. 核心算法与组件 (Core Components)
-- **分组算法 (Grouping Strategy)**: 
-  - 优先考虑“位置偏好”而非硬性限制。
-  - 引入“默契度与意愿”权重进行局部搜索优化。
-- **打分系统 (Rating System)**:
-  - 采用策略模式设计，支持动态切换评分规则。
-  - 数据采集维度：进球、助攻、胜场、出勤率、零封(GK)。
-- **实时总线 (Event Bus)**: 基于 SSE，支持比分、满员、赛事取消等多种事件分发。
+## 2. 技术栈
 
-## 6. 待讨论模块 (Roadmap)
-- **Phase 1 (MVP)**:
-  - Shiro 用户登录、权限控制。
-  - 球员档案（含技术分、位置、年龄、擅长脚）。
-  - 赛事发布与人均费用自动计算。
-  - **基础分组算法**: 基于单一技术分实现实力平均分配。
-- **Phase 2 (Algorithm Plus)**:
-  - 引入位置互补权重。
-  - 球员关系模型（配合意愿、历史默契度）。
-  - 分组策略切换功能。
-- **Phase 3 (Statistics & Growth)**:
-  - 赛后多维度数据录入（进球、助攻、MVP）。
-  - 个人能力图表自动更新。
+**Backend**
+- Spring Boot 3.4 + MyBatis-Plus + MySQL
+- Apache Shiro (认证授权，ROLE: ADMIN/USER)
+- Flyway (数据库版本管理)
+- SSE (实时推送)
+- JUnit 5 + Mockito (测试)
+
+**Frontend**
+- React 18 + TypeScript + Vite
+- Ant Design Mobile + Tailwind CSS (主色 `#1DB954`)
+- Zustand (状态管理)
+- ECharts (评分雷达图)
+- Axios (`withCredentials: true` 对应 Shiro Session)
+
+## 3. 关键业务规则摘要
+
+**费用逻辑**
+- `cancelDeadline` 后取消报名仍需分摊费用
+- `isExempt` 豁免标记，剩余费用由非豁免人员向上取整 (`Math.ceil`) 平摊
+- `NO_SHOW` 状态人员仍需参与分摊
+
+**评分系统 (FM 风格 1-20 分)**
+- 三维评分: Skill / Performance / Engagement
+- 公式: `Total = Skill × 0.40 + Performance × 0.40 + Engagement × 0.20`
+- 新球员展期保护 (前 3 场)，初始分 5.0（管理员可指定）
+- 衰减: 30 天不活跃后每周 Engagement -0.10，下限 1.00
+- 详细规则见 `docs/RATING_SYSTEM.md`
+
+**分组算法**
+- 策略模式设计 (`GroupingStrategy` 接口)
+- 当前实现: 基于 Rating 的蛇形分组 (Snake Draft)
+- 扩展预留: 位置权重、默契度、配合意愿
+
+**实时架构**
+- SSE 订阅模式: `GET /api/realtime/subscribe/{matchId}`
+- `SseManager` 维护基于 `matchId` 的连接池
+- 比分变动写入 `match_score_log` 后进行广播
+
+## 4. 编码要求
+
+- 遵循《阿里巴巴 Java 开发手册》规约
+- Controller 只做编排，业务逻辑沉淠在 Service
+- Migration 优先于实体修改
+- 所有 `TODO` 记录在根目录 `TODO.md`
+- UI 遵循现有 Tailwind CSS 布局方案
+- 每个功能模块必须配有单元测试 (JUnit 5 + Mockito)
+
+## 5. 待完成功能 (Roadmap)
+
+详见 `TODO.md`。

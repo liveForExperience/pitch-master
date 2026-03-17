@@ -30,7 +30,11 @@ public class MatchRegistration extends BaseEntity {
     private Integer groupIndex;
 
     /**
-     * 状态：REGISTERED, CANCELLED, NO_SHOW
+     * 状态：
+     * REGISTERED - 已报名（在容量内或管理员已批准）
+     * PENDING - 待审批（超出容量，等待管理员批准）
+     * CANCELLED - 已取消（在反悔时间前主动取消，免费）
+     * NO_SHOW - 过期取消（在反悔时间后取消，仍需付费）
      */
     private String status;
 

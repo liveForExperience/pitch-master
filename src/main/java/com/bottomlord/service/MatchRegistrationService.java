@@ -36,4 +36,12 @@ public interface MatchRegistrationService extends IService<MatchRegistration> {
      * @return 报名列表
      */
     List<MatchRegistration> getBillableRegistrations(Long matchId);
+
+    /**
+     * 获取指定赛事所有待审批的报名（PENDING 状态）
+     *
+     * @param matchId 赛事ID
+     * @return 待审批报名列表，按报名时间升序排列
+     */
+    List<MatchRegistration> getPendingRegistrations(Long matchId);
 }

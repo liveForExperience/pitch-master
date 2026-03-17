@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Toast, Dialog } from 'antd-mobile';
 import {
   ChevronLeft, Clock, MapPin, Users, CalendarClock,
-  Share2, UserPlus, LogOut, Shield, Loader2, Undo2
+  Share2, UserPlus, LogOut, Shield, Loader2, Undo2, Edit
 } from 'lucide-react';
 import apiClient from '../api/client';
 import dayjs from 'dayjs';
@@ -97,6 +97,7 @@ const MatchDetail: React.FC = () => {
 
   const [match, setMatch] = useState<any>(null);
   const [registrations, setRegistrations] = useState<any[]>([]);
+  const [pendingRegistrations, setPendingRegistrations] = useState<any[]>([]);
   const [players, setPlayers] = useState<Record<number, any>>({});
   const [pageLoading, setPageLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -122,9 +123,31 @@ const MatchDetail: React.FC = () => {
             }
           }
         }
+
+        // 管理员加载待审批列表
+        if (admin) {
+          try {
+            const pending: any = await apiClient.get(`/api/match/${id}/pending`);
+            setPendingRegistrations(pending || []);
+            for (const reg of (pending || [])) {
+              if (!playerMap[reg.playerId]) {
+                try {
+                  const p: any = await apiClient.get(`/api/player/${reg.playerId}`);
+                  playerMap[reg.playerId] = p;
+                } catch {
+                  playerMap[reg.playerId] = { nickname: `球员 #${reg.playerId}`, position: '' };
+                }
+              }
+            }
+          } catch {
+            setPendingRegistrations([]);
+          }
+        }
+
         setPlayers(playerMap);
       } catch {
         setRegistrations([]);
+        setPendingRegistrations([]);
       }
     } catch (err) {
       console.error(err);
@@ -145,6 +168,7 @@ const MatchDetail: React.FC = () => {
       : null;
   const canRegister = match?.status === 'PUBLISHED';
   const isRegistered = activeRegs.some(r => r.playerId === currentPlayerId);
+  const isPending = pendingRegistrations.some(r => r.playerId === currentPlayerId);
 
   /* ── Registration handlers ── */
   const handleRegister = async () => {
@@ -186,6 +210,28 @@ const MatchDetail: React.FC = () => {
     try {
       await apiClient.post(`/api/match/${id}/revert-preparing`);
       Toast.show({ icon: 'success', content: '已回退到筹备状态' });
+      fetchData();
+    } catch { /* handled by interceptor */ }
+  };
+
+  /* ── Admin: approve/reject pending ── */
+  const handleApprove = async (playerId: number) => {
+    try {
+      await apiClient.post(`/api/match/${id}/approve`, null, { params: { playerId } });
+      Toast.show({ icon: 'success', content: '已批准报名' });
+      fetchData();
+    } catch { /* handled by interceptor */ }
+  };
+
+  const handleReject = async (playerId: number) => {
+    const confirmed = await Dialog.confirm({
+      title: '拒绝报名',
+      content: '确定要拒绝该球员的报名申请吗？',
+    });
+    if (!confirmed) return;
+    try {
+      await apiClient.post(`/api/match/${id}/reject`, null, { params: { playerId } });
+      Toast.show({ icon: 'success', content: '已拒绝报名' });
       fetchData();
     } catch { /* handled by interceptor */ }
   };
@@ -317,6 +363,56 @@ const MatchDetail: React.FC = () => {
             </div>
           </div>
 
+          {/* ── Pending Approvals (Admin Only) ── */}
+          {admin && pendingRegistrations.length > 0 && (
+            <div className="rounded-[2rem] border border-amber-500/20 bg-[linear-gradient(180deg,rgba(245,158,11,0.08)_0%,rgba(10,10,10,1)_100%)] p-8">
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-xs font-black tracking-[0.2em] text-amber-400">待审批报名</h3>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-black text-amber-400">{pendingRegistrations.length}</span>
+                  <span className="text-sm font-medium text-neutral-600">人</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {pendingRegistrations.map((reg) => {
+                  const player = players[reg.playerId];
+                  const initial = (player?.nickname || '?')[0];
+                  return (
+                    <div
+                      key={reg.id}
+                      className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] px-4 py-3"
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-sm font-black text-amber-400">
+                        {initial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-bold text-white">
+                          {player?.nickname || `球员 #${reg.playerId}`}
+                        </div>
+                        <div className="mt-0.5 text-[10px] font-medium text-neutral-500">{dayjs(reg.createdAt).format('MM-DD HH:mm')}</div>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          onClick={() => handleApprove(reg.playerId)}
+                          className="rounded-lg bg-primary/15 border border-primary/30 px-3 py-1.5 text-[10px] font-bold text-primary hover:bg-primary/25 transition-colors"
+                        >
+                          批准
+                        </button>
+                        <button
+                          onClick={() => handleReject(reg.playerId)}
+                          className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-1.5 text-[10px] font-bold text-red-400 hover:bg-red-500/20 transition-colors"
+                        >
+                          拒绝
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* ── Registered Players ── */}
           <div className="rounded-[2rem] border border-neutral-800 bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-8">
             <div className="mb-6 flex items-center justify-between">
@@ -411,9 +507,9 @@ const MatchDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* Register / Cancel */}
+            {/* Register / Cancel / Pending */}
             <div className="mt-6">
-              {canRegister && !isRegistered && (
+              {canRegister && !isRegistered && !isPending && (
                 <button
                   onClick={handleRegister}
                   disabled={registering}
@@ -438,13 +534,39 @@ const MatchDetail: React.FC = () => {
                   )}
                 </div>
               )}
-              {!canRegister && !isRegistered && (
+              {isPending && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/8 py-3 text-xs font-bold text-amber-400">
+                    <Clock size={14} /> 待管理员审批
+                  </div>
+                  <div className="text-center text-[10px] text-neutral-600">
+                    人数已满，您的报名申请需要管理员批准
+                  </div>
+                  <button
+                    onClick={handleCancelRegistration}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-neutral-500 transition-colors hover:text-red-400"
+                  >
+                    <LogOut size={14} /> 取消申请
+                  </button>
+                </div>
+              )}
+              {!canRegister && !isRegistered && !isPending && (
                 <div className="flex items-center justify-center rounded-2xl border border-neutral-800 bg-neutral-900 py-4 text-xs font-bold text-neutral-500">
                   {match.status === 'PREPARING' ? '报名尚未开始' : '报名已截止'}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Admin Edit Button (Only for PREPARING status) */}
+          {admin && match.status === 'PREPARING' && (
+            <button
+              onClick={() => navigate(`/matches/${id}/edit`)}
+              className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 py-4 text-sm font-bold text-amber-400 transition-all hover:bg-amber-500/15 active:scale-[0.98]"
+            >
+              <Edit size={16} /> 编辑赛事信息
+            </button>
+          )}
 
           {/* Generate Poster */}
           <button

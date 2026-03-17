@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Toast } from 'antd-mobile';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   ChevronLeft,
   Trophy,
@@ -141,7 +141,10 @@ const Stepper: React.FC<{
 
 const MatchPublish: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = Boolean(id);
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(isEditMode);
   const { fetchMe, fetched, isAdmin } = useAuthStore();
 
   useEffect(() => {
@@ -152,6 +155,50 @@ const MatchPublish: React.FC = () => {
       navigate('/matches', { replace: true });
     }
   }, [fetched, isAdmin, fetchMe, navigate]);
+
+  // 编辑模式：加载现有赛事数据
+  useEffect(() => {
+    if (isEditMode && id) {
+      setPageLoading(true);
+      apiClient.get(`/api/match/${id}`)
+        .then((match: any) => {
+          if (match.status !== 'PREPARING') {
+            Toast.show({ icon: 'fail', content: '只能编辑筹备中的赛事' });
+            navigate('/matches', { replace: true });
+            return;
+          }
+          const startDayjs = dayjs(match.startTime);
+          const endDayjs = dayjs(match.endTime);
+          const regDeadlineDayjs = dayjs(match.registrationDeadline);
+          const cancelDeadlineDayjs = dayjs(match.cancelDeadline);
+
+          setForm({
+            title: match.title || '',
+            location: match.location || '',
+            startDateMode: startDayjs.format('YYYY-MM-DD'),
+            startDateCustom: '',
+            startTimeMode: startDayjs.format('HH:mm'),
+            startTimeCustom: '',
+            endTimeMode: 'custom',
+            endTimeCustom: endDayjs.format('YYYY-MM-DDTHH:mm'),
+            regDeadlineMode: 'custom',
+            regDeadlineCustom: regDeadlineDayjs.format('YYYY-MM-DDTHH:mm'),
+            cancelDeadlineMode: 'custom',
+            cancelDeadlineCustom: cancelDeadlineDayjs.format('YYYY-MM-DDTHH:mm'),
+            numGroups: match.numGroups || 2,
+            playersPerGroup: match.playersPerGroup || 5,
+            plannedGameCount: match.plannedGameCount || 3,
+            durationPerGame: match.durationPerGame || 15,
+            totalCost: match.totalCost ? String(match.totalCost) : '',
+          });
+        })
+        .catch(() => {
+          Toast.show({ icon: 'fail', content: '加载赛事信息失败' });
+          navigate('/matches', { replace: true });
+        })
+        .finally(() => setPageLoading(false));
+    }
+  }, [isEditMode, id, navigate]);
 
   // ─── 日期快捷选项 ───
   const dateOptions = useMemo(() => {
@@ -358,9 +405,15 @@ const MatchPublish: React.FC = () => {
         totalCost: form.totalCost ? Number(form.totalCost) : 0,
       };
 
-      await apiClient.post('/api/match/publish', payload);
-      Toast.show({ icon: 'success', content: '赛事发布成功' });
-      navigate('/matches');
+      if (isEditMode && id) {
+        await apiClient.put(`/api/match/${id}`, payload);
+        Toast.show({ icon: 'success', content: '赛事更新成功' });
+        navigate(`/matches/${id}`);
+      } else {
+        await apiClient.post('/api/match/publish', payload);
+        Toast.show({ icon: 'success', content: '赛事发布成功' });
+        navigate('/matches');
+      }
     } catch {
       // 拦截器已处理错误
     } finally {
@@ -373,6 +426,14 @@ const MatchPublish: React.FC = () => {
   const perPerson = form.totalCost && Number(form.totalCost) > 0
     ? Math.ceil(Number(form.totalCost) / totalPlayers)
     : 0;
+
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-neutral-500">加载中...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
@@ -394,15 +455,17 @@ const MatchPublish: React.FC = () => {
         {/* 页面标题 */}
         <header className="mb-16">
           <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-6">
-            赛事发布
+            {isEditMode ? '赛事编辑' : '赛事发布'}
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter mb-4">
-            创建新
+            {isEditMode ? '编辑' : '创建新'}
             <br />
             <span className="text-primary">比赛日程</span>
           </h1>
           <p className="max-w-2xl text-neutral-500 font-medium text-base sm:text-lg">
-            设定赛事的时间、地点、分组规则与费用，发布后即刻进入报名阶段，球员可在赛事广场中报名参赛。
+            {isEditMode 
+              ? '修改赛事的时间、地点、分组规则与费用，仅在筹备阶段可编辑。' 
+              : '设定赛事的时间、地点、分组规则与费用，发布后即刻进入报名阶段，球员可在赛事广场中报名参赛。'}
           </p>
         </header>
 
@@ -639,7 +702,7 @@ const MatchPublish: React.FC = () => {
                   <Stepper
                     value={form.playersPerGroup}
                     onChange={(v) => update('playersPerGroup', v)}
-                    min={3}
+                    min={1}
                     max={11}
                     unit="人"
                   />
@@ -732,7 +795,7 @@ const MatchPublish: React.FC = () => {
                 aria-busy={loading}
                 className="flex h-16 w-full items-center justify-center rounded-[1.75rem] border border-primary/30 bg-primary text-[15px] font-black tracking-[0.2em] text-black shadow-[0_20px_40px_rgba(29,185,84,0.2)] transition-all hover:translate-y-[-2px] hover:shadow-[0_25px_50px_rgba(29,185,84,0.35)] active:translate-y-[0px] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                <span>{loading ? '发布中...' : '确认发布赛事'}</span>
+                <span>{loading ? (isEditMode ? '保存中...' : '发布中...') : (isEditMode ? '保存修改' : '确认发布赛事')}</span>
                 {!loading && <Send className="ml-3" size={18} />}
               </button>
 
