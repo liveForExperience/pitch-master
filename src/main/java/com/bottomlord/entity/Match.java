@@ -4,11 +4,13 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.bottomlord.common.base.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * 比赛/周赛 (L4)
@@ -18,7 +20,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("`match`")
+@TableName(value = "`match`", autoResultMap = true)
 public class Match extends BaseEntity {
 
     @TableId(type = IdType.AUTO)
@@ -38,6 +40,11 @@ public class Match extends BaseEntity {
     private String title;
 
     private LocalDateTime startTime;
+
+    /**
+     * 实际开赛时间（管理员触发开赛时设置，允许调整）
+     */
+    private LocalDateTime actualStartTime;
 
     /**
      * 比赛结束时间
@@ -95,4 +102,32 @@ public class Match extends BaseEntity {
      * 状态：PREPARING, PUBLISHED, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, SETTLED, CANCELLED
      */
     private String status;
+
+    /**
+     * 分组是否已发布：false=草稿（仅管理员可见），true=已发布（所有人可见）
+     */
+    private Boolean groupsPublished;
+
+    /**
+     * 各队自定义名称，key 为组号（0-N），value 为队伍名称
+     */
+    @TableField(typeHandler = JacksonTypeHandler.class)
+    private Map<Integer, String> teamNames;
+
+    /**
+     * 赛制类型：LEAGUE=联赛积分制（默认），预留扩展点
+     */
+    private String gameFormat;
+
+    /**
+     * 软删除时间
+     */
+    private LocalDateTime deletedAt;
+
+    /**
+     * 删除操作人用户ID
+     */
+    private Long deletedBy;
+
+    public static final String GAME_FORMAT_LEAGUE = "LEAGUE";
 }

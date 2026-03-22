@@ -16,13 +16,22 @@ stateDiagram-v2
     
     PUBLISHED --> CANCELLED : 取消赛事 (TODO)
     
-    PUBLISHED --> GROUPING_DRAFT : 触发分组 (confirmAndGroup)
-    REGISTRATION_CLOSED --> GROUPING_DRAFT : 触发分组 (confirmAndGroup)
-    
-    GROUPING_DRAFT --> ONGOING : 锁定分组并开赛 (startWithGroups)
+    REGISTRATION_CLOSED --> ONGOING : 分组完成后开赛 (startMatch)
+    GROUPING_DRAFT --> ONGOING : 分组完成后开赛 (startMatch)
+    ONGOING --> REGISTRATION_CLOSED : 管理员回退状态 (rollbackStatus)
+    ONGOING --> GROUPING_DRAFT : 管理员回退状态 (rollbackStatus)
     ONGOING --> MATCH_FINISHED : 比赛结束 (finishMatch)
     MATCH_FINISHED --> SETTLED : 确认结算 (settleFees)
     SETTLED --> [*]
+    
+    note right of ONGOING
+        开赛前置检测：
+        1. 分组已发布
+        2. 报名人数≥分组数
+        3. 所有球员已分组
+        4. 每组至少1人
+        5. 提供实际开赛时间
+    end note
 ```
 
 ### 状态详细说明：
@@ -30,9 +39,8 @@ stateDiagram-v2
 | :--- | :--- | :--- | :--- | :--- |
 | **PREPARING** | 筹备中 | **编辑赛事信息**（时间、地点、分组等）、物理删除、开启报名 | 管理员创建时的初始状态 | **筹备中** (仅管理后台可见，卡片显示编辑按钮) |
 | **PUBLISHED** | 报名中 | **球员报名**（容量内直接成功，超容量进入待审批）、撤回至筹备、修改时间 | 管理员点击"发布"或自动同步 | **报名中** (球员端可见) |
-| **REGISTRATION_CLOSED** | 报名截止 | **无法新报名**、可触发分组、可延长截止时间回跳、管理员可审批待审批报名 | 时间超过 `registrationDeadline` | **报名已截止** (球员可见) |
-| **GROUPING_DRAFT** | 分组草稿 | **核心阶段**：微调分组、确认开赛、管理员可审批待审批报名 | 管理员触发自动分组算法 | **分组中** (排兵布阵/手动微调) |
-| **ONGOING** | 比赛中 | 比分/进球录入、SSE 实时同步 | 确认分组并生成场次后进入 | **比赛中** (实时比分流) |
+| **REGISTRATION_CLOSED** | 报名截止 | **无法新报名**、管理员可随时分组/调整/发布分组、可延长截止时间回跳、所有人分配完成后可开赛 | 时间超过 `registrationDeadline` | **报名已截止** (球员可见，管理员可管理分组) |
+| **ONGOING** | 比赛中 | 比分/进球录入、SSE 实时同步、**管理员可回退状态**、**管理员可调整实际开赛时间** | 所有球员分配到组后 `startMatch` 触发，需提供实际开赛时间 | **比赛中** (实时比分流) |
 | **MATCH_FINISHED** | 待核算 | 修正数据、设置豁免、结算费用 | 管理员点击"完成比赛" | **待核算** (赛后数据审计) |
 | **SETTLED** | 已完结 | 查看战报、查看费用分摊、**触发评分演进** | 管理员点击"结算费用" | **已完结** (战报与结算单) |
 | **CANCELLED** | 已取消 | 无 | 管理员手动取消赛事 | **已取消** |
@@ -47,7 +55,30 @@ stateDiagram-v2
     - 报名人数 > 容量时，球员报名后进入 `PENDING` 状态，需要管理员审批
     - 管理员可以在比赛开始前任何时候审批 `PENDING` 报名（批准 → `REGISTERED`，拒绝 → `CANCELLED`）
     - `PENDING` 状态的球员可以在反悔时间前自行取消，取消后直接变为 `CANCELLED`（无需付费）
-*   **分组前提**: 只要赛事未开赛/未结束，管理员可随时重新触发分组算法生成草稿。分组时只包含 `REGISTERED` 状态的球员，`PENDING` 状态的球员不参与分组。
+*   **分组机制（不单独占据状态）**:
+    - 管理员在 `PUBLISHED` 或 `REGISTRATION_CLOSED` 状态下均可执行分组操作（自动分组、手动调整、发布分组）。
+    - 分组数据保存在 `match_registrations.group_index`，发布状态由 `match.groups_published` 字段标记。
+    - 草稿阶段（`groups_published=false`）仅管理员可见；发布后（`groups_published=true`）所有人可见。
+    - **开赛前提**：只有 `REGISTRATION_CLOSED` 状态下，且所有有效报名球员（`REGISTERED`）均已分配到组，才能调用 `startMatch` 进入 `ONGOING`。
+    - 分组时只包含 `REGISTERED` 状态的球员，`PENDING` 状态的球员不参与分组。
+*   **开赛前置检测（`startMatch` 前必须满足）**:
+    1. 状态必须为 `REGISTRATION_CLOSED` 或 `GROUPING_DRAFT`
+    2. `groups_published = true`（分组已发布对所有人可见）
+    3. 报名人数 ≥ `numGroups`（报名人数不少于组数）
+    4. 所有有效报名球员（`REGISTERED`）的 `groupIndex` 均不为 null（全员已分组）
+    5. 每组 groupIndex 至少有一名球员（无空组）
+    6. 提供有效的 `actualStartTime`（实际开赛时间）
+*   **开赛时间机制**:
+    - `startTime`：赛事预设的计划开始时间（创建时填写），前端默认作为开赛时间的初始值
+    - `actualStartTime`：管理员实际触发开赛时记录的时间，管理员可在 ONGOING 状态下修改
+*   **状态回退机制**:
+    - 仅管理员可将 `ONGOING` 回退到 `REGISTRATION_CLOSED` 或 `GROUPING_DRAFT`
+    - 回退时自动删除已生成的所有 `MatchGame` 记录，并清除 `actualStartTime`
+*   **赛事软删除与回收站**:
+    - 管理员可对任意状态的赛事执行软删除（`deleted_at` + `deleted_by` 字段标记）
+    - 软删除的赛事不出现在正常赛事列表中，但进入**回收站**
+    - 回收站中的赛事可被管理员**恢复**（清除删除标记）或**物理删除**（彻底清除所有关联数据）
+    - 物理删除范围：赛事本身、报名记录、场次、进球、参赛人员、比分日志、互评记录
 *   **费用分摊与豁免**:
     - 在 `MATCH_FINISHED` 阶段，管理员可标记特定人员 `isExempt`。
     - 结算时，总金额由 `(REGISTERED + NO_SHOW - EXEMPT)` 的人员向上取整平摊。
@@ -100,7 +131,40 @@ sequenceDiagram
     Service->>Controller: Return Allocation Result
 ```
 
-## 2. 比赛过程与比分演进时序图
+## 2. 场次（MatchGame）生命周期状态机
+
+每场赛事（Match）由多个具体场次（MatchGame）组成。场次有独立的状态机，与赛事状态机并行运行。
+
+```mermaid
+stateDiagram-v2
+    [*] --> READY : startMatch 自动生成
+    READY --> PLAYING : startGame（任意已报名球员触发）
+    PLAYING --> FINISHED : finishGame（任意已报名球员触发）
+```
+
+### 状态详细说明：
+
+| 状态 | 说明 | 允许的操作 | 触发条件 |
+| :--- | :--- | :--- | :--- |
+| **READY** | 待开始 | 查看预计开始时间、查看分组名单 | `startMatch` 时系统自动创建所有场次，初始状态均为 READY |
+| **PLAYING** | 进行中 | 记录进球 / 乌龙球、添加加时、手动修改比分、锁定比分编辑 | 任意已登录且已报名（`REGISTERED`）的球员调用 `startGame` |
+| **FINISHED** | 已结束 | 查看场次统计、触发评分结算 | 任意已登录且已报名（`REGISTERED`）的球员调用 `finishGame` |
+
+### 关键业务规则：
+
+- **互斥约束**：同一赛事中，同一时刻最多只能有 **一个** 场次处于 `PLAYING` 状态。`startGame` 前会原子检查是否已存在 `PLAYING` 场次，存在则拒绝。
+- **权限约束**：触发 `startGame` / `finishGame` 的用户必须是**已登录、已报名（`status=REGISTERED`）的当前赛事球员**。
+- **自动填充参赛人员**：`startGame` 成功后，系统自动将该场次两支队伍对应分组（`group_index`）的所有 `REGISTERED` 球员写入 `GAME_PARTICIPANT`。管理员可通过 `POST /api/game/{gameId}/participants/{playerId}` 和 `DELETE /api/game/{gameId}/participants/{playerId}` 手动调整。
+- **预计开始时间计算**（不存数据库，前端动态计算）：
+  ```
+  scheduledStartTime = match.startTime + match.durationPerGame × game.gameIndex
+  ```
+- **进球类型**：
+  - `NORMAL`：正常进球，`teamIndex` = 受益队，进球者来自受益队。
+  - `OWN_GOAL`：乌龙球，`teamIndex` = 受益队（对方进的乌龙），进球者来自**对方队**。乌龙球**不计入**射手榜。
+- **评分结算**：`finishGame` 完成后立即触发 `RatingService.settleGameRating(gameId)` 完成本场次评分演进。
+
+## 2.5 比赛过程与比分演进时序图
 
 该流程展示了比赛开始、进球记录（自动更新比分）、手动修改比分（占位符生成）的逻辑。
 

@@ -3,6 +3,7 @@ import { PullToRefresh, FloatingBubble, Dialog, Toast } from 'antd-mobile';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Calendar, MapPin, Users, ChevronRight, Trash2, Megaphone } from 'lucide-react';
 import apiClient from '../api/client';
+import { matchApi } from '../api/match';
 import useAuthStore from '../store/useAuthStore';
 import dayjs from 'dayjs';
 
@@ -98,11 +99,11 @@ const MatchList: React.FC = () => {
     e.stopPropagation();
     const confirmed = await Dialog.confirm({
       title: '删除赛事',
-      content: '确定要删除这场筹备中的赛事吗？此操作不可恢复。',
+      content: '确定要删除此赛事吗？删除后可在回收站中恢复。',
     });
     if (confirmed) {
       try {
-        await apiClient.delete(`/api/match/${matchId}`);
+        await matchApi.softDelete(matchId);
         Toast.show({ icon: 'success', content: '赛事已删除' });
         fetchMatches();
       } catch (err) {
@@ -131,7 +132,7 @@ const MatchList: React.FC = () => {
   const statusSummary = matches.reduce(
     (summary, match) => {
       if (match.status === 'PUBLISHED') summary.published += 1;
-      else if (['REGISTRATION_CLOSED', 'GROUPING_DRAFT'].includes(match.status)) summary.grouping += 1;
+      else if (match.status === 'REGISTRATION_CLOSED') summary.grouping += 1;
       else if (match.status === 'ONGOING') summary.ongoing += 1;
       else if (['MATCH_FINISHED', 'SETTLED'].includes(match.status)) summary.finished += 1;
       return summary;
@@ -154,12 +155,20 @@ const MatchList: React.FC = () => {
           </p>
         </div>
         {admin && (
-          <button 
-            onClick={() => navigate('/matches/publish')}
-            className="relative z-10 hidden h-12 items-center rounded-full border border-white/10 bg-white px-6 text-sm font-black text-black shadow-[0_12px_30px_rgba(255,255,255,0.08)] transition-all hover:scale-[1.03] hover:shadow-[0_16px_36px_rgba(255,255,255,0.14)] active:scale-[0.98] md:flex"
-          >
-            <Plus size={20} className="mr-2" /> 发布新赛事
-          </button>
+          <div className="relative z-10 hidden items-center gap-3 md:flex">
+            <button
+              onClick={() => navigate('/matches/trash')}
+              className="flex h-12 items-center rounded-full border border-neutral-700 bg-neutral-900 px-5 text-sm font-bold text-neutral-400 transition-all hover:border-neutral-600 hover:text-white active:scale-[0.98]"
+            >
+              <Trash2 size={16} className="mr-2" /> 回收站
+            </button>
+            <button 
+              onClick={() => navigate('/matches/publish')}
+              className="flex h-12 items-center rounded-full border border-white/10 bg-white px-6 text-sm font-black text-black shadow-[0_12px_30px_rgba(255,255,255,0.08)] transition-all hover:scale-[1.03] hover:shadow-[0_16px_36px_rgba(255,255,255,0.14)] active:scale-[0.98]"
+            >
+              <Plus size={20} className="mr-2" /> 发布新赛事
+            </button>
+          </div>
         )}
       </header>
 
@@ -273,9 +282,19 @@ const MatchList: React.FC = () => {
                       <div className="text-[13px] font-semibold text-neutral-500">
                         人均 <span className="ml-1 text-lg font-black tracking-tight text-white">¥{match.perPersonCost || '0.00'}</span>
                       </div>
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/8 bg-white/[0.03] text-neutral-600 transition-all duration-300 group-hover:border-primary/20 group-hover:bg-primary/[0.08] group-hover:text-primary">
-                        <ChevronRight size={16} className="transition-transform duration-300 group-hover:translate-x-0.5" />
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {admin && (
+                          <button
+                            onClick={(e) => handleDeleteMatch(e, match.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-red-500/15 bg-red-500/[0.06] text-red-400/80 transition-all hover:border-red-500/30 hover:bg-red-500/[0.12] hover:text-red-400 active:scale-95"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/8 bg-white/[0.03] text-neutral-600 transition-all duration-300 group-hover:border-primary/20 group-hover:bg-primary/[0.08] group-hover:text-primary">
+                          <ChevronRight size={16} className="transition-transform duration-300 group-hover:translate-x-0.5" />
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>

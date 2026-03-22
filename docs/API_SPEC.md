@@ -35,12 +35,24 @@
 | `/{id}/revert-preparing` | POST | 撤回至筹备阶段 | 仅限从 PUBLISHED 撤回，需 ADMIN 角色 |
 | `/{matchId}/register` | POST | 球员报名 | Query: `playerId` |
 | `/{matchId}/cancel` | POST | 取消报名 | 处理 Late Cancellation 逻辑 |
-| `/{matchId}/group` | POST | 触发自动分组算法 | 返回 Map<GroupIndex, List<PlayerId>> |
-| `/{matchId}/start-with-groups` | POST | 确认分组并正式开赛 | Body: `Map<GroupIndex, List<Long>>` |
+| `/{matchId}/group` | POST | 触发自动分组算法 | 需 ADMIN，Body: `GroupingRequest`；返回 `GroupsVO` |
+| `/{matchId}/groups` | GET | 获取分组数据 | 非管理员仅返回已发布分组；返回 `GroupsVO`（含 `teamNames`） |
+| `/{matchId}/groups` | PUT | 手动调整分组草稿 | 需 ADMIN，Body: `Map<Integer, List<Long>>` |
+| `/{matchId}/groups/publish` | POST | 发布分组（对所有人可见） | 需 ADMIN，要求全员已分配 |
+| `/{matchId}/teams/{groupIndex}/name` | PUT | 更新队伍自定义名称 | 需 ADMIN，Body: `{"name": "雄鹰队"}`；名称为空则重置 |
+| `/{matchId}/start` | POST | 确认分组并正式开赛 | 需 ADMIN，要求 `groups_published=true`，Body: `{"actualStartTime": "2026-03-22T19:00:00"}`；执行开赛前置检测 |
+| `/{matchId}/rollback` | POST | 回退赛事状态 | 需 ADMIN，仅允许从 ONGOING 回退，Query: `targetStatus`（REGISTRATION_CLOSED / GROUPING_DRAFT） |
+| `/{matchId}/actual-start-time` | PUT | 修改实际开赛时间 | 需 ADMIN，仅在 ONGOING 状态，Body: `{"actualStartTime": "2026-03-22T20:00:00"}` |
 | `/{matchId}/finish` | POST | 完成赛事并结算费用 | 触发 perPersonCost 计算 |
+| `/{matchId}/soft` | DELETE | 软删除赛事 | 需 ADMIN，任何状态均可删除，软删除后进入回收站 |
+| `/trash` | GET | 获取回收站赛事列表 | 需 ADMIN，返回所有已软删除的赛事 |
+| `/{matchId}/permanent` | DELETE | 物理删除赛事 | 需 ADMIN，彻底删除赛事及所有关联数据（不可恢复） |
+| `/{matchId}/restore` | POST | 恢复软删除的赛事 | 需 ADMIN，从回收站恢复赛事 |
 | `/{id}/registrations` | GET | 获取计费报名列表 | 返回所有需分摊费用的报名信息 |
 | `/{id}/payment` | POST | 更新缴费状态 | Query: `playerId`, `status` |
 | `/{matchId}/report` | GET | 获取战报导出 | 返回战报内容 (Text/Json) |
+| `/{matchId}/standings` | GET | 获取积分榜 | 无需登录；基于 `gameFormat` 计算，返回 `StandingsVO` |
+| `/{matchId}/stats` | GET | 获取数据榜（射手/助攻） | 无需登录；返回 `MatchStatsVO` |
 
 ## 4. 比赛场次与进球模块 (Match Game)
 基础路径: `/api/game`

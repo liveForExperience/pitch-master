@@ -5,7 +5,10 @@ import MatchList from './pages/MatchList';
 import MatchDetail from './pages/MatchDetail';
 import MatchFinance from './pages/MatchFinance';
 import MatchGrouping from './pages/MatchGrouping';
+import MatchLive from './pages/MatchLive';
+import GameDetail from './pages/GameDetail';
 import MatchPublish from './pages/MatchPublish';
+import MatchTrash from './pages/MatchTrash';
 import PlayerRatingDemo from './pages/PlayerRatingDemo';
 import GlobalNav from './components/GlobalNav';
 
@@ -35,10 +38,13 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/matches" element={<MatchList />} />
           <Route path="/matches/publish" element={<MatchPublish />} />
+          <Route path="/matches/trash" element={<MatchTrash />} />
           <Route path="/matches/:id" element={<MatchDetail />} />
           <Route path="/matches/:id/edit" element={<MatchPublish />} />
           <Route path="/matches/:id/finance" element={<MatchFinance />} />
           <Route path="/matches/:id/grouping" element={<MatchGrouping />} />
+          <Route path="/matches/:id/live" element={<MatchLive />} />
+          <Route path="/matches/:id/games/:gameId" element={<GameDetail />} />
           <Route path="/player/rating-demo" element={<PlayerRatingDemo />} />
           <Route path="/" element={<Navigate to="/matches" replace />} />
           <Route path="*" element={<Navigate to="/matches" replace />} />

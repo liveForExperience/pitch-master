@@ -52,6 +52,8 @@ erDiagram
         bigint tournament_id FK
         string title
         datetime start_time
+        datetime actual_start_time "实际开赛时间（管理员触发时设置）"
+        datetime end_time
         datetime registration_deadline
         datetime cancel_deadline
         string location
@@ -62,6 +64,12 @@ erDiagram
         decimal total_cost
         decimal per_person_cost
         string status "PREPARING, PUBLISHED, GROUPING_DRAFT, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, SETTLED, CANCELLED"
+        tinyint groups_published "0=draft, 1=published"
+        json team_names "Custom team names map {0: 'Eagles', 1: 'Lions'}"
+        string game_format "赛制: LEAGUE=联赛积分制（默认，预留扩展）"
+        int duration_per_game "单场预计时长（分钟），用于计算各场次预计开始时间"
+        datetime deleted_at "软删除时间"
+        bigint deleted_by FK "删除操作人用户ID"
     }
 
     MATCH_REGISTRATION {
@@ -87,6 +95,7 @@ erDiagram
         int overtime_minutes
         int score_a
         int score_b
+        int game_index "场次序号（从0开始），scheduledStartTime = matchStartTime + durationPerGame × gameIndex"
         string status "READY, PLAYING, FINISHED"
         bigint updated_by FK
         bigint lock_user_id FK

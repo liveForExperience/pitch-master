@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Toast, Dialog } from 'antd-mobile';
 import {
   ChevronLeft, Clock, MapPin, Users, CalendarClock,
-  Share2, UserPlus, LogOut, Shield, Loader2, Undo2, Edit
+  Share2, UserPlus, LogOut, Shield, Loader2, Undo2, Edit, Swords
 } from 'lucide-react';
 import apiClient from '../api/client';
+import { matchApi } from '../api/match';
+import type { GroupsVO } from '../api/match';
 import dayjs from 'dayjs';
 import useAuthStore from '../store/useAuthStore';
 import html2canvas from 'html2canvas';
@@ -101,6 +103,7 @@ const MatchDetail: React.FC = () => {
   const [players, setPlayers] = useState<Record<number, any>>({});
   const [pageLoading, setPageLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [groupsData, setGroupsData] = useState<GroupsVO | null>(null);
   const posterRef = useRef<HTMLDivElement>(null);
 
   const fetchData = async () => {
@@ -157,6 +160,11 @@ const MatchDetail: React.FC = () => {
   };
 
   useEffect(() => { fetchData(); }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    matchApi.getGroups(id).then(data => setGroupsData(data)).catch(() => setGroupsData(null));
+  }, [id, match?.status, match?.groupsPublished]);
 
   /* ── Derived state ── */
   const activeRegs = registrations.filter(r => r.status === 'REGISTERED');
@@ -233,6 +241,57 @@ const MatchDetail: React.FC = () => {
       await apiClient.post(`/api/match/${id}/reject`, null, { params: { playerId } });
       Toast.show({ icon: 'success', content: '已拒绝报名' });
       fetchData();
+    } catch { /* handled by interceptor */ }
+  };
+
+  /* ── Admin: start match ── */
+  const handleStartMatch = async () => {
+    const result = await Dialog.confirm({
+      title: '确认开赛',
+      content: (
+        <div className="space-y-2">
+          <div>确定要开始比赛吗？</div>
+          <div className="text-sm text-neutral-500">开赛后将生成场次，请确认分组已发布且球员已就位。</div>
+        </div>
+      ),
+    });
+    if (!result) return;
+
+    const actualStartTime = match?.startTime || new Date().toISOString();
+    try {
+      await matchApi.startMatch(id!, actualStartTime);
+      Toast.show({ icon: 'success', content: '比赛已开始！' });
+      fetchData();
+    } catch { /* handled by interceptor */ }
+  };
+
+  /* ── Admin: rollback status ── */
+  const handleRollbackStatus = async () => {
+    const result = await Dialog.confirm({
+      title: '回退状态',
+      content: '确定要将比赛状态回退吗？已生成的场次将被删除。',
+    });
+    if (!result) return;
+
+    try {
+      await matchApi.rollbackStatus(id!, 'REGISTRATION_CLOSED');
+      Toast.show({ icon: 'success', content: '状态已回退' });
+      fetchData();
+    } catch { /* handled by interceptor */ }
+  };
+
+  /* ── Admin: soft delete ── */
+  const handleSoftDelete = async () => {
+    const result = await Dialog.confirm({
+      title: '删除赛事',
+      content: '确定要删除此赛事吗？删除后可在回收站中恢复。',
+    });
+    if (!result) return;
+
+    try {
+      await matchApi.softDelete(id!);
+      Toast.show({ icon: 'success', content: '赛事已删除' });
+      navigate('/matches');
     } catch { /* handled by interceptor */ }
   };
 
@@ -413,6 +472,48 @@ const MatchDetail: React.FC = () => {
             </div>
           )}
 
+          {/* ── Grouping Section ── */}
+          {groupsData && (groupsData.groupsPublished || admin) && (
+            <div className="rounded-[2rem] border border-violet-500/20 bg-[linear-gradient(180deg,rgba(139,92,246,0.06)_0%,rgba(10,10,10,1)_100%)] p-8">
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-xs font-black tracking-[0.2em] text-violet-400">
+                  分组情况
+                  {admin && !groupsData.groupsPublished && (
+                    <span className="ml-2 text-[10px] font-medium text-neutral-500 normal-case tracking-normal">草稿 · 仅管理员可见</span>
+                  )}
+                </h3>
+                {admin && ['PUBLISHED', 'REGISTRATION_CLOSED'].includes(match.status) && (
+                  <button
+                    onClick={() => navigate(`/matches/${id}/grouping`)}
+                    className="text-xs font-bold text-violet-400 border border-violet-500/20 rounded-full px-3 py-1.5 hover:bg-violet-500/10 transition-colors"
+                  >
+                    管理分组
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {Object.entries(groupsData.groups).sort(([a],[b]) => Number(a)-Number(b)).map(([groupIdx, players]) => (
+                  <div key={groupIdx} className="rounded-2xl border border-white/6 bg-white/[0.02] p-4">
+                    <div className="mb-3 text-[10px] font-black tracking-widest text-neutral-500">
+                      TEAM {String.fromCharCode(65 + parseInt(groupIdx))}
+                    </div>
+                    <div className="space-y-2">
+                      {players.map(p => (
+                        <div key={p.id} className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-neutral-500">
+                            {p.name.slice(0,1)}
+                          </div>
+                          <span className="text-sm font-semibold text-white">{p.name}</span>
+                          <span className="ml-auto text-xs text-neutral-600">{p.rating?.toFixed(1)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ── Registered Players ── */}
           <div className="rounded-[2rem] border border-neutral-800 bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-8">
             <div className="mb-6 flex items-center justify-between">
@@ -558,6 +659,36 @@ const MatchDetail: React.FC = () => {
             </div>
           </div>
 
+          {/* Admin Grouping Button */}
+          {admin && ['PUBLISHED', 'REGISTRATION_CLOSED', 'GROUPING_DRAFT'].includes(match.status) && (
+            <button
+              onClick={() => navigate(`/matches/${id}/grouping`)}
+              className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-violet-500/30 bg-violet-500/10 py-4 text-sm font-bold text-violet-400 transition-all hover:bg-violet-500/15 active:scale-[0.98]"
+            >
+              <Users size={16} /> 管理分组
+            </button>
+          )}
+
+          {/* Admin Start Match Button */}
+          {admin && ['REGISTRATION_CLOSED', 'GROUPING_DRAFT'].includes(match.status) && match.groupsPublished && (
+            <button
+              onClick={handleStartMatch}
+              className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 py-4 text-sm font-bold text-emerald-400 transition-all hover:bg-emerald-500/15 active:scale-[0.98]"
+            >
+              <Swords size={16} /> 开赛
+            </button>
+          )}
+
+          {/* Admin Rollback Button */}
+          {admin && match.status === 'ONGOING' && (
+            <button
+              onClick={handleRollbackStatus}
+              className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 py-4 text-sm font-bold text-amber-400 transition-all hover:bg-amber-500/15 active:scale-[0.98]"
+            >
+              <Undo2 size={16} /> 回退状态
+            </button>
+          )}
+
           {/* Admin Edit Button (Only for PREPARING status) */}
           {admin && match.status === 'PREPARING' && (
             <button
@@ -565,6 +696,26 @@ const MatchDetail: React.FC = () => {
               className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 py-4 text-sm font-bold text-amber-400 transition-all hover:bg-amber-500/15 active:scale-[0.98]"
             >
               <Edit size={16} /> 编辑赛事信息
+            </button>
+          )}
+
+          {/* Live Arena Entry — ONGOING and beyond */}
+          {['ONGOING', 'MATCH_FINISHED', 'SETTLED'].includes(match.status) && (
+            <button
+              onClick={() => navigate(`/matches/${id}/live`)}
+              className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-orange-500/30 bg-orange-500/10 py-4 text-sm font-bold text-orange-400 transition-all hover:bg-orange-500/15 active:scale-[0.98]"
+            >
+              <Swords size={16} /> 进入赛事大厅
+            </button>
+          )}
+
+          {/* Admin Delete Button */}
+          {admin && (
+            <button
+              onClick={handleSoftDelete}
+              className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-red-500/30 bg-red-500/10 py-4 text-sm font-bold text-red-400 transition-all hover:bg-red-500/15 active:scale-[0.98]"
+            >
+              <LogOut size={16} /> 删除赛事
             </button>
           )}
 

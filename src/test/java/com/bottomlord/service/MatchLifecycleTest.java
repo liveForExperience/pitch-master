@@ -2,6 +2,7 @@ package com.bottomlord.service;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bottomlord.dto.GroupsVO;
 import com.bottomlord.entity.Match;
 import com.bottomlord.entity.MatchRegistration;
 import com.bottomlord.mapper.MatchMapper;
@@ -96,24 +97,34 @@ class MatchLifecycleTest {
         
         when(strategyFactory.getDefaultStrategy()).thenReturn(mockStrategy);
         when(mockStrategy.allocate(anyList(), eq(2), anyMap())).thenReturn(mockAllocation);
+        when(playerService.listByIds(anyList())).thenReturn(new ArrayList<>());
 
-        // Act - 1. 执行分组草拟
-        Map<Integer, List<Long>> allocation = matchService.confirmAndGroup(1L);
+        // Act - 1. 执行自动分组草稿（持久化 group_index，不更改赛事状态）
+        GroupsVO groupsVO = matchService.confirmAndGroup(1L, new com.bottomlord.dto.GroupingRequest());
 
-        // Assert - 验证草拟结果
-        assertNotNull(allocation);
-        assertEquals(2, allocation.size());
-        assertEquals(Match.STATUS_GROUPING_DRAFT, match.getStatus());
+        // Assert - 验证草稿结果，状态保持 PUBLISHED
+        assertNotNull(groupsVO);
+        assertEquals(Match.STATUS_PUBLISHED, match.getStatus());
 
-        // Act - 2. 确认分组并正式开始赛事 (此步会生成场次并更新报名分组索引)
-        matchService.startWithGroups(1L, allocation);
+        // 模拟报名截止（publishGroups 和 startMatch 需要 REGISTRATION_CLOSED）
+        match.setStatus(Match.STATUS_REGISTRATION_CLOSED);
+
+        // 模拟所有球员已分配组别
+        mockRegs.forEach(r -> r.setGroupIndex(r.getPlayerId() <= 5 ? 0 : 1));
+        match.setGroupsPublished(false);
+
+        // Act - 2. 发布分组（使分组对所有人可见）
+        matchService.publishGroups(1L);
+
+        // Assert - 验证分组已发布
+        assertTrue(Boolean.TRUE.equals(match.getGroupsPublished()));
+
+        // Act - 3. 正式开赛（需 REGISTRATION_CLOSED 且所有人已分配）
+        matchService.startMatch(1L, LocalDateTime.now());
 
         // Assert - 验证最终状态与副作用
         assertEquals(Match.STATUS_ONGOING, match.getStatus());
-        
-        // 验证报名状态更新被调用 (由于是两组，每组5人，总共更新10次)
-        verify(registrationService, times(10)).update(any());
-        
+
         // 验证场次生成被调用 (2支队伍只有 1 场比赛)
         verify(gameService, times(1)).save(any());
     }
@@ -208,20 +219,4 @@ class MatchLifecycleTest {
         verify(matchMapper).updateById(match);
     }
 
-    @Test
-    @DisplayName("getMatchDetail: GROUPING_DRAFT 状态下开赛时间已过，推进至 ONGOING")
-    void testStatusSync_groupingDraftToOngoing() {
-        Match match = new Match();
-        match.setId(22L);
-        match.setTournamentId(1L);
-        match.setStatus(Match.STATUS_GROUPING_DRAFT);
-        match.setStartTime(LocalDateTime.now().minusMinutes(10));
-
-        when(matchMapper.selectById(22L)).thenReturn(match);
-
-        Match result = matchService.getMatchDetail(22L);
-
-        assertEquals(Match.STATUS_ONGOING, result.getStatus());
-        verify(matchMapper).updateById(match);
-    }
 }

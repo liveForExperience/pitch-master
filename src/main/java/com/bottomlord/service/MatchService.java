@@ -1,6 +1,8 @@
 package com.bottomlord.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.bottomlord.dto.GroupingRequest;
+import com.bottomlord.dto.GroupsVO;
 import com.bottomlord.entity.Match;
 
 import java.util.List;
@@ -105,28 +107,56 @@ public interface MatchService extends IService<Match> {
     void rejectRegistration(Long matchId, Long playerId);
 
     /**
-     * 生成分组草稿（进入 GROUPING_DRAFT 状态）
+     * 自动生成分组草稿并持久化（groups_published=false，不改变赛事状态）。
+     * 可从 PUBLISHED / REGISTRATION_CLOSED 触发。
      *
      * @param matchId 赛事ID
-     * @return 分组结果：组号 -> 球员ID列表
+     * @param request 分组请求（策略名称、是否保留已有分配）
+     * @return 分组 VO（含球员详情）
      */
-    Map<Integer, List<Long>> confirmAndGroup(Long matchId);
+    GroupsVO confirmAndGroup(Long matchId, GroupingRequest request);
 
     /**
-     * 确认最终分组并正式开赛（进入 ONGOING 状态，生成场次）
+     * 获取所有可用分组策略名称列表
+     *
+     * @return 策略名称列表
+     */
+    List<String> listGroupingStrategies();
+
+    /**
+     * 获取分组数据。
+     * 非管理员仅能获取已发布（groups_published=true）的分组；管理员始终可见。
      *
      * @param matchId 赛事ID
-     * @param finalGroups 最终确认的分组
+     * @param isAdmin 是否管理员
+     * @return 分组 VO，若无权或未分组则返回 null
      */
-    void startWithGroups(Long matchId, Map<Integer, List<Long>> finalGroups);
+    GroupsVO getGroups(Long matchId, boolean isAdmin);
 
     /**
-     * 管理员手动调整分组（仅限 admin）
+     * 发布分组（groups_published=false -> true）。
+     * 要求所有有效报名球员均已分配组别。
+     *
+     * @param matchId 赛事ID
+     */
+    void publishGroups(Long matchId);
+
+    /**
+     * 保存管理员手动调整的分组草稿（仅限 admin）
      *
      * @param matchId 赛事ID
      * @param manualGroups 新的分组结果
      */
     void adjustGroupsManually(Long matchId, Map<Integer, List<Long>> manualGroups);
+
+    /**
+     * 正式开赛（进入 ONGOING 状态，生成场次）。
+     * 要求分组已发布（groups_published=true）。
+     *
+     * @param matchId 赛事ID
+     * @param actualStartTime 实际开赛时间（管理员设置）
+     */
+    void startMatch(Long matchId, LocalDateTime actualStartTime);
 
     /**
      * 完成赛事并结算费用
@@ -141,4 +171,59 @@ public interface MatchService extends IService<Match> {
      * @param matchId 赛事ID
      */
     void settleFees(Long matchId);
+
+    /**
+     * 更新某支队伍的自定义名称（仅限 admin，仅在 PUBLISHED / REGISTRATION_CLOSED 状态下允许）
+     *
+     * @param matchId    赛事ID
+     * @param groupIndex 队伍组号（0-N）
+     * @param name       自定义名称
+     */
+    void updateTeamName(Long matchId, Integer groupIndex, String name);
+
+    /**
+     * 回退赛事状态（仅限管理员）
+     * 允许从 ONGOING 回退到 REGISTRATION_CLOSED 或 GROUPING_DRAFT
+     *
+     * @param matchId 赛事ID
+     * @param targetStatus 目标状态
+     */
+    void rollbackMatchStatus(Long matchId, String targetStatus);
+
+    /**
+     * 更新实际开赛时间（仅限管理员，仅在 ONGOING 状态）
+     *
+     * @param matchId 赛事ID
+     * @param actualStartTime 新的实际开赛时间
+     */
+    void updateActualStartTime(Long matchId, LocalDateTime actualStartTime);
+
+    /**
+     * 软删除赛事（任何状态均可删除，仅限管理员）
+     *
+     * @param matchId 赛事ID
+     * @param userId 删除操作人用户ID
+     */
+    void softDeleteMatch(Long matchId, Long userId);
+
+    /**
+     * 获取回收站赛事列表（仅限管理员）
+     *
+     * @return 已软删除的赛事列表
+     */
+    List<Match> listTrashedMatches();
+
+    /**
+     * 物理删除赛事及关联数据（仅限管理员）
+     *
+     * @param matchId 赛事ID
+     */
+    void permanentDeleteMatch(Long matchId);
+
+    /**
+     * 恢复软删除的赛事（仅限管理员）
+     *
+     * @param matchId 赛事ID
+     */
+    void restoreMatch(Long matchId);
 }
