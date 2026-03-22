@@ -7,6 +7,7 @@ import com.bottomlord.dto.MatchStatsVO;
 import com.bottomlord.dto.StandingsVO;
 import com.bottomlord.entity.Match;
 import com.bottomlord.entity.MatchRegistration;
+import com.bottomlord.entity.User;
 import com.bottomlord.exporter.MatchReportExporter;
 import com.bottomlord.service.MatchArenaService;
 import com.bottomlord.service.MatchService;
@@ -204,8 +205,8 @@ public class MatchController {
 
     @DeleteMapping("/{matchId}/soft")
     public Result<Void> softDeleteMatch(@PathVariable Long matchId) {
-        Long userId = (Long) SecurityUtils.getSubject().getPrincipal();
-        matchService.softDeleteMatch(matchId, userId);
+        User user = (User) SecurityUtils.getSubject().getPrincipal();
+        matchService.softDeleteMatch(matchId, user.getId());
         return Result.success();
     }
 
