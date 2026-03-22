@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Toast, Dialog } from 'antd-mobile';
+import { Toast } from 'antd-mobile';
+import { useConfirmDialog } from '../components/ConfirmDialog';
 import {
   ChevronLeft, Clock, MapPin, Users, CalendarClock,
   Share2, UserPlus, LogOut, Shield, Loader2, Undo2, Edit, Swords
@@ -96,6 +97,7 @@ const MatchDetail: React.FC = () => {
   const { me, isAdmin } = useAuthStore();
   const admin = isAdmin();
   const currentPlayerId = me?.player?.id;
+  const { show: showConfirm, DialogComponent } = useConfirmDialog();
 
   const [match, setMatch] = useState<any>(null);
   const [registrations, setRegistrations] = useState<any[]>([]);
@@ -105,6 +107,9 @@ const MatchDetail: React.FC = () => {
   const [registering, setRegistering] = useState(false);
   const [groupsData, setGroupsData] = useState<GroupsVO | null>(null);
   const posterRef = useRef<HTMLDivElement>(null);
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [eligiblePlayers, setEligiblePlayers] = useState<any[]>([]);
+  const [playerFilter, setPlayerFilter] = useState('');
 
   const fetchData = async () => {
     try {
@@ -194,7 +199,7 @@ const MatchDetail: React.FC = () => {
   };
 
   const handleCancelRegistration = async () => {
-    const confirmed = await Dialog.confirm({
+    const confirmed = await showConfirm({
       title: '取消报名',
       content: dayjs().isAfter(dayjs(match?.cancelDeadline))
         ? '已过免费取消时间，取消后仍需分摊费用。确定取消？'
@@ -210,7 +215,7 @@ const MatchDetail: React.FC = () => {
 
   /* ── Admin: revert to preparing ── */
   const handleRevertToPreparing = async () => {
-    const confirmed = await Dialog.confirm({
+    const confirmed = await showConfirm({
       title: '回退到筹备',
       content: '确定要将赛事回退到筹备状态吗？报名将暂停。',
     });
@@ -232,7 +237,7 @@ const MatchDetail: React.FC = () => {
   };
 
   const handleReject = async (playerId: number) => {
-    const confirmed = await Dialog.confirm({
+    const confirmed = await showConfirm({
       title: '拒绝报名',
       content: '确定要拒绝该球员的报名申请吗？',
     });
@@ -244,9 +249,35 @@ const MatchDetail: React.FC = () => {
     } catch { /* handled by interceptor */ }
   };
 
+  /* ── Admin: add player ── */
+  const handleShowAddPlayer = async () => {
+    if (!showAddPlayer) {
+      try {
+        const players = await matchApi.getEligiblePlayers(id!);
+        setEligiblePlayers(players || []);
+        setPlayerFilter('');
+      } catch { /* handled by interceptor */ }
+    }
+    setShowAddPlayer(!showAddPlayer);
+  };
+
+  const handleAddPlayer = async (playerId: number, playerName: string) => {
+    const confirmed = await showConfirm({
+      title: '添加球员',
+      content: `确定要添加 ${playerName} 到报名列表吗？`,
+    });
+    if (!confirmed) return;
+    try {
+      await matchApi.adminAddPlayer(id!, playerId);
+      Toast.show({ icon: 'success', content: '球员已添加' });
+      setShowAddPlayer(false);
+      fetchData();
+    } catch { /* handled by interceptor */ }
+  };
+
   /* ── Admin: start match ── */
   const handleStartMatch = async () => {
-    const result = await Dialog.confirm({
+    const result = await showConfirm({
       title: '确认开赛',
       content: (
         <div className="space-y-2">
@@ -267,7 +298,7 @@ const MatchDetail: React.FC = () => {
 
   /* ── Admin: rollback status ── */
   const handleRollbackStatus = async () => {
-    const result = await Dialog.confirm({
+    const result = await showConfirm({
       title: '回退状态',
       content: '确定要将比赛状态回退吗？已生成的场次将被删除。',
     });
@@ -282,7 +313,7 @@ const MatchDetail: React.FC = () => {
 
   /* ── Admin: soft delete ── */
   const handleSoftDelete = async () => {
-    const result = await Dialog.confirm({
+    const result = await showConfirm({
       title: '删除赛事',
       content: '确定要删除此赛事吗？删除后可在回收站中恢复。',
     });
@@ -518,13 +549,69 @@ const MatchDetail: React.FC = () => {
           <div className="rounded-[2rem] border border-neutral-800 bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-8">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-xs font-black tracking-[0.2em] text-neutral-400">已报名球员</h3>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-white">{registeredCount}</span>
-                {totalCapacity > 0 && (
-                  <span className="text-sm font-medium text-neutral-600">/ {totalCapacity}</span>
+              <div className="flex items-center gap-3">
+                {admin && ['PUBLISHED', 'REGISTRATION_CLOSED'].includes(match.status) && (
+                  <button
+                    onClick={handleShowAddPlayer}
+                    className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[10px] font-bold text-primary transition-colors hover:bg-primary/15"
+                  >
+                    <UserPlus size={12} /> 添加球员
+                  </button>
                 )}
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-black text-white">{registeredCount}</span>
+                  {totalCapacity > 0 && (
+                    <span className="text-sm font-medium text-neutral-600">/ {totalCapacity}</span>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Admin Add Player Panel */}
+            {admin && showAddPlayer && (
+              <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                <input
+                  type="text"
+                  placeholder="搜索球员昵称..."
+                  value={playerFilter}
+                  onChange={(e) => setPlayerFilter(e.target.value)}
+                  className="mb-3 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white placeholder-neutral-500 focus:border-primary/50 focus:outline-none"
+                />
+                <div className="max-h-64 space-y-2 overflow-y-auto">
+                  {eligiblePlayers
+                    .filter(p => !playerFilter || p.nickname?.toLowerCase().includes(playerFilter.toLowerCase()))
+                    .map(player => {
+                      const pos = positionMeta[player.position] || {
+                        label: '球员',
+                        colorClass: 'bg-neutral-500/15 text-neutral-400 border-neutral-500/20',
+                      };
+                      return (
+                        <button
+                          key={player.id}
+                          onClick={() => handleAddPlayer(player.id, player.nickname)}
+                          className="flex w-full items-center gap-3 rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2 text-left transition-colors hover:border-primary/30 hover:bg-primary/5"
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
+                            {(player.nickname || '?')[0]}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-bold text-white">{player.nickname}</div>
+                            <div className="text-[10px] text-neutral-500">评分: {player.rating?.toFixed(1) || 'N/A'}</div>
+                          </div>
+                          <span className={`shrink-0 rounded-lg border px-2 py-0.5 text-[10px] font-bold ${pos.colorClass}`}>
+                            {pos.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  {eligiblePlayers.filter(p => !playerFilter || p.nickname?.toLowerCase().includes(playerFilter.toLowerCase())).length === 0 && (
+                    <div className="py-8 text-center text-sm text-neutral-500">
+                      {playerFilter ? '未找到匹配球员' : '暂无可添加球员'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Progress bar */}
             {totalCapacity > 0 && (
@@ -822,6 +909,9 @@ const MatchDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      <DialogComponent />
     </div>
   );
 };

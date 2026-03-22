@@ -1,0 +1,130 @@
+# PitchMaster - Windsurf AI 上下文规则
+
+## 项目定义
+
+- **项目名称**: PitchMaster（老男孩俱乐部管理系统）
+- **核心目标**: 业余足球爱好者的赛事与俱乐部管理平台
+- **当前阶段**: 核心功能已上线（赛事管理、分组算法、实时比分、FM 风格评分系统）
+- **数据库**: `pitch_master`（MySQL 8.0）
+- **详细文档目录**: `docs/`（API_SPEC.md、DATA_MODEL.md、RATING_SYSTEM.md、ARCHITECTURE.md、WORKFLOW.md）
+
+---
+
+## 技术栈
+
+**Backend** (`src/main/java/com/bottomlord/`)
+- Spring Boot 3.4 + MyBatis-Plus + MySQL
+- Apache Shiro（认证授权，角色：ADMIN / USER）
+- Flyway（数据库版本管理，Migration 路径：`src/main/resources/db/migration/`）
+- SSE 实时推送（`SseManager`，基于 `matchId` 维护连接池）
+- JUnit 5 + Mockito（测试）
+
+**Frontend** (`frontend/src/`)
+- React 18 + TypeScript + Vite
+- Ant Design Mobile + Tailwind CSS（主色 `#1DB954`）
+- Zustand（状态管理）
+- ECharts（评分雷达图）
+- Axios（`withCredentials: true`，对应 Shiro Session）
+
+---
+
+## 核心业务规则
+
+### 赛事生命周期
+```
+PREPARING → PUBLISHED → REGISTRATION_CLOSED → GROUPING_DRAFT → ONGOING → MATCH_FINISHED → SETTLED
+```
+
+### 费用分摊
+- `cancelDeadline` 后取消报名仍需分摊费用
+- `isExempt=true` 豁免标记，剩余费用由非豁免人员 `Math.ceil` 向上取整平摊
+- `NO_SHOW` 状态仍需参与分摊
+
+### 评分系统（FM 风格 1-20 分）
+```
+Total = Skill × 0.40 + Performance × 0.40 + Engagement × 0.20
+```
+- **新球员保护**: 初始分 5.0（管理员可指定），前 3 场保护系数 0.60
+- **衰减**: 最后出勤 >30 天后每周 Engagement -0.10，下限 1.00
+- **Performance 变动**: 胜 +0.25 / 平 +0.05 / 负 -0.15；进球 +0.06（最多3）；助攻 +0.05（最多3）；MVP +0.10
+- **Engagement 变动**: 出勤 +0.03；互评 +0.02；回归奖励 +0.05；连续活跃周奖励（最多5周×0.01）
+- **审计**: `player_rating_history` 记录每次 dimension 变动（SKILL/PERFORMANCE/ENGAGEMENT/TOTAL/DECAY）
+
+### 分组算法
+- 策略模式（`GroupingStrategy` 接口），当前实现：基于 Rating 蛇形分组（Snake Draft）
+
+### 实时架构
+- SSE 订阅：`GET /api/realtime/subscribe/{matchId}`
+- 比分变动 → 写 `match_score_log` → `SseManager.broadcast(matchId)`
+
+---
+
+## 多租户体系
+
+- **L1（Tournament）**: 赛事级物理隔离，`tournament_id` 是顶层租户标识
+- **L2（Club）**: 组织级逻辑隔离，`real_club_id`
+- 查询中通过 MyBatis-Plus 拦截器强制注入 `tournament_id`
+
+---
+
+## 编码规范与约束
+
+1. **数据库优先**: 涉及 Schema 变更时，先写 Flyway Migration，再改 Entity，再改 Service
+2. **Controller 只做编排**: 业务逻辑必须下沉到 Service 层
+3. **Migration 命名**: `V{n}__{description}.sql`，严禁修改已执行的 Migration 文件
+4. **所有 TODO 记录在根目录 `TODO.md`**，不散落在代码注释中
+5. **代码规范**: 遵循《阿里巴巴 Java 开发手册》
+6. **每个功能模块必须配有单元测试**（JUnit 5 + Mockito）
+7. **前端 UI** 遵循现有 Tailwind CSS 布局，主色 `#1DB954`
+
+---
+
+## 关键目录结构
+
+```
+src/main/java/com/bottomlord/
+├── controller/          # REST 控制器（只做编排）
+├── service/             # 核心业务逻辑
+├── mapper/              # MyBatis-Plus Mapper
+├── entity/              # 领域实体
+└── ...
+
+src/main/resources/
+├── db/migration/        # Flyway Migration 脚本（V*.sql）
+└── application.yml      # 数据库连接、Shiro 配置
+
+frontend/src/
+├── api/                 # Axios API 客户端 + 类型定义
+├── components/          # 可复用 UI 组件
+├── pages/               # 路由页面
+└── store/               # Zustand 状态
+
+docs/                    # 正式技术文档（变更时必须同步）
+.windsurf/workflows/     # 开发 SOP（/feature-development、/bugfix-hotfix、/release-checklist）
+```
+
+---
+
+## 常用启动命令
+
+```bash
+# Backend
+./mvnw spring-boot:run        # 默认端口 8080
+
+# Frontend
+cd frontend && npm run dev    # 默认端口 5173
+
+# 测试
+./mvnw test
+```
+
+---
+
+## 当前 Roadmap（详见 TODO.md）
+
+- [ ] 球员能力面板：五维数据字段
+- [ ] 自动身价模型（基于 CPI、胜率、年龄）
+- [ ] 战绩中心：球员历史统计
+- [ ] SSE 事件扩展：满员通知、赛事取消推送
+- [ ] 多租户拦截器：`tournament_id` 自动过滤
+- [ ] 前端 MatchPoster.tsx 展示 CPI

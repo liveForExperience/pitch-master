@@ -35,6 +35,11 @@
 | `/{id}/revert-preparing` | POST | 撤回至筹备阶段 | 仅限从 PUBLISHED 撤回，需 ADMIN 角色 |
 | `/{matchId}/register` | POST | 球员报名 | Query: `playerId` |
 | `/{matchId}/cancel` | POST | 取消报名 | 处理 Late Cancellation 逻辑 |
+| `/{matchId}/approve` | POST | 批准待审批的报名 | 需 ADMIN，Query: `playerId` |
+| `/{matchId}/reject` | POST | 拒绝待审批的报名 | 需 ADMIN，Query: `playerId` |
+| `/{id}/pending` | GET | 获取待审批报名列表 | 返回 PENDING 状态的报名记录 |
+| `/{matchId}/eligible-players` | GET | 获取可添加球员列表 | 需 ADMIN，返回当前 tournament 下未报名此赛事的活跃球员 |
+| `/{matchId}/admin/add-player` | POST | 管理员强制添加球员 | 需 ADMIN，Query: `playerId`；绕过容量限制，直接设为 REGISTERED；仅允许 PUBLISHED 或 REGISTRATION_CLOSED 状态 |
 | `/{matchId}/group` | POST | 触发自动分组算法 | 需 ADMIN，Body: `GroupingRequest`；返回 `GroupsVO` |
 | `/{matchId}/groups` | GET | 获取分组数据 | 非管理员仅返回已发布分组；返回 `GroupsVO`（含 `teamNames`） |
 | `/{matchId}/groups` | PUT | 手动调整分组草稿 | 需 ADMIN，Body: `Map<Integer, List<Long>>` |

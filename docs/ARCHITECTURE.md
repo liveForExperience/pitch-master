@@ -11,6 +11,11 @@
 *   **通信协议**: RESTful API + SSE (Real-time updates)
 *   **并发控制**: 业务互斥锁 (Business Mutual Exclusion) + 数据库行级锁 + 管理员编辑乐观锁定 (`lock_user_id`)。
 *   **前端状态**: React Hooks + SSE EventSource 订阅模式。
+*   **异常处理**: 全局异常处理器 (`GlobalExceptionHandler`) 统一拦截并转换异常为标准 `Result` 格式响应，确保前后端契约一致性。
+    - **权限异常** (`AuthorizationException`): 返回 403 状态码
+    - **认证异常** (`UnauthenticatedException`): 返回 401 状态码
+    - **业务异常** (`IllegalArgumentException`, `IllegalStateException`): 返回 400 状态码并携带具体错误信息
+    - **系统异常** (`Exception`): 返回 500 状态码并记录详细日志
 
 ## 3. 实时性架构 (Real-time Architecture)
 

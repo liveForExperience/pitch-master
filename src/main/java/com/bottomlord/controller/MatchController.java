@@ -13,6 +13,7 @@ import com.bottomlord.service.MatchArenaService;
 import com.bottomlord.service.MatchService;
 import com.bottomlord.service.MatchRegistrationService;
 import org.apache.shiro.SecurityUtils;
+import org.apache.shiro.authz.annotation.RequiresRoles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -187,6 +188,7 @@ public class MatchController {
     }
 
     @PostMapping("/{matchId}/rollback")
+    @RequiresRoles("admin")
     public Result<Void> rollbackStatus(@PathVariable Long matchId, @RequestParam String targetStatus) {
         matchService.rollbackMatchStatus(matchId, targetStatus);
         return Result.success();
@@ -224,6 +226,19 @@ public class MatchController {
     @PostMapping("/{matchId}/restore")
     public Result<Void> restoreMatch(@PathVariable Long matchId) {
         matchService.restoreMatch(matchId);
+        return Result.success();
+    }
+
+    @GetMapping("/{matchId}/eligible-players")
+    @RequiresRoles("admin")
+    public Result<List<com.bottomlord.entity.Player>> getEligiblePlayers(@PathVariable Long matchId) {
+        return Result.success(matchService.getEligiblePlayers(matchId));
+    }
+
+    @PostMapping("/{matchId}/admin/add-player")
+    @RequiresRoles("admin")
+    public Result<Void> adminAddPlayer(@PathVariable Long matchId, @RequestParam Long playerId) {
+        matchService.adminAddPlayer(matchId, playerId);
         return Result.success();
     }
 }

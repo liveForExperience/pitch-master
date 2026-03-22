@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Toast, Dialog } from 'antd-mobile';
+import { Toast } from 'antd-mobile';
+import { useConfirmDialog } from '../components/ConfirmDialog';
 import { ChevronLeft, Trash2, RotateCcw, Loader2 } from 'lucide-react';
 import { matchApi } from '../api/match';
 import dayjs from 'dayjs';
@@ -21,6 +22,7 @@ const MatchTrash: React.FC = () => {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [operating, setOperating] = useState<number | null>(null);
+  const { show: showConfirm, DialogComponent } = useConfirmDialog();
 
   const fetchTrash = async () => {
     setLoading(true);
@@ -37,7 +39,7 @@ const MatchTrash: React.FC = () => {
   useEffect(() => { fetchTrash(); }, []);
 
   const handleRestore = async (matchId: number) => {
-    const result = await Dialog.confirm({
+    const result = await showConfirm({
       title: '恢复赛事',
       content: '确定要恢复此赛事吗？恢复后将重新出现在赛事列表中。',
     });
@@ -53,7 +55,7 @@ const MatchTrash: React.FC = () => {
   };
 
   const handlePermanentDelete = async (matchId: number) => {
-    const result = await Dialog.confirm({
+    const result = await showConfirm({
       title: '永久删除',
       content: (
         <div className="space-y-2">
@@ -158,6 +160,9 @@ const MatchTrash: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Confirm Dialog */}
+      <DialogComponent />
     </div>
   );
 };

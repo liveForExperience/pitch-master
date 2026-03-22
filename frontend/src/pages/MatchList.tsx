@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { PullToRefresh, FloatingBubble, Dialog, Toast } from 'antd-mobile';
+import { PullToRefresh, FloatingBubble, Toast } from 'antd-mobile';
+import { useConfirmDialog } from '../components/ConfirmDialog';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Calendar, MapPin, Users, ChevronRight, Trash2, Megaphone } from 'lucide-react';
 import apiClient from '../api/client';
@@ -72,6 +73,7 @@ const MatchList: React.FC = () => {
   const navigate = useNavigate();
   const { fetchMe, fetched, isAdmin } = useAuthStore();
   const admin = isAdmin();
+  const { show: showConfirm, DialogComponent } = useConfirmDialog();
 
   const fetchMatches = async () => {
     try {
@@ -97,7 +99,7 @@ const MatchList: React.FC = () => {
 
   const handleDeleteMatch = async (e: React.MouseEvent, matchId: number) => {
     e.stopPropagation();
-    const confirmed = await Dialog.confirm({
+    const confirmed = await showConfirm({
       title: '删除赛事',
       content: '确定要删除此赛事吗？删除后可在回收站中恢复。',
     });
@@ -114,7 +116,7 @@ const MatchList: React.FC = () => {
 
   const handleStartRegistration = async (e: React.MouseEvent, matchId: number) => {
     e.stopPropagation();
-    const confirmed = await Dialog.confirm({
+    const confirmed = await showConfirm({
       title: '开放报名',
       content: '确定要开放报名吗？开放后球员将可以看到并报名此赛事。',
     });
@@ -314,6 +316,9 @@ const MatchList: React.FC = () => {
           <Plus size={24} color="white" />
         </FloatingBubble>
       )}
+
+      {/* Confirm Dialog */}
+      <DialogComponent />
     </div>
   );
 };

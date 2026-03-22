@@ -7,9 +7,14 @@ import dayjs from 'dayjs';
 interface MatchPosterProps {
   match: any;
   games: any[];
+  teamNames?: Record<number, string>;
 }
 
-const MatchPoster: React.FC<MatchPosterProps> = ({ match, games }) => {
+const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+const MatchPoster: React.FC<MatchPosterProps> = ({ match, games, teamNames }) => {
+  const getTeamLabel = (idx: number) =>
+    teamNames?.[idx] || `Team ${GROUP_LABELS[idx] ?? idx + 1}`;
   const posterRef = useRef<HTMLDivElement>(null);
 
   const handleDownload = async () => {
@@ -69,9 +74,9 @@ const MatchPoster: React.FC<MatchPosterProps> = ({ match, games }) => {
                     <div className="flex flex-col">
                       <span className="text-[10px] text-neutral-500 uppercase font-bold mb-1">Match {idx + 1}</span>
                       <div className="flex items-center space-x-4">
-                        <span className="text-xl font-bold italic">TEAM {game.teamAIndex + 1}</span>
+                        <span className="text-xl font-bold italic">{getTeamLabel(game.teamAIndex)}</span>
                         <span className="text-3xl font-black text-primary">{game.scoreA} : {game.scoreB}</span>
-                        <span className="text-xl font-bold italic">TEAM {game.teamBIndex + 1}</span>
+                        <span className="text-xl font-bold italic">{getTeamLabel(game.teamBIndex)}</span>
                       </div>
                     </div>
                   </div>

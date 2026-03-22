@@ -38,6 +38,12 @@ public class MatchGame extends BaseEntity {
     private Integer scoreB;
 
     /**
+     * 场次在赛事中的顺序序号（从0开始），用于计算预计开始时间
+     * scheduledStartTime = match.startTime + match.durationPerGame * gameIndex
+     */
+    private Integer gameIndex;
+
+    /**
      * 状态：READY, PLAYING, FINISHED
      */
     private String status;

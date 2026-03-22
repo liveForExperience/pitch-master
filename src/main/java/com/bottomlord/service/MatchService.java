@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.bottomlord.dto.GroupingRequest;
 import com.bottomlord.dto.GroupsVO;
 import com.bottomlord.entity.Match;
+import com.bottomlord.entity.Player;
 
 import java.util.List;
 import java.util.Map;
@@ -17,10 +18,10 @@ import java.time.LocalDateTime;
 public interface MatchService extends IService<Match> {
 
     /**
-     * 获取赛事详情（含时间驱动的状态同步）
+     * 获取赛事详情
      *
      * @param matchId 赛事ID
-     * @return 状态已同步的赛事实体
+     * @return 赛事实体
      */
     Match getMatchDetail(Long matchId);
 
@@ -226,4 +227,22 @@ public interface MatchService extends IService<Match> {
      * @param matchId 赛事ID
      */
     void restoreMatch(Long matchId);
+
+    /**
+     * 获取可添加到赛事的球员列表（仅限管理员）
+     * 返回当前赛事所属 tournament 的所有活跃球员，排除已有 REGISTERED 或 PENDING 报名的球员
+     *
+     * @param matchId 赛事ID
+     * @return 可添加的球员列表
+     */
+    List<Player> getEligiblePlayers(Long matchId);
+
+    /**
+     * 管理员强制添加球员（仅限管理员，绕过容量限制）
+     * 允许状态：PUBLISHED 或 REGISTRATION_CLOSED
+     *
+     * @param matchId 赛事ID
+     * @param playerId 球员ID
+     */
+    void adminAddPlayer(Long matchId, Long playerId);
 }

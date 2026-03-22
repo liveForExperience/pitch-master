@@ -2,7 +2,7 @@
 
 ## 1. 赛事生命周期状态机 (Match Event Lifecycle)
 
-赛事流转遵循严格的状态机逻辑，包含管理员手动触发、基于时间的自动同步以及回退机制。
+赛事流转遵循严格的状态机逻辑，所有状态变更均由管理员通过页面操作手动触发，包含前进与回退机制。
 
 ```mermaid
 stateDiagram-v2
@@ -11,8 +11,7 @@ stateDiagram-v2
     PUBLISHED --> PREPARING : 撤回至筹备 (revertToPreparing)
     PREPARING --> [*] : 删除赛事 (deleteMatch)
     
-    PUBLISHED --> REGISTRATION_CLOSED : 到达截止时间 (Auto/Sync)
-    REGISTRATION_CLOSED --> PUBLISHED : 延长截止时间 (Auto/Sync)
+    PUBLISHED --> REGISTRATION_CLOSED : 关闭报名 (closeRegistration)
     
     PUBLISHED --> CANCELLED : 取消赛事 (TODO)
     
@@ -38,17 +37,14 @@ stateDiagram-v2
 | 状态 | 说明 | 允许的操作 | 触发逻辑 | UI 语义与页面 |
 | :--- | :--- | :--- | :--- | :--- |
 | **PREPARING** | 筹备中 | **编辑赛事信息**（时间、地点、分组等）、物理删除、开启报名 | 管理员创建时的初始状态 | **筹备中** (仅管理后台可见，卡片显示编辑按钮) |
-| **PUBLISHED** | 报名中 | **球员报名**（容量内直接成功，超容量进入待审批）、撤回至筹备、修改时间 | 管理员点击"发布"或自动同步 | **报名中** (球员端可见) |
-| **REGISTRATION_CLOSED** | 报名截止 | **无法新报名**、管理员可随时分组/调整/发布分组、可延长截止时间回跳、所有人分配完成后可开赛 | 时间超过 `registrationDeadline` | **报名已截止** (球员可见，管理员可管理分组) |
+| **PUBLISHED** | 报名中 | **球员报名**（容量内直接成功，超容量进入待审批）、撤回至筹备、修改时间 | 管理员点击"开启报名" | **报名中** (球员端可见) |
+| **REGISTRATION_CLOSED** | 报名截止 | **无法新报名**、管理员可随时分组/调整/发布分组、所有人分配完成后可开赛 | 管理员点击"关闭报名" | **报名已截止** (球员可见，管理员可管理分组) |
 | **ONGOING** | 比赛中 | 比分/进球录入、SSE 实时同步、**管理员可回退状态**、**管理员可调整实际开赛时间** | 所有球员分配到组后 `startMatch` 触发，需提供实际开赛时间 | **比赛中** (实时比分流) |
 | **MATCH_FINISHED** | 待核算 | 修正数据、设置豁免、结算费用 | 管理员点击"完成比赛" | **待核算** (赛后数据审计) |
 | **SETTLED** | 已完结 | 查看战报、查看费用分摊、**触发评分演进** | 管理员点击"结算费用" | **已完结** (战报与结算单) |
 | **CANCELLED** | 已取消 | 无 | 管理员手动取消赛事 | **已取消** |
 
 ### 关键逻辑规则：
-*   **状态自动同步 (`syncMatchStatusByTime`)**: 
-    - 每次加载赛事详情或列表时，系统会自动检查当前时间并推进状态（如 `PUBLISHED` -> `REGISTRATION_CLOSED`）。
-    - 若管理员将截止时间改回未来，状态会自动回跳（`REGISTRATION_CLOSED` -> `PUBLISHED`）。
 *   **报名容量与审批机制**:
     - 报名容量 = `numGroups` × `playersPerGroup`
     - 报名人数 ≤ 容量时，球员报名后直接进入 `REGISTERED` 状态

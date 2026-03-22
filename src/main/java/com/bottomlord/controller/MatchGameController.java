@@ -1,6 +1,8 @@
 package com.bottomlord.controller;
 
 import com.bottomlord.common.base.Result;
+import com.bottomlord.dto.GameDetailVO;
+import com.bottomlord.entity.GameParticipant;
 import com.bottomlord.entity.MatchGame;
 import com.bottomlord.entity.MatchGoal;
 import com.bottomlord.service.MatchGameService;
@@ -21,9 +23,14 @@ public class MatchGameController {
         return Result.success(matchGameService.listByMatchId(matchId));
     }
 
+    @GetMapping("/{gameId}")
+    public Result<GameDetailVO> getGameDetail(@PathVariable Long gameId) {
+        return Result.success(matchGameService.getGameDetail(gameId));
+    }
+
     @PostMapping("/{gameId}/start")
-    public Result<MatchGame> startGame(@PathVariable Long gameId, @RequestParam int durationMinutes) {
-        return Result.success(matchGameService.startGame(gameId, durationMinutes));
+    public Result<MatchGame> startGame(@PathVariable Long gameId) {
+        return Result.success(matchGameService.startGame(gameId));
     }
 
     @PostMapping("/{gameId}/overtime")
@@ -68,5 +75,22 @@ public class MatchGameController {
     @GetMapping("/{gameId}/logs")
     public Result<List<com.bottomlord.entity.MatchScoreLog>> getScoreLogs(@PathVariable Long gameId) {
         return Result.success(matchGameService.getScoreLogs(gameId));
+    }
+
+    @GetMapping("/{gameId}/participants")
+    public Result<List<GameParticipant>> listParticipants(@PathVariable Long gameId) {
+        return Result.success(matchGameService.listParticipants(gameId));
+    }
+
+    @PostMapping("/{gameId}/participants/{playerId}")
+    public Result<Void> addParticipant(@PathVariable Long gameId, @PathVariable Long playerId) {
+        matchGameService.addParticipant(gameId, playerId);
+        return Result.success();
+    }
+
+    @DeleteMapping("/{gameId}/participants/{playerId}")
+    public Result<Void> removeParticipant(@PathVariable Long gameId, @PathVariable Long playerId) {
+        matchGameService.removeParticipant(gameId, playerId);
+        return Result.success();
     }
 }

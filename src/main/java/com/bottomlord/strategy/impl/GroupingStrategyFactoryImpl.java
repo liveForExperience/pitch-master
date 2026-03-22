@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,5 +49,10 @@ public class GroupingStrategyFactoryImpl implements GroupingStrategyFactory {
             return strategies.get(0);
         }
         return strategy;
+    }
+
+    @Override
+    public List<String> listStrategyNames() {
+        return new ArrayList<>(strategyMap.keySet());
     }
 }

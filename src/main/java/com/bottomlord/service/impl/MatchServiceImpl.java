@@ -84,64 +84,9 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Autowired
     private PlayerMutualRatingMapper playerMutualRatingMapper;
 
-    /**
-     * 根据时间字段同步赛事状态（链式推进）。
-     * <ul>
-     *   <li>PUBLISHED → REGISTRATION_CLOSED：当前时间已超过 registrationDeadline</li>
-     *   <li>REGISTRATION_CLOSED → ONGOING：当前时间已超过 startTime</li>
-     * </ul>
-     * 多个条件可在一次调用中连续触发，确保状态追赶到与当前时间一致。
-     *
-     * @param match 赛事实体（非空）
-     * @return true 如果状态发生了变更并已持久化
-     */
-    private boolean syncMatchStatusByTime(Match match) {
-        if (match == null) {
-            return false;
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        boolean changed = false;
-
-        // PUBLISHED -> REGISTRATION_CLOSED：报名截止时间已过
-        if (Match.STATUS_PUBLISHED.equals(match.getStatus())
-                && match.getRegistrationDeadline() != null
-                && now.isAfter(match.getRegistrationDeadline())) {
-            match.setStatus(Match.STATUS_REGISTRATION_CLOSED);
-            changed = true;
-        }
-
-        // REGISTRATION_CLOSED -> ONGOING：比赛开始时间已过
-        if (Match.STATUS_REGISTRATION_CLOSED.equals(match.getStatus())
-                && match.getStartTime() != null
-                && now.isAfter(match.getStartTime())) {
-            match.setStatus(Match.STATUS_ONGOING);
-            changed = true;
-        }
-
-        if (changed) {
-            this.updateById(match);
-        }
-        return changed;
-    }
-
-    /**
-     * 加载赛事并同步时间驱动的状态。所有需要读取赛事的业务方法都应使用此方法代替 getById。
-     *
-     * @param matchId 赛事ID
-     * @return 状态已同步的赛事实体，若不存在返回 null
-     */
-    private Match getMatchWithStatusSync(Long matchId) {
-        Match match = this.getById(matchId);
-        if (match != null) {
-            syncMatchStatusByTime(match);
-        }
-        return match;
-    }
-
     @Override
     public Match getMatchDetail(Long matchId) {
-        return getMatchWithStatusSync(matchId);
+        return this.getById(matchId);
     }
 
     @Override
@@ -158,8 +103,6 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         List<Match> matches = this.list(wrapper);
         
         if (CollUtil.isNotEmpty(matches)) {
-            matches.forEach(this::syncMatchStatusByTime);
-
             List<Tournament> tournaments = tournamentMapper.selectList(null);
             Map<Long, String> tournamentMap = tournaments.stream()
                     .collect(Collectors.toMap(Tournament::getId, Tournament::getName));
@@ -194,7 +137,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public Match updateMatch(Long matchId, Match match) {
-        Match existing = getMatchWithStatusSync(matchId);
+        Match existing = this.getById(matchId);
         if (existing == null) {
             throw new IllegalArgumentException("赛事不存在");
         }
@@ -214,7 +157,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void startRegistration(Long matchId) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         if (match == null) throw new IllegalArgumentException("赛事不存在");
         if (!Match.STATUS_PREPARING.equals(match.getStatus())) {
             throw new IllegalStateException("只有处于筹备中的赛事才能开启报名");
@@ -228,7 +171,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void revertToPreparing(Long matchId) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         if (match == null) return;
         if (!Match.STATUS_PUBLISHED.equals(match.getStatus())) {
             throw new IllegalStateException("只有在报名阶段才能撤回至筹备阶段");
@@ -241,7 +184,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void updateRegistrationDeadline(Long matchId, LocalDateTime newDeadline) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         if (match == null) return;
         
         match.setRegistrationDeadline(newDeadline);
@@ -258,7 +201,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void deleteMatch(Long matchId) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         if (match == null) return;
         if (!Match.STATUS_PREPARING.equals(match.getStatus())) {
             throw new IllegalStateException("只有处于筹备中的赛事才能直接删除");
@@ -269,10 +212,9 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override 
     @Transactional(rollbackFor = Exception.class)
     public void registerForMatch(Long matchId, Long playerId) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         if (match == null) throw new IllegalArgumentException("赛事不存在");
 
-        // 状态已由 syncMatchStatusByTime 同步，直接判断
         if (!Match.STATUS_PUBLISHED.equals(match.getStatus())) {
             throw new IllegalStateException("当前赛事未开放报名");
         }
@@ -319,7 +261,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void cancelRegistration(Long matchId, Long playerId) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         MatchRegistration reg = registrationService.getOne(new LambdaQueryWrapper<MatchRegistration>()
                 .eq(MatchRegistration::getMatchId, matchId)
                 .eq(MatchRegistration::getPlayerId, playerId)
@@ -371,7 +313,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @Transactional(rollbackFor = Exception.class)
     public GroupsVO confirmAndGroup(Long matchId, GroupingRequest request) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
 
         String currentStatus = match.getStatus();
         if (Match.STATUS_ONGOING.equals(currentStatus) ||
@@ -420,11 +362,12 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
 
     @Override
     public GroupsVO getGroups(Long matchId, boolean isAdmin) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         // 分组数据在 PUBLISHED 之后任意状态下均可能存在
         String status = match.getStatus();
         boolean groupingRelevant = Match.STATUS_PUBLISHED.equals(status)
                 || Match.STATUS_REGISTRATION_CLOSED.equals(status)
+                || Match.STATUS_GROUPING_DRAFT.equals(status)
                 || Match.STATUS_ONGOING.equals(status)
                 || Match.STATUS_MATCH_FINISHED.equals(status)
                 || Match.STATUS_SETTLED.equals(status);
@@ -442,16 +385,10 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void publishGroups(Long matchId) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         String status = match.getStatus();
         if (!Match.STATUS_PUBLISHED.equals(status) && !Match.STATUS_REGISTRATION_CLOSED.equals(status)) {
             throw new IllegalStateException("只有 PUBLISHED 或 REGISTRATION_CLOSED 状态下才能发布分组");
-        }
-
-        List<MatchRegistration> validRegs = registrationService.getValidRegistrations(matchId);
-        boolean allAssigned = validRegs.stream().allMatch(r -> r.getGroupIndex() != null);
-        if (!allAssigned) {
-            throw new IllegalStateException("尚有球员未分配到组，无法发布分组");
         }
 
         match.setGroupsPublished(true);
@@ -461,7 +398,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void startMatch(Long matchId, LocalDateTime actualStartTime) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         
         if (!Match.STATUS_REGISTRATION_CLOSED.equals(match.getStatus()) 
                 && !Match.STATUS_GROUPING_DRAFT.equals(match.getStatus())) {
@@ -579,7 +516,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void updateTeamName(Long matchId, Integer groupIndex, String name) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         String status = match.getStatus();
         if (!Match.STATUS_PUBLISHED.equals(status)
                 && !Match.STATUS_REGISTRATION_CLOSED.equals(status)
@@ -634,7 +571,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void finishMatch(Long matchId) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         match.setStatus(Match.STATUS_MATCH_FINISHED);
         this.updateById(match);
         sseManager.broadcastToClub(match.getTournamentId(), "match_finished", match.getTitle() + " 已结束");
@@ -644,7 +581,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void settleFees(Long matchId) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         if (!Match.STATUS_MATCH_FINISHED.equals(match.getStatus())) {
             throw new IllegalStateException("只有在 MATCH_FINISHED 状态下才能进行结算");
         }
@@ -673,7 +610,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void adjustGroupsManually(Long matchId, Map<Integer, List<Long>> manualGroups) {
-        Match match = getMatchWithStatusSync(matchId);
+        Match match = this.getById(matchId);
         String status = match.getStatus();
         if (!Match.STATUS_PUBLISHED.equals(status) && !Match.STATUS_REGISTRATION_CLOSED.equals(status)) {
             throw new IllegalStateException("只有 PUBLISHED 或 REGISTRATION_CLOSED 状态下才能调整分组");
@@ -835,5 +772,71 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         match.setDeletedAt(null);
         match.setDeletedBy(null);
         this.updateById(match);
+    }
+
+    @Override
+    @RequiresRoles("admin")
+    public List<Player> getEligiblePlayers(Long matchId) {
+        Match match = this.getById(matchId);
+        if (match == null) {
+            throw new IllegalArgumentException("赛事不存在");
+        }
+
+        List<Player> allPlayers = playerService.list(new LambdaQueryWrapper<Player>()
+                .eq(Player::getTournamentId, match.getTournamentId())
+                .eq(Player::getStatus, 1));
+
+        Set<Long> registeredPlayerIds = registrationService.list(new LambdaQueryWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .in(MatchRegistration::getStatus, "REGISTERED", "PENDING"))
+                .stream()
+                .map(MatchRegistration::getPlayerId)
+                .collect(Collectors.toSet());
+
+        return allPlayers.stream()
+                .filter(p -> !registeredPlayerIds.contains(p.getId()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @RequiresRoles("admin")
+    @Transactional(rollbackFor = Exception.class)
+    public void adminAddPlayer(Long matchId, Long playerId) {
+        Match match = this.getById(matchId);
+        if (match == null) {
+            throw new IllegalArgumentException("赛事不存在");
+        }
+
+        if (!Match.STATUS_PUBLISHED.equals(match.getStatus()) 
+                && !Match.STATUS_REGISTRATION_CLOSED.equals(match.getStatus())) {
+            throw new IllegalStateException("只有在报名中或报名截止状态下才能手动添加球员");
+        }
+
+        long existingCount = registrationService.count(new LambdaQueryWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .eq(MatchRegistration::getPlayerId, playerId)
+                .in(MatchRegistration::getStatus, "REGISTERED", "PENDING"));
+
+        if (existingCount > 0) {
+            throw new IllegalStateException("该球员已报名此赛事");
+        }
+
+        MatchRegistration existingReg = registrationService.getOne(new LambdaQueryWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .eq(MatchRegistration::getPlayerId, playerId));
+
+        if (existingReg != null) {
+            existingReg.setStatus("REGISTERED");
+            existingReg.setGroupIndex(null);
+            existingReg.setPaymentStatus("UNPAID");
+            registrationService.updateById(existingReg);
+        } else {
+            MatchRegistration reg = new MatchRegistration();
+            reg.setMatchId(matchId);
+            reg.setPlayerId(playerId);
+            reg.setStatus("REGISTERED");
+            reg.setIsExempt(false);
+            registrationService.save(reg);
+        }
     }
 }

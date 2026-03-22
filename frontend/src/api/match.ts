@@ -94,4 +94,10 @@ export const matchApi = {
 
   restore: (matchId: string | number): Promise<void> =>
     apiClient.post(`/api/match/${matchId}/restore`),
+
+  getEligiblePlayers: (matchId: string | number): Promise<any[]> =>
+    apiClient.get(`/api/match/${matchId}/eligible-players`),
+
+  adminAddPlayer: (matchId: string | number, playerId: number): Promise<void> =>
+    apiClient.post(`/api/match/${matchId}/admin/add-player?playerId=${playerId}`),
 };

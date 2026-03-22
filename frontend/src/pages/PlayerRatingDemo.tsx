@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Spin, Alert, Button, Space } from 'antd';
+import { Button, SpinLoading, ErrorBlock, NavBar } from 'antd-mobile';
+import { LayoutList, LayoutGrid } from 'lucide-react';
 import PlayerRatingDisplay from '../components/PlayerRatingDisplay';
 import { getPlayerRating, type PlayerRatingData } from '../api/player';
 
 /**
  * 球员评分展示Demo页面
- * 演示如何集成PlayerRatingDisplay组件
+ * 演示如何集成PlayerRatingDisplay组件 - 暗黑Apple风格
  */
 const PlayerRatingDemo: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -13,7 +14,6 @@ const PlayerRatingDemo: React.FC = () => {
   const [ratingData, setRatingData] = useState<PlayerRatingData | null>(null);
   const [viewMode, setViewMode] = useState<'full' | 'compact'>('full');
 
-  // 示例：加载球员ID=1的评分数据
   const loadPlayerRating = async (playerId: number) => {
     setLoading(true);
     setError(null);
@@ -28,13 +28,14 @@ const PlayerRatingDemo: React.FC = () => {
   };
 
   useEffect(() => {
-    loadPlayerRating(1); // 默认加载球员ID=1
+    loadPlayerRating(1);
   }, []);
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Spin size="large" tip="加载中..." />
+      <div className="flex flex-col justify-center items-center min-h-screen">
+        <SpinLoading color="primary" style={{ '--size': '48px' }} />
+        <div className="mt-4 text-gray-400">加载中...</div>
       </div>
     );
   }
@@ -42,49 +43,89 @@ const PlayerRatingDemo: React.FC = () => {
   if (error) {
     return (
       <div className="p-4">
-        <Alert
-          message="加载失败"
+        <ErrorBlock
+          status="default"
+          title="加载失败"
           description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" onClick={() => loadPlayerRating(1)}>
-              重试
-            </Button>
-          }
         />
+        <Button 
+          block 
+          color="primary" 
+          className="mt-4"
+          onClick={() => loadPlayerRating(1)}
+        >
+          重试
+        </Button>
       </div>
     );
   }
 
   if (!ratingData) {
-    return <Alert message="暂无数据" type="info" />;
+    return (
+      <div className="p-4">
+        <ErrorBlock status="empty" title="暂无数据" />
+      </div>
+    );
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <Card title="球员评分展示组件 Demo">
-        <Space direction="vertical" size="large" className="w-full">
-          {/* 切换展示模式 */}
-          <div>
-            <Space>
-              <Button 
-                type={viewMode === 'full' ? 'primary' : 'default'}
-                onClick={() => setViewMode('full')}
-              >
-                完整卡片模式
-              </Button>
-              <Button 
-                type={viewMode === 'compact' ? 'primary' : 'default'}
-                onClick={() => setViewMode('compact')}
-              >
-                紧凑模式
-              </Button>
-            </Space>
+    <div className="min-h-screen pb-6">
+      <NavBar back={null}>球员评分组件 Demo</NavBar>
+      
+      <div className="p-4 space-y-4">
+        {/* 模式切换器 */}
+        <div className="glass rounded-xl p-4 border border-white/10">
+          <div className="text-sm text-gray-400 mb-3">展示模式</div>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setViewMode('full')}
+              className={`
+                flex items-center justify-center gap-2 px-4 py-3 rounded-lg
+                transition-all duration-200 font-medium
+                ${viewMode === 'full' 
+                  ? 'bg-[#1DB954] text-white shadow-lg shadow-[#1DB954]/30' 
+                  : 'bg-white/5 text-gray-400 border border-white/10'
+                }
+              `}
+            >
+              <LayoutGrid size={18} />
+              <span>完整卡片</span>
+            </button>
+            <button
+              onClick={() => setViewMode('compact')}
+              className={`
+                flex items-center justify-center gap-2 px-4 py-3 rounded-lg
+                transition-all duration-200 font-medium
+                ${viewMode === 'compact' 
+                  ? 'bg-[#1DB954] text-white shadow-lg shadow-[#1DB954]/30' 
+                  : 'bg-white/5 text-gray-400 border border-white/10'
+                }
+              `}
+            >
+              <LayoutList size={18} />
+              <span>紧凑模式</span>
+            </button>
           </div>
+        </div>
 
-          {/* 完整卡片模式 */}
-          {viewMode === 'full' && (
+        {/* 评分组件展示 */}
+        {viewMode === 'full' && (
+          <PlayerRatingDisplay
+            playerId={ratingData.playerId}
+            playerName={ratingData.playerName}
+            totalRating={ratingData.totalRating}
+            skillRating={ratingData.skillRating}
+            performanceRating={ratingData.performanceRating}
+            engagementRating={ratingData.engagementRating}
+            provisionalMatches={ratingData.provisionalMatches}
+            appearanceCount={ratingData.appearanceCount}
+            activeStreakWeeks={ratingData.activeStreakWeeks}
+            compact={false}
+          />
+        )}
+
+        {viewMode === 'compact' && (
+          <div className="glass rounded-xl border border-white/10 overflow-hidden">
             <PlayerRatingDisplay
               playerId={ratingData.playerId}
               playerName={ratingData.playerName}
@@ -95,38 +136,21 @@ const PlayerRatingDemo: React.FC = () => {
               provisionalMatches={ratingData.provisionalMatches}
               appearanceCount={ratingData.appearanceCount}
               activeStreakWeeks={ratingData.activeStreakWeeks}
-              compact={false}
+              compact={true}
             />
-          )}
+          </div>
+        )}
 
-          {/* 紧凑模式 */}
-          {viewMode === 'compact' && (
-            <Card size="small">
-              <PlayerRatingDisplay
-                playerId={ratingData.playerId}
-                playerName={ratingData.playerName}
-                totalRating={ratingData.totalRating}
-                skillRating={ratingData.skillRating}
-                performanceRating={ratingData.performanceRating}
-                engagementRating={ratingData.engagementRating}
-                provisionalMatches={ratingData.provisionalMatches}
-                appearanceCount={ratingData.appearanceCount}
-                activeStreakWeeks={ratingData.activeStreakWeeks}
-                compact={true}
-              />
-            </Card>
-          )}
-        </Space>
-      </Card>
-
-      {/* 集成说明 */}
-      <Card title="如何在现有页面中使用">
-        <div className="space-y-2 text-sm">
-          <p><strong>1. 在比赛详情页展示球员评分：</strong></p>
-          <pre className="bg-gray-100 p-2 rounded">
+        {/* 集成说明 */}
+        <div className="glass rounded-xl p-5 border border-white/10">
+          <div className="text-white font-semibold mb-4">💡 集成指南</div>
+          
+          <div className="space-y-4 text-sm">
+            <div>
+              <div className="text-gray-300 font-medium mb-2">1. 比赛详情页 - 紧凑模式</div>
+              <pre className="bg-black/40 p-3 rounded-lg text-xs text-gray-300 overflow-x-auto border border-white/10">
 {`import PlayerRatingDisplay from '@/components/PlayerRatingDisplay';
 
-// 在球员列表中展示紧凑模式
 {participants.map(p => (
   <PlayerRatingDisplay
     key={p.playerId}
@@ -134,10 +158,12 @@ const PlayerRatingDemo: React.FC = () => {
     {...p.ratingData}
   />
 ))}`}
-          </pre>
+              </pre>
+            </div>
 
-          <p><strong>2. 在球员详情页展示完整评分卡片：</strong></p>
-          <pre className="bg-gray-100 p-2 rounded">
+            <div>
+              <div className="text-gray-300 font-medium mb-2">2. 球员详情页 - 完整卡片</div>
+              <pre className="bg-black/40 p-3 rounded-lg text-xs text-gray-300 overflow-x-auto border border-white/10">
 {`<PlayerRatingDisplay
   playerId={player.id}
   playerName={player.nickname}
@@ -147,9 +173,11 @@ const PlayerRatingDemo: React.FC = () => {
   engagementRating={profile.engagementRating}
   compact={false}
 />`}
-          </pre>
+              </pre>
+            </div>
+          </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

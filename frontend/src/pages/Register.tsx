@@ -3,6 +3,7 @@ import { Toast, Selector } from 'antd-mobile';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, UserPlus, ShieldCheck } from 'lucide-react';
 import apiClient from '../api/client';
+import useAuthStore from '../store/useAuthStore';
 import {
   AuthField,
   AuthStepper,
@@ -60,8 +61,13 @@ const Register: React.FC = () => {
         position,
       };
       await apiClient.post('/auth/register', payload);
-      Toast.show({ icon: 'success', content: '身份激活成功，请登录' });
-      navigate('/login');
+      const formData = new FormData();
+      formData.append('username', username);
+      formData.append('password', password);
+      await apiClient.post('/auth/login', formData);
+      await useAuthStore.getState().fetchMe();
+      Toast.show({ icon: 'success', content: '激活成功，欢迎加入！' });
+      navigate('/matches');
     } catch (err) {
     } finally {
       setLoading(false);
