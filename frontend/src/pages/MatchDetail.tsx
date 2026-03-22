@@ -705,7 +705,7 @@ const MatchDetail: React.FC = () => {
               onClick={() => navigate(`/matches/${id}/live`)}
               className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-orange-500/30 bg-orange-500/10 py-4 text-sm font-bold text-orange-400 transition-all hover:bg-orange-500/15 active:scale-[0.98]"
             >
-              <Swords size={16} /> 进入赛事大厅
+              <Swords size={16} /> 进入赛场
             </button>
           )}
 
