@@ -1,5 +1,17 @@
 import apiClient from './client';
 
+export interface MatchGame {
+  id: number;
+  matchId: number;
+  teamAIndex: number;
+  teamBIndex: number;
+  scoreA: number | null;
+  scoreB: number | null;
+  status: 'READY' | 'PLAYING' | 'FINISHED';
+  startTime: string | null;
+  endTime: string | null;
+}
+
 export interface PlayerItem {
   id: number;
   name: string;
@@ -47,6 +59,16 @@ export interface PlayerStats {
 export interface MatchStatsVO {
   topScorers: PlayerStats[];
   topAssisters: PlayerStats[];
+}
+
+export interface SettlementRequest {
+  totalCost: number;
+  publish: boolean;
+  registrations: {
+    playerId: number;
+    paymentAmount: number;
+    isExempt: boolean;
+  }[];
 }
 
 export const matchApi = {
@@ -100,4 +122,10 @@ export const matchApi = {
 
   adminAddPlayer: (matchId: string | number, playerId: number): Promise<void> =>
     apiClient.post(`/api/match/${matchId}/admin/add-player?playerId=${playerId}`),
+
+  settlement: (matchId: string | number, request: SettlementRequest): Promise<void> =>
+    apiClient.post(`/api/match/${matchId}/settlement`, request),
+
+  batchUpdatePayment: (matchId: string | number): Promise<void> =>
+    apiClient.post(`/api/match/${matchId}/payment/batch`),
 };

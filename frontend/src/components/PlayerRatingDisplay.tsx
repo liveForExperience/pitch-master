@@ -50,7 +50,7 @@ const PlayerRatingDisplay: React.FC<PlayerRatingDisplayProps> = ({
 
   // 进度条组件（自定义暗黑风格）
   const ProgressBar: React.FC<{ percent: number; color: string }> = ({ percent, color }) => (
-    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+    <div className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
       <div 
         className="h-full rounded-full transition-all duration-300"
         style={{ 
@@ -74,16 +74,16 @@ const PlayerRatingDisplay: React.FC<PlayerRatingDisplayProps> = ({
         </div>
         <div className="flex-1 grid grid-cols-3 gap-3 text-xs">
           <div className="text-center">
-            <div className="font-semibold text-white">{skillRating.toFixed(1)}</div>
-            <div className="text-gray-400 mt-0.5">技术</div>
+            <div className="font-semibold text-gray-900 dark:text-white">{skillRating.toFixed(1)}</div>
+            <div className="text-gray-500 mt-0.5">技术</div>
           </div>
           <div className="text-center">
-            <div className="font-semibold text-white">{performanceRating.toFixed(1)}</div>
-            <div className="text-gray-400 mt-0.5">表现</div>
+            <div className="font-semibold text-gray-900 dark:text-white">{performanceRating.toFixed(1)}</div>
+            <div className="text-gray-500 mt-0.5">表现</div>
           </div>
           <div className="text-center">
-            <div className="font-semibold text-white">{engagementRating.toFixed(1)}</div>
-            <div className="text-gray-400 mt-0.5">参与</div>
+            <div className="font-semibold text-gray-900 dark:text-white">{engagementRating.toFixed(1)}</div>
+            <div className="text-gray-500 mt-0.5">参与</div>
           </div>
         </div>
       </div>
@@ -92,10 +92,10 @@ const PlayerRatingDisplay: React.FC<PlayerRatingDisplayProps> = ({
 
   // 完整卡片模式 - 磨砂玻璃风格
   return (
-    <div className="glass rounded-2xl p-5 w-full border border-white/10">
+    <div className="glass rounded-2xl p-5 w-full border border-gray-200 dark:border-white/10">
       {/* 标题栏 */}
-      <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/10">
-        <span className="text-lg font-semibold text-white">{playerName} · 评分档案</span>
+      <div className="flex items-center justify-between mb-5 pb-4 border-b border-gray-200 dark:border-white/10">
+        <span className="text-lg font-semibold text-gray-900 dark:text-white">{playerName} · 评分档案</span>
         <div className="flex gap-2">
           {provisionalMatches < 3 && (
             <Tag color="#007AFF" fill="outline" className="text-xs">
@@ -128,8 +128,8 @@ const PlayerRatingDisplay: React.FC<PlayerRatingDisplayProps> = ({
         >
           {getRatingLevel(totalRating)}
         </Tag>
-        <div className="text-gray-400 text-sm mt-3">
-          出场 <span className="text-white font-semibold">{appearanceCount}</span> 次
+        <div className="text-gray-500 dark:text-gray-400 text-sm mt-3">
+          出场 <span className="text-gray-900 dark:text-white font-semibold">{appearanceCount}</span> 次
         </div>
       </div>
 
@@ -140,7 +140,7 @@ const PlayerRatingDisplay: React.FC<PlayerRatingDisplayProps> = ({
           <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-2">
               <Trophy size={18} color="#FFD60A" />
-              <span className="font-medium text-white">技术能力</span>
+              <span className="font-medium text-gray-900 dark:text-white">技术能力</span>
               <span className="text-xs text-gray-500">Skill</span>
             </div>
             <span className="font-bold text-lg" style={{ color: getRatingColor(skillRating) }}>
@@ -151,7 +151,7 @@ const PlayerRatingDisplay: React.FC<PlayerRatingDisplayProps> = ({
             percent={((skillRating - 1) / 19) * 100}
             color={getRatingColor(skillRating)}
           />
-          <div className="text-xs text-gray-400 mt-2 leading-relaxed">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
             长期能力评估，受进球、助攻、MVP影响
           </div>
         </div>
@@ -161,7 +161,7 @@ const PlayerRatingDisplay: React.FC<PlayerRatingDisplayProps> = ({
           <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-2">
               <TrendingUp size={18} color="#007AFF" />
-              <span className="font-medium text-white">比赛表现</span>
+              <span className="font-medium text-gray-900 dark:text-white">比赛表现</span>
               <span className="text-xs text-gray-500">Performance</span>
             </div>
             <span className="font-bold text-lg" style={{ color: getRatingColor(performanceRating) }}>
@@ -172,7 +172,7 @@ const PlayerRatingDisplay: React.FC<PlayerRatingDisplayProps> = ({
             percent={((performanceRating - 1) / 19) * 100}
             color={getRatingColor(performanceRating)}
           />
-          <div className="text-xs text-gray-400 mt-2 leading-relaxed">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
             单场结果和数据表现，受胜负、进球、助攻影响
           </div>
         </div>
@@ -182,7 +182,7 @@ const PlayerRatingDisplay: React.FC<PlayerRatingDisplayProps> = ({
           <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-2">
               <Heart size={18} color="#1DB954" />
-              <span className="font-medium text-white">参与度</span>
+              <span className="font-medium text-gray-900 dark:text-white">参与度</span>
               <span className="text-xs text-gray-500">Engagement</span>
             </div>
             <span className="font-bold text-lg" style={{ color: getRatingColor(engagementRating) }}>
@@ -193,16 +193,16 @@ const PlayerRatingDisplay: React.FC<PlayerRatingDisplayProps> = ({
             percent={((engagementRating - 1) / 19) * 100}
             color={getRatingColor(engagementRating)}
           />
-          <div className="text-xs text-gray-400 mt-2 leading-relaxed">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
             活跃度和互评参与，受出勤、连续活跃、互评完成影响
           </div>
         </div>
       </div>
 
       {/* 评分说明 */}
-      <div className="mt-6 p-4 bg-white/5 rounded-xl border border-white/10">
-        <div className="font-medium text-white mb-2 text-sm">📊 评分规则</div>
-        <ul className="space-y-1.5 text-xs text-gray-400 leading-relaxed">
+      <div className="mt-6 p-4 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+        <div className="font-medium text-gray-900 dark:text-white mb-2 text-sm">📊 评分规则</div>
+        <ul className="space-y-1.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
           <li>• 评分范围：1.00 - 20.00 (FM风格)</li>
           <li>• 总评 = 技术×40% + 表现×40% + 参与×20%</li>
           <li>• 新球员前3场享受保护期（变动更平滑）</li>

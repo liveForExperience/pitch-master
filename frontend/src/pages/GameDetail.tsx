@@ -164,13 +164,13 @@ export default function GameDetail() {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-transparent">
       <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (error || !game) return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50 dark:bg-transparent">
       <p className="text-red-400">{error || '场次不存在'}</p>
       <button onClick={() => navigate(-1)} className="text-primary underline">返回</button>
     </div>
@@ -179,15 +179,15 @@ export default function GameDetail() {
   const sched = scheduledStart();
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-4 max-w-lg mx-auto">
+    <div className="min-h-screen pb-24 px-4 pt-4 max-w-lg mx-auto bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="text-neutral-400 hover:text-white text-xl">←</button>
+        <button onClick={() => navigate(-1)} className="text-gray-400 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white text-xl">←</button>
         <div>
           <h1 className="text-lg font-bold">
-            {teamName(game.teamAIndex)} <span className="text-neutral-500">vs</span> {teamName(game.teamBIndex)}
+            {teamName(game.teamAIndex)} <span className="text-gray-500 dark:text-neutral-500">vs</span> {teamName(game.teamBIndex)}
           </h1>
-          <p className="text-xs text-neutral-500">第 {(game.gameIndex ?? 0) + 1} 场</p>
+          <p className="text-xs text-gray-500 dark:text-neutral-500">第 {(game.gameIndex ?? 0) + 1} 场</p>
         </div>
         <StatusBadge status={game.status} />
       </div>
@@ -196,8 +196,8 @@ export default function GameDetail() {
       {game.status === 'READY' && (
         <div className="space-y-4">
           {sched && (
-            <div className="bg-neutral-800 rounded-xl p-4 text-center">
-              <p className="text-xs text-neutral-400 mb-1">预计开始时间</p>
+            <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-4 text-center">
+              <p className="text-xs text-gray-500 dark:text-neutral-400 mb-1">预计开始时间</p>
               <p className="text-3xl font-bold text-primary">{formatTime(sched.toISOString())}</p>
             </div>
           )}
@@ -221,14 +221,14 @@ export default function GameDetail() {
       {game.status === 'PLAYING' && (
         <div className="space-y-4">
           {/* Scoreboard */}
-          <div className="bg-neutral-800 rounded-xl p-4">
+          <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex-1 text-center">
-                <p className="text-xs text-neutral-400 mb-1 truncate">{teamName(game.teamAIndex)}</p>
-                <p className="text-5xl font-black text-white">{game.scoreA ?? 0}</p>
+                <p className="text-xs text-gray-500 dark:text-neutral-400 mb-1 truncate">{teamName(game.teamAIndex)}</p>
+                <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreA ?? 0}</p>
               </div>
               <div className="text-center px-4">
-                <p className="text-neutral-500 text-sm font-mono">
+                <p className="text-gray-500 dark:text-neutral-500 text-sm font-mono">
                   {formatTime(game.startTime)} ~ {formatTime(game.endTime)}
                 </p>
                 {(game.overtimeMinutes ?? 0) > 0 && (
@@ -236,8 +236,8 @@ export default function GameDetail() {
                 )}
               </div>
               <div className="flex-1 text-center">
-                <p className="text-xs text-neutral-400 mb-1 truncate">{teamName(game.teamBIndex)}</p>
-                <p className="text-5xl font-black text-white">{game.scoreB ?? 0}</p>
+                <p className="text-xs text-gray-500 dark:text-neutral-400 mb-1 truncate">{teamName(game.teamBIndex)}</p>
+                <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreB ?? 0}</p>
               </div>
             </div>
           </div>
@@ -302,7 +302,7 @@ export default function GameDetail() {
             >
               <button
                 onClick={() => selectAssistant(null)}
-                className="w-full bg-neutral-600 text-white font-bold py-3 rounded-xl mb-2"
+                className="w-full bg-gray-300 dark:bg-neutral-600 text-gray-800 dark:text-white font-bold py-3 rounded-xl mb-2"
               >
                 无助攻
               </button>
@@ -318,9 +318,9 @@ export default function GameDetail() {
           <GoalLog goals={game.goals} game={game} />
 
           {/* Overtime */}
-          <div className="bg-neutral-800 rounded-xl p-3">
+          <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-neutral-400">加时</span>
+              <span className="text-sm text-gray-500 dark:text-neutral-400">加时</span>
               <button onClick={() => setShowOvertimeInput(v => !v)} className="text-xs text-primary">
                 {showOvertimeInput ? '取消' : '添加加时'}
               </button>
@@ -333,7 +333,7 @@ export default function GameDetail() {
                   value={overtimeInput}
                   onChange={e => setOvertimeInput(e.target.value)}
                   placeholder="分钟数"
-                  className="flex-1 bg-neutral-700 rounded-lg px-3 py-2 text-sm text-white placeholder-neutral-500 outline-none"
+                  className="flex-1 bg-gray-200 dark:bg-neutral-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 outline-none"
                 />
                 <button
                   onClick={handleAddOvertime}
@@ -350,7 +350,7 @@ export default function GameDetail() {
           <button
             onClick={handleFinish}
             disabled={actionLoading}
-            className="w-full bg-neutral-700 hover:bg-neutral-600 text-white font-bold py-3 rounded-xl disabled:opacity-40"
+            className="w-full bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 text-gray-800 dark:text-white font-bold py-3 rounded-xl disabled:opacity-40"
           >
             {actionLoading ? '请稍候…' : '结束比赛'}
           </button>
@@ -361,20 +361,20 @@ export default function GameDetail() {
       {game.status === 'FINISHED' && (
         <div className="space-y-4">
           {/* Final score */}
-          <div className="bg-neutral-800 rounded-xl p-4">
-            <p className="text-xs text-neutral-400 text-center mb-3">最终比分</p>
+          <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-4">
+            <p className="text-xs text-gray-500 dark:text-neutral-400 text-center mb-3">最终比分</p>
             <div className="flex items-center justify-between">
               <div className="flex-1 text-center">
-                <p className="text-sm text-neutral-300 mb-1 truncate">{teamName(game.teamAIndex)}</p>
-                <p className="text-5xl font-black text-white">{game.scoreA ?? 0}</p>
+                <p className="text-sm text-gray-600 dark:text-neutral-300 mb-1 truncate">{teamName(game.teamAIndex)}</p>
+                <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreA ?? 0}</p>
               </div>
-              <p className="text-2xl text-neutral-500 px-3">—</p>
+              <p className="text-2xl text-gray-400 dark:text-neutral-500 px-3">—</p>
               <div className="flex-1 text-center">
-                <p className="text-sm text-neutral-300 mb-1 truncate">{teamName(game.teamBIndex)}</p>
-                <p className="text-5xl font-black text-white">{game.scoreB ?? 0}</p>
+                <p className="text-sm text-gray-600 dark:text-neutral-300 mb-1 truncate">{teamName(game.teamBIndex)}</p>
+                <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreB ?? 0}</p>
               </div>
             </div>
-            <p className="text-center text-xs text-neutral-500 mt-3">
+            <p className="text-center text-xs text-gray-500 dark:text-neutral-500 mt-3">
               {formatTime(game.startTime)} — {formatTime(game.endTime)}
               {(game.overtimeMinutes ?? 0) > 0 && ` (+${game.overtimeMinutes}')`}
             </p>
@@ -398,11 +398,11 @@ export default function GameDetail() {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    READY: { label: '未开始', cls: 'bg-neutral-700 text-neutral-300' },
+    READY: { label: '未开始', cls: 'bg-gray-200 dark:bg-neutral-700 text-gray-600 dark:text-neutral-300' },
     PLAYING: { label: '进行中', cls: 'bg-green-700 text-green-200 animate-pulse' },
-    FINISHED: { label: '已结束', cls: 'bg-neutral-600 text-neutral-400' },
+    FINISHED: { label: '已结束', cls: 'bg-gray-200 dark:bg-neutral-600 text-gray-500 dark:text-neutral-400' },
   };
-  const s = map[status] ?? { label: status, cls: 'bg-neutral-700 text-neutral-300' };
+  const s = map[status] ?? { label: status, cls: 'bg-gray-200 dark:bg-neutral-700 text-gray-600 dark:text-neutral-300' };
   return (
     <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${s.cls}`}>{s.label}</span>
   );
@@ -414,12 +414,12 @@ function TeamRoster({ title, participants, accent }: {
   accent: string;
 }) {
   return (
-    <div className="bg-neutral-800 rounded-xl p-3">
+    <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-3">
       <p className={`text-sm font-bold mb-2 ${accent}`}>{title}</p>
       {participants.length === 0
-        ? <p className="text-xs text-neutral-500">暂无名单</p>
+        ? <p className="text-xs text-gray-500 dark:text-neutral-500">暂无名单</p>
         : participants.map(p => (
-          <div key={p.playerId} className="text-sm text-neutral-300 py-0.5">{p.playerName}</div>
+          <div key={p.playerId} className="text-sm text-gray-700 dark:text-neutral-300 py-0.5">{p.playerName}</div>
         ))
       }
     </div>
@@ -432,10 +432,10 @@ function GoalModal({ title, children, onCancel }: {
   onCancel: () => void;
 }) {
   return (
-    <div className="bg-neutral-800 rounded-xl p-4 space-y-3">
+    <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-white">{title}</p>
-        <button onClick={onCancel} className="text-neutral-500 hover:text-white text-sm">取消</button>
+        <p className="text-sm font-bold text-gray-900 dark:text-white">{title}</p>
+        <button onClick={onCancel} className="text-gray-500 dark:text-neutral-500 hover:text-gray-900 dark:hover:text-white text-sm">取消</button>
       </div>
       {children}
     </div>
@@ -447,7 +447,7 @@ function ScorerList({ participants, onSelect }: {
   onSelect: (p: ParticipantInfo) => void;
 }) {
   if (participants.length === 0) {
-    return <p className="text-sm text-neutral-500 text-center py-2">暂无球员</p>;
+    return <p className="text-sm text-gray-500 dark:text-neutral-500 text-center py-2">暂无球员</p>;
   }
   return (
     <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -455,13 +455,13 @@ function ScorerList({ participants, onSelect }: {
         <button
           key={p.playerId}
           onClick={() => onSelect(p)}
-          className="w-full flex items-center gap-3 bg-neutral-700 hover:bg-neutral-600 rounded-lg px-3 py-2 text-left"
+          className="w-full flex items-center gap-3 bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 rounded-lg px-3 py-2 text-left"
         >
-          <span className="w-7 h-7 rounded-full bg-neutral-600 flex items-center justify-center text-xs font-bold text-primary">
+          <span className="w-7 h-7 rounded-full bg-gray-300 dark:bg-neutral-600 flex items-center justify-center text-xs font-bold text-primary">
             {p.playerName.charAt(0)}
           </span>
-          <span className="text-sm text-white">{p.playerName}</span>
-          <span className="ml-auto text-xs text-neutral-500">
+          <span className="text-sm text-gray-900 dark:text-white">{p.playerName}</span>
+          <span className="ml-auto text-xs text-gray-500 dark:text-neutral-500">
             {p.goals}球 {p.assists}助
           </span>
         </button>
@@ -476,22 +476,22 @@ function GoalLog({ goals, game }: { goals: GameDetailVO['goals']; game: GameDeta
   const teamName = (idx: number) => game.teamNames?.[idx] ?? `第${idx + 1}队`;
 
   return (
-    <div className="bg-neutral-800 rounded-xl p-3">
-      <p className="text-sm font-bold text-neutral-300 mb-2">进球记录</p>
+    <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-3">
+      <p className="text-sm font-bold text-gray-700 dark:text-neutral-300 mb-2">进球记录</p>
       <div className="space-y-2">
         {goals.map(g => (
           <div key={g.goalId} className="flex items-center gap-2 text-sm">
             <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${
-              g.type === 'OWN_GOAL' ? 'bg-red-800 text-red-200' : 'bg-neutral-700 text-neutral-200'
+              g.type === 'OWN_GOAL' ? 'bg-red-800 text-red-200' : 'bg-gray-200 dark:bg-neutral-700 text-gray-700 dark:text-neutral-200'
             }`}>
               {g.type === 'OWN_GOAL' ? '乌龙' : teamName(g.teamIndex)}
             </span>
-            <span className="text-white">{g.scorerName ?? '未知'}</span>
+            <span className="text-gray-900 dark:text-white">{g.scorerName ?? '未知'}</span>
             {g.assistantName && (
-              <span className="text-neutral-400 text-xs">助攻: {g.assistantName}</span>
+              <span className="text-gray-500 dark:text-neutral-400 text-xs">助攻: {g.assistantName}</span>
             )}
             {g.occurredAt && (
-              <span className="ml-auto text-xs text-neutral-500">
+              <span className="ml-auto text-xs text-gray-500 dark:text-neutral-500">
                 {new Date(g.occurredAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
@@ -505,16 +505,16 @@ function GoalLog({ goals, game }: { goals: GameDetailVO['goals']; game: GameDeta
 function ParticipantStats({ title, participants }: { title: string; participants: ParticipantInfo[] }) {
   const sorted = [...participants].sort((a, b) => (b.goals + b.assists) - (a.goals + a.assists));
   return (
-    <div className="bg-neutral-800 rounded-xl p-3">
-      <p className="text-sm font-bold text-neutral-300 mb-2">{title}</p>
+    <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-3">
+      <p className="text-sm font-bold text-gray-700 dark:text-neutral-300 mb-2">{title}</p>
       {sorted.length === 0
-        ? <p className="text-xs text-neutral-500">暂无数据</p>
+        ? <p className="text-xs text-gray-500 dark:text-neutral-500">暂无数据</p>
         : sorted.map(p => (
           <div key={p.playerId} className="flex items-center justify-between py-0.5 text-xs">
-            <span className={`text-neutral-300 ${p.isMvp ? 'text-yellow-400 font-bold' : ''}`}>
+            <span className={`text-gray-700 dark:text-neutral-300 ${p.isMvp ? 'text-yellow-400 font-bold' : ''}`}>
               {p.isMvp ? '★ ' : ''}{p.playerName}
             </span>
-            <span className="text-neutral-500">{p.goals}球 {p.assists}助</span>
+            <span className="text-gray-500 dark:text-neutral-500">{p.goals}球 {p.assists}助</span>
           </div>
         ))
       }

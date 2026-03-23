@@ -148,11 +148,11 @@ const MatchList: React.FC = () => {
       <div className="pointer-events-none absolute right-[-6%] top-28 h-72 w-72 rounded-full bg-white/[0.04] blur-[160px]"></div>
       <header className="mx-auto mb-12 flex max-w-5xl flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl relative z-10">
-          <div className="mb-4 inline-flex items-center rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-[10px] font-black tracking-[0.28em] text-primary">
+          <div className="mb-4 inline-flex items-center rounded-full border border-gray-200 dark:border-white/8 bg-gray-100 dark:bg-white/[0.03] px-4 py-2 text-[10px] font-black tracking-[0.28em] text-primary">
             赛事中枢
           </div>
-          <h1 className="text-5xl font-black tracking-tighter text-white lg:text-7xl">赛事广场</h1>
-          <p className="mt-5 max-w-xl text-sm font-medium leading-7 text-neutral-500 sm:text-[15px]">
+          <h1 className="text-5xl font-black tracking-tighter text-gray-900 dark:text-white lg:text-7xl">赛事广场</h1>
+          <p className="mt-5 max-w-xl text-sm font-medium leading-7 text-gray-500 dark:text-neutral-500 sm:text-[15px]">
             查看当前开放赛事、进行中对局与费用信息，用更清晰的卡片结构快速判断每场比赛的状态与参与规模。
           </p>
         </div>
@@ -160,13 +160,13 @@ const MatchList: React.FC = () => {
           <div className="relative z-10 hidden items-center gap-3 md:flex">
             <button
               onClick={() => navigate('/matches/trash')}
-              className="flex h-12 items-center rounded-full border border-neutral-700 bg-neutral-900 px-5 text-sm font-bold text-neutral-400 transition-all hover:border-neutral-600 hover:text-white active:scale-[0.98]"
+              className="flex h-12 items-center rounded-full border border-gray-200 dark:border-neutral-700 bg-gray-100 dark:bg-neutral-900 px-5 text-sm font-bold text-gray-500 dark:text-neutral-400 transition-all hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-900 dark:hover:text-white active:scale-[0.98]"
             >
               <Trash2 size={16} className="mr-2" /> 回收站
             </button>
             <button 
               onClick={() => navigate('/matches/publish')}
-              className="flex h-12 items-center rounded-full border border-white/10 bg-white px-6 text-sm font-black text-black shadow-[0_12px_30px_rgba(255,255,255,0.08)] transition-all hover:scale-[1.03] hover:shadow-[0_16px_36px_rgba(255,255,255,0.14)] active:scale-[0.98]"
+              className="flex h-12 items-center rounded-full border border-gray-300 dark:border-white/10 bg-gray-900 dark:bg-white px-6 text-sm font-black text-white dark:text-black shadow-[0_4px_16px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_30px_rgba(255,255,255,0.08)] transition-[box-shadow,border-color] duration-300 hover:shadow-[0_8px_28px_rgba(0,0,0,0.25)] dark:hover:shadow-[0_16px_36px_rgba(255,255,255,0.14)] active:opacity-80"
             >
               <Plus size={20} className="mr-2" /> 发布新赛事
             </button>
@@ -175,34 +175,34 @@ const MatchList: React.FC = () => {
       </header>
 
       <section className="relative z-10 mx-auto mb-10 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-[1.75rem] border border-white/8 bg-white/[0.03] px-5 py-4">
-          <div className="mb-2 text-[10px] font-black tracking-[0.18em] text-neutral-600">赛事总览</div>
-          <div className="text-3xl font-black tracking-tight text-white">{matches.length}</div>
-          <div className="mt-1 text-xs font-medium text-neutral-500">当前可见赛事总数</div>
+        <div className="rounded-[1.75rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-white/[0.03] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:border-gray-300 dark:hover:border-white/12">
+          <div className="mb-2 text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-600">赛事总览</div>
+          <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{matches.length}</div>
+          <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">当前可见赛事总数</div>
         </div>
-        <div className="rounded-[1.75rem] border border-primary/12 bg-primary/[0.05] px-5 py-4">
+        <div className="rounded-[1.75rem] border border-primary/12 bg-primary/[0.05] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(29,185,84,0.12)] dark:hover:shadow-[0_8px_24px_rgba(29,185,84,0.2)] hover:border-primary/20">
           <div className="mb-2 flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-primary/80">
             <span className="h-2 w-2 rounded-full bg-primary"></span>
             报名中
           </div>
-          <div className="text-3xl font-black tracking-tight text-white">{statusSummary.published}</div>
-          <div className="mt-1 text-xs font-medium text-neutral-500">可继续加入与报名</div>
+          <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{statusSummary.published}</div>
+          <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">可继续加入与报名</div>
         </div>
-        <div className="rounded-[1.75rem] border border-orange-500/12 bg-orange-500/[0.05] px-5 py-4">
+        <div className="rounded-[1.75rem] border border-orange-500/12 bg-orange-500/[0.05] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(249,115,22,0.12)] dark:hover:shadow-[0_8px_24px_rgba(249,115,22,0.2)] hover:border-orange-500/20">
           <div className="mb-2 flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-orange-400">
             <span className="h-2 w-2 rounded-full bg-orange-400"></span>
             比赛中
           </div>
-          <div className="text-3xl font-black tracking-tight text-white">{statusSummary.ongoing}</div>
-          <div className="mt-1 text-xs font-medium text-neutral-500">正在进行的实时赛事</div>
+          <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{statusSummary.ongoing}</div>
+          <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">正在进行的实时赛事</div>
         </div>
-        <div className="rounded-[1.75rem] border border-neutral-800 bg-white/[0.02] px-5 py-4">
-          <div className="mb-2 flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-neutral-400">
-            <span className="h-2 w-2 rounded-full bg-neutral-400"></span>
+        <div className="rounded-[1.75rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-white/[0.02] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:border-gray-300 dark:hover:border-neutral-600">
+          <div className="mb-2 flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-400">
+            <span className="h-2 w-2 rounded-full bg-gray-400 dark:bg-neutral-400"></span>
             已完结
           </div>
-          <div className="text-3xl font-black tracking-tight text-white">{statusSummary.finished}</div>
-          <div className="mt-1 text-xs font-medium text-neutral-500">待核算或已结算的赛事</div>
+          <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{statusSummary.finished}</div>
+          <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">待核算或已结算的赛事</div>
         </div>
       </section>
 
@@ -216,7 +216,7 @@ const MatchList: React.FC = () => {
             <div
               key={match.id}
               onClick={() => navigate(`/matches/${match.id}`)}
-              className="group relative overflow-hidden rounded-[2.5rem] border border-neutral-800 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_24%),linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] cursor-pointer transition-all duration-500 hover:-translate-y-2 hover:border-neutral-700 hover:shadow-[0_28px_80px_rgba(0,0,0,0.62)]"
+              className="group relative overflow-hidden rounded-[2.5rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_24%),linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] cursor-pointer transition-all duration-500 hover:-translate-y-2 hover:border-gray-300 dark:hover:border-neutral-700 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_28px_80px_rgba(0,0,0,0.62)]"
             >
               <div className={`absolute right-[-12%] top-10 h-44 w-44 rounded-full bg-gradient-to-br ${statusMeta.accentClass} opacity-20 blur-3xl transition-all duration-500 group-hover:scale-110 group-hover:opacity-30`}></div>
               <div className="absolute inset-0 opacity-[0.035]" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
@@ -241,28 +241,28 @@ const MatchList: React.FC = () => {
                 </div>
 
                 {/* Title */}
-                <h2 className="mb-4 max-w-[85%] text-[26px] font-black leading-[1.08] tracking-[-0.03em] text-white transition-colors group-hover:text-primary">
+                <h2 className="mb-4 max-w-[85%] text-[26px] font-black leading-[1.08] tracking-[-0.03em] text-gray-900 dark:text-white transition-colors group-hover:text-primary">
                   {match.title}
                 </h2>
 
                 {/* Compact meta row */}
-                <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] font-medium text-neutral-400">
+                <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] font-medium text-gray-500 dark:text-neutral-400">
                   <span className="inline-flex items-center gap-1.5">
-                    <Calendar size={13} className="text-neutral-600" />
+                    <Calendar size={13} className="text-gray-400 dark:text-neutral-600" />
                     {posterDate.full}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <MapPin size={13} className="text-neutral-600" />
+                    <MapPin size={13} className="text-gray-400 dark:text-neutral-600" />
                     {match.location}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Users size={13} className="text-neutral-600" />
+                    <Users size={13} className="text-gray-400 dark:text-neutral-600" />
                     {match.numGroups}组 · {match.plannedGameCount}场 · 每组{match.playersPerGroup}人
                   </span>
                 </div>
 
                 {/* Footer: action bar or info bar */}
-                <div className="mt-auto border-t border-white/6 pt-4">
+                <div className="mt-auto border-t border-gray-100 dark:border-white/6 pt-4">
                   {admin && isPreparing ? (
                     <div className="flex items-center gap-3">
                       <button
@@ -281,8 +281,8 @@ const MatchList: React.FC = () => {
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
-                      <div className="text-[13px] font-semibold text-neutral-500">
-                        人均 <span className="ml-1 text-lg font-black tracking-tight text-white">¥{match.perPersonCost || '0.00'}</span>
+                      <div className="text-[13px] font-semibold text-gray-500 dark:text-neutral-500">
+                        人均 <span className="ml-1 text-lg font-black tracking-tight text-gray-900 dark:text-white">¥{match.perPersonCost || '0.00'}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {admin && (
@@ -293,7 +293,7 @@ const MatchList: React.FC = () => {
                             <Trash2 size={13} />
                           </button>
                         )}
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/8 bg-white/[0.03] text-neutral-600 transition-all duration-300 group-hover:border-primary/20 group-hover:bg-primary/[0.08] group-hover:text-primary">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] text-gray-400 dark:text-neutral-600 transition-all duration-300 group-hover:border-primary/20 group-hover:bg-primary/[0.08] group-hover:text-primary">
                           <ChevronRight size={16} className="transition-transform duration-300 group-hover:translate-x-0.5" />
                         </span>
                       </div>

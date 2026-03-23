@@ -2,6 +2,11 @@
 
 > 本文件为 AI Agent 开发辅助提供项目上下文，不属于正式技术文档。正式文档请查阅 `docs/` 目录。
 
+## 0. 全局 AI 规则
+
+- **开发与修复工作流**: 对于任何需求开发、Bug修复或者是版本上线，必须严格强制调用并遵循 `cade-dev-workflow` 全生命周期开发工作流技能的规则来执行。
+    - 如何搜索skill：cd /Users/chenyue/.gemini/antigravity/global_skills，然后使用find命令搜索
+
 ## 1. 项目定义
 
 - **项目名称**: PitchMaster

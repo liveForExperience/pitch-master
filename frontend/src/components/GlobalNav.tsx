@@ -1,21 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { Popup, Toast, Skeleton } from 'antd-mobile';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, X, ChevronRight, IdCard, Shield } from 'lucide-react';
+import { User, LogOut, X, ChevronRight, IdCard, Shield, Sun, Moon } from 'lucide-react';
 import apiClient from '../api/client';
 import useAuthStore from '../store/useAuthStore';
-
+import useThemeStore from '../store/useThemeStore';
 const gridStyle = {
   backgroundImage:
     'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
   backgroundSize: '32px 32px',
 };
 
+
 const GlobalNav: React.FC = () => {
   const [visible, setShowProfile] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const navigate = useNavigate();
   const { me, loading, fetched, fetchMe } = useAuthStore();
+  const { theme, setTheme } = useThemeStore();
+
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
 
   useEffect(() => {
     if (visible && (!fetched || !me)) {
@@ -47,10 +51,18 @@ const GlobalNav: React.FC = () => {
   return (
     <>
       {/* 顶部悬浮导航条 */}
-      <div className="fixed top-6 right-6 z-[1000]">
+      <div className="fixed top-6 right-6 z-[1000] flex items-center gap-2">
+        {/* 主题切换按钮 */}
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? '切换到白天模式' : '切换到黑夜模式'}
+          className="w-10 h-10 rounded-2xl bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 flex items-center justify-center text-gray-500 dark:text-neutral-400 shadow-lg hover:scale-105 active:scale-95 transition-all hover:text-primary dark:hover:text-primary"
+        >
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
         <button 
           onClick={() => setShowProfile(true)}
-          className="w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-primary shadow-2xl hover:scale-105 active:scale-95 transition-all group"
+          className="w-12 h-12 rounded-2xl bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 flex items-center justify-center text-primary shadow-2xl hover:scale-105 active:scale-95 transition-all group"
         >
           <User size={20} className="group-hover:animate-pulse" />
         </button>
@@ -61,9 +73,9 @@ const GlobalNav: React.FC = () => {
         visible={visible}
         onMaskClick={() => setShowProfile(false)}
         position='right'
-        bodyStyle={{ width: '85vw', maxWidth: '400px', backgroundColor: '#0a0a0a' }}
+        bodyStyle={{ width: '85vw', maxWidth: '400px', backgroundColor: 'var(--bg-surface)' }}
       >
-        <div className="h-full flex flex-col text-white overflow-y-auto">
+        <div className="h-full flex flex-col text-gray-900 dark:text-white overflow-y-auto">
 
           {/* ─── Hero Profile Header ─── */}
           <div className="relative overflow-hidden px-7 pt-7 pb-6">
@@ -75,7 +87,7 @@ const GlobalNav: React.FC = () => {
               {/* Close button */}
               <button
                 onClick={() => setShowProfile(false)}
-                className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-neutral-500 transition-colors hover:text-white"
+                className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 dark:border-white/8 bg-gray-100 dark:bg-white/[0.04] text-gray-500 dark:text-neutral-500 transition-colors hover:text-gray-900 dark:hover:text-white"
               >
                 <X size={14} />
               </button>
@@ -90,8 +102,8 @@ const GlobalNav: React.FC = () => {
                 <div className="flex items-center gap-5">
                   {/* Avatar */}
                   <div className="relative shrink-0">
-                    <div className="flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-[1.4rem] border-2 border-primary/15 bg-neutral-900">
-                      <User size={30} className="text-neutral-700" />
+                    <div className="flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-[1.4rem] border-2 border-primary/15 bg-gray-100 dark:bg-neutral-900">
+                      <User size={30} className="text-gray-400 dark:text-neutral-700" />
                     </div>
                     <div className="absolute -bottom-2 -right-2 rounded-lg bg-primary px-2 py-0.5 text-[10px] font-black text-black shadow-lg shadow-primary/25">
                       {rating}
@@ -100,10 +112,10 @@ const GlobalNav: React.FC = () => {
 
                   {/* Name & meta */}
                   <div className="min-w-0 flex-1">
-                    <h2 className="truncate text-[22px] font-black leading-tight tracking-tight">
+                    <h2 className="truncate text-[22px] font-black leading-tight tracking-tight text-gray-900 dark:text-white">
                       {displayName}
                     </h2>
-                    <div className="mt-1 text-[11px] font-bold tracking-wide text-neutral-500">
+                    <div className="mt-1 text-[11px] font-bold tracking-wide text-gray-500 dark:text-neutral-500">
                       {clubName}
                     </div>
                     <div className="mt-2.5 flex items-center gap-2">
@@ -115,7 +127,7 @@ const GlobalNav: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="text-neutral-600 text-sm italic">未登录</div>
+                <div className="text-gray-400 dark:text-neutral-600 text-sm italic">未登录</div>
               )}
             </div>
           </div>
@@ -127,15 +139,15 @@ const GlobalNav: React.FC = () => {
               {/* 基本信息入口 */}
               <button
                 type="button"
-                className="group flex w-full items-center justify-between rounded-[1.75rem] border border-white/8 bg-white/[0.03] px-5 py-4 text-left transition-all hover:border-neutral-700 hover:bg-white/[0.05] active:scale-[0.98]"
+                className="group flex w-full items-center justify-between rounded-[1.75rem] border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] px-5 py-4 text-left transition-all hover:border-gray-300 dark:hover:border-neutral-700 hover:bg-gray-100 dark:hover:bg-white/[0.05] active:scale-[0.98]"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.05]">
-                    <IdCard size={18} className="text-neutral-400" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 dark:border-white/8 bg-gray-100 dark:bg-white/[0.05]">
+                    <IdCard size={18} className="text-gray-400 dark:text-neutral-400" />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-white">基本信息</div>
-                    <div className="mt-0.5 text-[11px] font-medium text-neutral-500">
+                    <div className="text-sm font-bold text-gray-900 dark:text-white">基本信息</div>
+                    <div className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-neutral-500">
                       查看和编辑个人资料
                     </div>
                   </div>
@@ -148,7 +160,7 @@ const GlobalNav: React.FC = () => {
 
               {/* ─── Player Stats Card (conditional) ─── */}
               {hasPlayer && (
-                <div className="relative overflow-hidden rounded-[2rem] border border-neutral-800 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_24%),linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)]">
+                <div className="relative overflow-hidden rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_24%),linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] shadow-sm dark:shadow-none">
                   <div className="pointer-events-none absolute right-[-14%] top-4 h-36 w-36 rounded-full bg-gradient-to-br from-primary/60 to-primary/5 opacity-20 blur-2xl" />
                   <div className="pointer-events-none absolute inset-0 opacity-[0.035]" style={gridStyle} />
                   <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -159,27 +171,27 @@ const GlobalNav: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] px-3 py-3.5 text-center">
-                        <div className="mb-1.5 text-[9px] font-black tracking-[0.16em] text-neutral-600 uppercase">
+                      <div className="rounded-[1.2rem] border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] px-3 py-3.5 text-center">
+                        <div className="mb-1.5 text-[9px] font-black tracking-[0.16em] text-gray-400 dark:text-neutral-600 uppercase">
                           Rating
                         </div>
                         <div className="text-xl font-black tracking-tight text-primary">
                           {rating}
                         </div>
                       </div>
-                      <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] px-3 py-3.5 text-center">
-                        <div className="mb-1.5 text-[9px] font-black tracking-[0.16em] text-neutral-600 uppercase">
+                      <div className="rounded-[1.2rem] border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] px-3 py-3.5 text-center">
+                        <div className="mb-1.5 text-[9px] font-black tracking-[0.16em] text-gray-400 dark:text-neutral-600 uppercase">
                           Position
                         </div>
-                        <div className="text-sm font-black italic text-white">
+                        <div className="text-sm font-black italic text-gray-800 dark:text-white">
                           {me.player?.position || 'N/A'}
                         </div>
                       </div>
-                      <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] px-3 py-3.5 text-center">
-                        <div className="mb-1.5 text-[9px] font-black tracking-[0.16em] text-neutral-600 uppercase">
+                      <div className="rounded-[1.2rem] border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] px-3 py-3.5 text-center">
+                        <div className="mb-1.5 text-[9px] font-black tracking-[0.16em] text-gray-400 dark:text-neutral-600 uppercase">
                           Foot
                         </div>
-                        <div className="text-sm font-black text-white">
+                        <div className="text-sm font-black text-gray-800 dark:text-white">
                           {me.player?.preferredFoot || '—'}
                         </div>
                       </div>
@@ -194,17 +206,17 @@ const GlobalNav: React.FC = () => {
                   type="button"
                   onClick={handleLogout}
                   disabled={loggingOut}
-                  className="group flex w-full items-center justify-between rounded-[1.75rem] border border-neutral-800 bg-white/[0.02] px-5 py-4 text-left transition-all hover:border-red-500/25 hover:bg-red-500/[0.04] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+                  className="group flex w-full items-center justify-between rounded-[1.75rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-white/[0.02] px-5 py-4 text-left transition-all hover:border-red-500/25 hover:bg-red-500/[0.04] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 shadow-sm dark:shadow-none"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-500/15 bg-red-500/10 text-red-400 transition-colors group-hover:bg-red-500/15">
                       <LogOut size={16} />
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-white">
+                      <div className="text-sm font-bold text-gray-900 dark:text-white">
                         {loggingOut ? '退出中…' : '退出登录'}
                       </div>
-                      <div className="mt-0.5 text-[11px] font-medium text-neutral-500">
+                      <div className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-neutral-500">
                         结束当前会话
                       </div>
                     </div>
@@ -218,10 +230,10 @@ const GlobalNav: React.FC = () => {
           )}
 
           {/* ─── Footer ─── */}
-          <div className="mt-auto border-t border-neutral-900 px-7 pb-6 pt-4">
+          <div className="mt-auto border-t border-gray-200 dark:border-neutral-900 px-7 pb-6 pt-4">
             <button
               onClick={() => setShowProfile(false)}
-              className="w-full py-3 text-center text-xs font-bold uppercase tracking-widest text-neutral-500 transition-colors hover:text-white"
+              className="w-full py-3 text-center text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-neutral-500 transition-colors hover:text-gray-900 dark:hover:text-white"
             >
               返回
             </button>

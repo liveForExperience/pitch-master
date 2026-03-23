@@ -13,7 +13,7 @@ const matchStatusMeta: Record<string, { label: string; badgeClass: string }> = {
   GROUPING_DRAFT: { label: '分组中', badgeClass: 'border-violet-500/20 bg-violet-500/10 text-violet-400' },
   ONGOING: { label: '比赛中', badgeClass: 'border-orange-500/20 bg-orange-500/10 text-orange-400' },
   MATCH_FINISHED: { label: '待核算', badgeClass: 'border-amber-500/20 bg-amber-500/10 text-amber-400' },
-  SETTLED: { label: '已完结', badgeClass: 'border-neutral-700 bg-neutral-800/80 text-neutral-300' },
+  SETTLED: { label: '已完结', badgeClass: 'border-neutral-300 dark:border-neutral-700 bg-gray-100 dark:bg-neutral-800/80 text-gray-600 dark:text-neutral-300' },
   CANCELLED: { label: '已取消', badgeClass: 'border-red-500/20 bg-red-500/10 text-red-400' },
 };
 
@@ -78,22 +78,22 @@ const MatchTrash: React.FC = () => {
   const getStatusMeta = (status?: string) => {
     return matchStatusMeta[status || ''] || {
       label: '状态待定',
-      badgeClass: 'border-neutral-700 bg-neutral-800/80 text-neutral-300',
+      badgeClass: 'border-neutral-300 dark:border-neutral-700 bg-gray-100 dark:bg-neutral-800/80 text-gray-600 dark:text-neutral-300',
     };
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-10 border-b border-neutral-800 bg-[#0a0a0a]/95 backdrop-blur-xl">
+      <div className="sticky top-0 z-10 border-b border-gray-200 dark:border-neutral-800 bg-gray-50/95 dark:bg-[#0a0a0a]/95 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4">
           <button
             onClick={() => navigate(-1)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-white/5"
+            className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-gray-100 dark:hover:bg-white/5"
           >
-            <ChevronLeft size={20} className="text-neutral-400" />
+            <ChevronLeft size={20} className="text-gray-500 dark:text-neutral-400" />
           </button>
-          <h1 className="flex-1 text-lg font-black text-white">赛事回收站</h1>
+          <h1 className="flex-1 text-lg font-black text-gray-900 dark:text-white">赛事回收站</h1>
         </div>
       </div>
 
@@ -102,13 +102,13 @@ const MatchTrash: React.FC = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 size={32} className="animate-spin text-primary" />
-            <div className="mt-4 text-sm text-neutral-500">加载中...</div>
+            <div className="mt-4 text-sm text-gray-500 dark:text-neutral-500">加载中...</div>
           </div>
         ) : matches.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <Trash2 size={48} className="text-neutral-700" />
-            <div className="mt-4 text-sm font-bold text-neutral-500">回收站为空</div>
-            <div className="mt-2 text-xs text-neutral-600">已删除的赛事会出现在这里</div>
+            <Trash2 size={48} className="text-gray-300 dark:text-neutral-700" />
+            <div className="mt-4 text-sm font-bold text-gray-500 dark:text-neutral-500">回收站为空</div>
+            <div className="mt-2 text-xs text-gray-400 dark:text-neutral-600">已删除的赛事会出现在这里</div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -119,7 +119,7 @@ const MatchTrash: React.FC = () => {
               return (
                 <div
                   key={match.id}
-                  className="rounded-2xl border border-neutral-800 bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-6"
+                  className="rounded-2xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-6 shadow-sm dark:shadow-none"
                 >
                   <div className="mb-4 flex items-start justify-between">
                     <div className="flex-1">
@@ -128,8 +128,8 @@ const MatchTrash: React.FC = () => {
                           {statusMeta.label}
                         </span>
                       </div>
-                      <h3 className="text-lg font-black text-white">{match.title}</h3>
-                      <div className="mt-2 space-y-1 text-xs text-neutral-500">
+                      <h3 className="text-lg font-black text-gray-900 dark:text-white">{match.title}</h3>
+                      <div className="mt-2 space-y-1 text-xs text-gray-500 dark:text-neutral-500">
                         <div>开始时间：{dayjs(match.startTime).format('YYYY-MM-DD HH:mm')}</div>
                         <div>删除时间：{dayjs(match.deletedAt).format('YYYY-MM-DD HH:mm')}</div>
                       </div>

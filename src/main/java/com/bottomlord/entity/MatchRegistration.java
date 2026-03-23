@@ -49,6 +49,11 @@ public class MatchRegistration extends BaseEntity {
     private String paymentStatus;
 
     /**
+     * 实际需支付金额
+     */
+    private java.math.BigDecimal paymentAmount;
+
+    /**
      * 是否为本场 MVP
      */
     private Boolean isMvp;

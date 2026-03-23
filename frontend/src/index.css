@@ -2,14 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Light theme (default) ─── */
 :root {
-  /* Apple Design Palette */
-  --apple-black: #000000;
-  --apple-dark-gray: #1c1c1e;
-  --apple-soft-gray: #2c2c2e;
   --apple-blue: #007aff;
   --apple-green: #30d158;
   --primary-glow: rgba(48, 209, 88, 0.15);
+
+  --bg-base: #f9fafb;
+  --bg-surface: #ffffff;
+  --bg-surface-2: #f3f4f6;
+  --bg-surface-3: #e5e7eb;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --border-color: #e5e7eb;
+  --border-color-2: #d1d5db;
+  --scrollbar-track: #f3f4f6;
+  --scrollbar-thumb: #d1d5db;
+}
+
+/* ─── Dark theme ─── */
+.dark {
+  --bg-base: #000000;
+  --bg-surface: #0a0a0a;
+  --bg-surface-2: #1c1c1e;
+  --bg-surface-3: #2c2c2e;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --text-tertiary: #6b7280;
+  --border-color: #27272a;
+  --border-color-2: #3f3f46;
+  --scrollbar-track: #000000;
+  --scrollbar-thumb: #2c2c2e;
 }
 
 * {
@@ -21,10 +45,11 @@
 }
 
 body {
-  background-color: var(--apple-black);
-  color: #ffffff;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* 全局滚动条美化 */
@@ -32,10 +57,10 @@ body {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--apple-black);
+  background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--apple-soft-gray);
+  background: var(--scrollbar-thumb);
   border-radius: 10px;
 }
 
@@ -45,9 +70,22 @@ body {
 
 /* 磨砂玻璃效果 */
 .glass {
-  background: rgba(28, 28, 30, 0.7);
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+}
+.dark .glass {
+  background: rgba(28, 28, 30, 0.7);
+}
+
+/* 卡片曲面（替代内联深色渐变） */
+.card-surface {
+  background: var(--bg-surface);
+  border-color: var(--border-color);
+}
+.dark .card-surface {
+  background: radial-gradient(circle at top right, rgba(255,255,255,0.08), transparent 24%),
+              linear-gradient(180deg, rgba(24,24,27,1) 0%, rgba(10,10,10,1) 100%);
 }
 
 /* 呼吸灯动效 */
@@ -65,29 +103,55 @@ body {
 .auth-input:-webkit-autofill:hover,
 .auth-input:-webkit-autofill:focus,
 .auth-input:-webkit-autofill:active {
-  -webkit-text-fill-color: #ffffff;
-  caret-color: #ffffff;
+  -webkit-text-fill-color: #111827;
+  caret-color: #111827;
   -webkit-box-shadow: 0 0 0 1000px transparent inset;
   box-shadow: 0 0 0 1000px transparent inset;
   transition: background-color 9999s ease-out 0s;
 }
 
+.dark .auth-input:-webkit-autofill,
+.dark .auth-input:-webkit-autofill:hover,
+.dark .auth-input:-webkit-autofill:focus,
+.dark .auth-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+}
+
+/* Light mode – solid primary bg + black text (matches submit button) */
 .auth-selector .adm-selector-item {
   min-height: 56px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: #a3a3a3;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  color: #6b7280;
   font-weight: 700;
   transition: all 0.2s ease;
 }
 
 .auth-selector .adm-selector-item-active {
+  border-color: #1db954;
+  background: #1db954;
+  color: #000000;
+}
+
+.auth-selector .adm-selector-item-check-mark-wrapper {
+  color: #000000;
+}
+
+/* Dark mode – translucent style */
+.dark .auth-selector .adm-selector-item {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #a3a3a3;
+}
+
+.dark .auth-selector .adm-selector-item-active {
   border-color: rgba(29, 185, 84, 0.35);
   background: rgba(29, 185, 84, 0.14);
   color: #ffffff;
 }
 
-.auth-selector .adm-selector-item-check-mark-wrapper {
+.dark .auth-selector .adm-selector-item-check-mark-wrapper {
   color: #1db954;
 }
 

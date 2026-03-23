@@ -572,7 +572,30 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Transactional(rollbackFor = Exception.class)
     public void finishMatch(Long matchId) {
         Match match = this.getById(matchId);
+        if (match == null) {
+            throw new IllegalArgumentException("赛事不存在");
+        }
+        
+        // 查找所有未完成的比赛场次
+        List<MatchGame> unfinishedGames = gameService.list(new LambdaQueryWrapper<MatchGame>()
+                .eq(MatchGame::getMatchId, matchId)
+                .in(MatchGame::getStatus, "READY", "PLAYING"));
+
+        if (CollUtil.isNotEmpty(unfinishedGames)) {
+            unfinishedGames.forEach(game -> {
+                game.setStatus("FINISHED");
+                game.setScoreA(0);
+                game.setScoreB(0);
+                game.setEndTime(LocalDateTime.now());
+                gameService.updateById(game);
+                
+                // 广播单场比赛结束 (可选)
+                sseManager.broadcastToMatch(matchId, game);
+            });
+        }
+
         match.setStatus(Match.STATUS_MATCH_FINISHED);
+        match.setEndTime(LocalDateTime.now());
         this.updateById(match);
         sseManager.broadcastToClub(match.getTournamentId(), "match_finished", match.getTitle() + " 已结束");
     }
@@ -604,6 +627,95 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         this.updateById(match);
         eventPublisher.publishEvent(new com.bottomlord.common.event.MatchSettledEvent(this, match.getId(), match.getTournamentId()));
         sseManager.broadcastToClub(match.getTournamentId(), "match_settled", match.getTitle() + " 费用已结算");
+    }
+
+    @Override
+    @RequiresRoles("admin")
+    @Transactional(rollbackFor = Exception.class)
+    public void saveAndPublishSettlement(Long matchId, com.bottomlord.dto.SettlementRequest request) {
+        Match match = this.getById(matchId);
+        if (match == null) {
+            throw new IllegalArgumentException("赛事不存在");
+        }
+        if (!Match.STATUS_MATCH_FINISHED.equals(match.getStatus()) && !Match.STATUS_SETTLED.equals(match.getStatus())) {
+            throw new IllegalStateException("赛事未结束，无法保存结算信息");
+        }
+
+        match.setTotalCost(request.getTotalCost());
+        
+        // 当发布标志改变或者是确定发布时，才更新
+        if (Boolean.TRUE.equals(request.getPublish())) {
+            match.setSettlementPublished(true);
+            match.setStatus(Match.STATUS_SETTLED);
+        } else if (match.getSettlementPublished() == null) {
+            match.setSettlementPublished(false);
+        }
+
+        this.updateById(match);
+
+        if (CollUtil.isNotEmpty(request.getRegistrations())) {
+            List<MatchRegistration> existingRegs = registrationService.list(new LambdaQueryWrapper<MatchRegistration>()
+                    .eq(MatchRegistration::getMatchId, matchId));
+            
+            Map<Long, MatchRegistration> regMap = existingRegs.stream()
+                    .collect(Collectors.toMap(MatchRegistration::getPlayerId, r -> r));
+
+            for (com.bottomlord.dto.SettlementRequest.SettlementRegistrationDTO dto : request.getRegistrations()) {
+                MatchRegistration reg = regMap.get(dto.getPlayerId());
+                if (reg != null) {
+                    boolean modified = false;
+                    
+                    if (!java.util.Objects.equals(reg.getIsExempt(), dto.getIsExempt())) {
+                        reg.setIsExempt(dto.getIsExempt());
+                        modified = true;
+                    }
+                    
+                    // 金额发生了变更
+                    if (dto.getPaymentAmount() != null && 
+                        (reg.getPaymentAmount() == null || reg.getPaymentAmount().compareTo(dto.getPaymentAmount()) != 0)) {
+                        reg.setPaymentAmount(dto.getPaymentAmount());
+                        modified = true;
+                    }
+
+                    // 如果确认发布，并且修改了金额或豁免状态，或者之前没设置过金额（首次发布），则重置支付状态，除非豁免
+                    if (Boolean.TRUE.equals(request.getPublish())) {
+                        if (Boolean.TRUE.equals(dto.getIsExempt())) {
+                            reg.setPaymentStatus("PAID"); // 豁免的人相当于已支付(免付)
+                            reg.setPaymentAmount(BigDecimal.ZERO);
+                            modified = true;
+                        } else if (modified || reg.getPaymentStatus() == null) {
+                            reg.setPaymentStatus("UNPAID");
+                            modified = true;
+                        }
+                    }
+
+                    if (modified) {
+                        registrationService.updateById(reg);
+                    }
+                }
+            }
+        }
+        
+        if (Boolean.TRUE.equals(request.getPublish())) {
+            eventPublisher.publishEvent(new com.bottomlord.common.event.MatchSettledEvent(this, match.getId(), match.getTournamentId()));
+            sseManager.broadcastToClub(match.getTournamentId(), "match_settled", match.getTitle() + " 结算信息已发布");
+        }
+    }
+
+    @Override
+    @RequiresRoles("admin")
+    @Transactional(rollbackFor = Exception.class)
+    public void batchUpdatePaymentToPaid(Long matchId) {
+        Match match = this.getById(matchId);
+        if (match == null) {
+            throw new IllegalArgumentException("赛事不存在");
+        }
+        
+        registrationService.update(new LambdaUpdateWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .in(MatchRegistration::getStatus, "REGISTERED", "NO_SHOW")
+                .eq(MatchRegistration::getPaymentStatus, "UNPAID")
+                .set(MatchRegistration::getPaymentStatus, "PAID"));
     }
 
     @Override

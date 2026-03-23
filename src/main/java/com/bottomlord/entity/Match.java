@@ -115,6 +115,11 @@ public class Match extends BaseEntity {
     private Map<Integer, String> teamNames;
 
     /**
+     * 结算信息是否已确认发布
+     */
+    private Boolean settlementPublished;
+
+    /**
      * 赛制类型：LEAGUE=联赛积分制（默认），预留扩展点
      */
     private String gameFormat;

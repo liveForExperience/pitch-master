@@ -71,20 +71,20 @@ const DraggablePlayerCard: React.FC<DraggablePlayerCardProps> = ({ player, fromG
       style={overlay ? { cursor: 'grabbing' } : style}
       {...attributes}
       {...(canDrag ? listeners : {})}
-      className={`w-full flex items-center justify-between px-3 py-2.5 bg-neutral-900/60 rounded-xl
-        ${overlay ? 'shadow-2xl ring-1 ring-white/10 rotate-2' : 'active:bg-neutral-800'}
+      className={`w-full flex items-center justify-between px-3 py-2.5 bg-gray-100 dark:bg-neutral-900/60 rounded-xl
+        ${overlay ? 'shadow-2xl ring-1 ring-white/10 rotate-2' : 'active:bg-gray-200 dark:active:bg-neutral-800'}
         ${isDragging ? '' : ''}`}
     >
       <div className="flex items-center gap-3">
-        <div className="w-7 h-7 rounded-full bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-neutral-400">
+        <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-gray-500 dark:text-neutral-400">
           {player.name.slice(0, 1)}
         </div>
-        <span className="text-sm font-semibold text-white">{player.name}</span>
+        <span className="text-sm font-semibold text-gray-900 dark:text-white">{player.name}</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-neutral-500">{player.rating?.toFixed(1)}</span>
+        <span className="text-xs text-gray-500 dark:text-neutral-500">{player.rating?.toFixed(1)}</span>
         {canDrag && !overlay && (
-          <span className="text-[10px] text-neutral-600 select-none">⠿</span>
+          <span className="text-[10px] text-gray-400 dark:text-neutral-600 select-none">⠇</span>
         )}
       </div>
     </div>
@@ -255,6 +255,7 @@ const MatchGrouping: React.FC = () => {
     });
     if (!confirmed) return;
     try {
+      await matchApi.saveGroupDraft(id!, buildGroupsMap());
       await matchApi.publishGroups(id!);
       await loadGroups();
       Toast.show({ icon: 'success', content: '分组已发布' });
@@ -339,10 +340,10 @@ const MatchGrouping: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pb-32">
+    <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white pb-32">
       <NavBar
         onBack={() => navigate(-1)}
-        className="bg-neutral-900 border-b border-neutral-800 font-bold"
+        className="bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 font-bold"
         right={
           canEdit && !isPublished && !isNotStarted ? (
             <Button
@@ -350,7 +351,7 @@ const MatchGrouping: React.FC = () => {
               fill="none"
               loading={saving}
               onClick={handleSaveDraft}
-              className="text-neutral-400 text-xs"
+              className="text-gray-500 dark:text-neutral-400 text-xs"
             >
               <Save size={15} className="mr-1 inline" />
               保存草稿
@@ -368,11 +369,11 @@ const MatchGrouping: React.FC = () => {
       ) : isNotStarted ? (
         <div className="mx-auto max-w-3xl px-6 py-16 flex flex-col items-center gap-8">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="w-16 h-16 rounded-full bg-neutral-800 flex items-center justify-center">
-              <Users size={28} className="text-neutral-400" />
+            <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-neutral-800 flex items-center justify-center">
+              <Users size={28} className="text-gray-500 dark:text-neutral-400" />
             </div>
-            <p className="text-lg font-black text-white">尚未开始分配</p>
-            <p className="text-sm text-neutral-500">
+            <p className="text-lg font-black text-gray-900 dark:text-white">尚未开始分配</p>
+            <p className="text-sm text-gray-500 dark:text-neutral-500">
               共 {vo?.unassigned?.length ?? 0} 名球员，{numGroups} 支队伍
             </p>
           </div>
@@ -392,7 +393,7 @@ const MatchGrouping: React.FC = () => {
               fill="outline"
               size="large"
               onClick={handleStartManual}
-              className="h-13 rounded-2xl font-bold text-sm border-neutral-700 text-neutral-300"
+              className="h-13 rounded-2xl font-bold text-sm border-gray-300 dark:border-neutral-700 text-gray-600 dark:text-neutral-300"
             >
               手动分配（拖曳）
             </Button>
@@ -407,7 +408,7 @@ const MatchGrouping: React.FC = () => {
           <div className="mx-auto max-w-3xl px-6 py-6 sm:px-8 lg:px-10 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-neutral-500 uppercase tracking-widest">
+                <p className="text-xs text-gray-500 dark:text-neutral-500 uppercase tracking-widest">
                   {isPublished ? '分组已发布' : '草稿模式（仅你可见）'}
                 </p>
                 {!allAssigned && (
@@ -420,7 +421,7 @@ const MatchGrouping: React.FC = () => {
                 size="small"
                 fill="outline"
                 onClick={handleOpenAutoGroup}
-                className="border-neutral-700 text-neutral-300 rounded-xl text-xs"
+                className="border-gray-300 dark:border-neutral-700 text-gray-600 dark:text-neutral-300 rounded-xl text-xs"
               >
                 <Wand2 size={13} className="mr-1 inline" />
                 自动分配
@@ -443,7 +444,7 @@ const MatchGrouping: React.FC = () => {
                             if (e.key === 'Escape') handleCancelEditName();
                           }}
                           placeholder={`Team ${GROUP_LABELS[gIdx] ?? gIdx + 1}`}
-                          className="bg-neutral-800 border border-neutral-600 rounded-lg px-2 py-1 text-sm font-bold text-white w-full min-w-0 outline-none focus:border-primary"
+                          className="bg-gray-100 dark:bg-neutral-800 border border-gray-300 dark:border-neutral-600 rounded-lg px-2 py-1 text-sm font-bold text-gray-900 dark:text-white w-full min-w-0 outline-none focus:border-primary"
                           maxLength={20}
                         />
                         <button
@@ -454,7 +455,7 @@ const MatchGrouping: React.FC = () => {
                         </button>
                         <button
                           onClick={handleCancelEditName}
-                          className="p-1 rounded-lg bg-neutral-800 text-neutral-400 flex-shrink-0"
+                          className="p-1 rounded-lg bg-gray-200 dark:bg-neutral-800 text-gray-500 dark:text-neutral-400 flex-shrink-0"
                         >
                           <X size={14} />
                         </button>
@@ -467,7 +468,7 @@ const MatchGrouping: React.FC = () => {
                         {canEdit && !isPublished && (
                           <button
                             onClick={() => handleStartEditName(gIdx)}
-                            className="p-1 rounded-md text-neutral-600 hover:text-neutral-400 flex-shrink-0"
+                            className="p-1 rounded-md text-gray-400 dark:text-neutral-600 hover:text-gray-600 dark:hover:text-neutral-400 flex-shrink-0"
                           >
                             <Pencil size={12} />
                           </button>
@@ -477,7 +478,7 @@ const MatchGrouping: React.FC = () => {
                   </div>
                   <Tag
                     fill="outline"
-                    className="text-xs rounded-full border-neutral-700 text-neutral-400 flex-shrink-0 ml-2"
+                    className="text-xs rounded-full border-gray-300 dark:border-neutral-700 text-gray-500 dark:text-neutral-400 flex-shrink-0 ml-2"
                   >
                     {vo?.groups[gIdx]?.length ?? 0} 人
                   </Tag>
@@ -492,7 +493,7 @@ const MatchGrouping: React.FC = () => {
                     />
                   ))}
                   {(vo?.groups[gIdx]?.length ?? 0) === 0 && (
-                    <p className="text-xs text-neutral-700 text-center py-3">拖入球员到此处</p>
+                    <p className="text-xs text-gray-300 dark:text-neutral-700 text-center py-3">拖入球员到此处</p>
                   )}
                 </div>
               </DroppableGroup>
@@ -516,7 +517,7 @@ const MatchGrouping: React.FC = () => {
                     />
                   ))}
                   {(vo?.unassigned?.length ?? 0) === 0 && (
-                    <p className="text-xs text-neutral-700 text-center py-3">所有球员已分配</p>
+                    <p className="text-xs text-gray-300 dark:text-neutral-700 text-center py-3">所有球员已分配</p>
                   )}
                 </div>
               </DroppableUnassigned>
@@ -537,7 +538,7 @@ const MatchGrouping: React.FC = () => {
       )}
 
       {!isNotStarted && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/95 to-transparent space-y-2">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-100 dark:from-black via-gray-100/95 dark:via-black/95 to-transparent space-y-2">
           {canEdit && !isPublished && (
             <Button
               block
@@ -569,19 +570,19 @@ const MatchGrouping: React.FC = () => {
         visible={autoGroupVisible}
         onMaskClick={() => !autoGroupLoading && setAutoGroupVisible(false)}
         bodyStyle={{
-          backgroundColor: '#171717',
+          backgroundColor: 'var(--bg-surface-2)',
           borderRadius: '16px 16px 0 0',
           padding: '24px 20px 36px',
         }}
       >
         <div className="space-y-5">
           <div>
-            <p className="font-black text-base text-white">自动分配</p>
-            <p className="text-xs text-neutral-500 mt-0.5">选择分配策略并确认执行方式</p>
+            <p className="font-black text-base text-gray-900 dark:text-white">自动分配</p>
+            <p className="text-xs text-gray-500 dark:text-neutral-500 mt-0.5">选择分配策略并确认执行方式</p>
           </div>
 
           <div>
-            <p className="text-xs text-neutral-400 mb-2 uppercase tracking-wide font-semibold">分配策略</p>
+            <p className="text-xs text-gray-500 dark:text-neutral-400 mb-2 uppercase tracking-wide font-semibold">分配策略</p>
             <div className="space-y-2">
               {strategies.map(s => (
                 <button
@@ -590,7 +591,7 @@ const MatchGrouping: React.FC = () => {
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-colors ${
                     selectedStrategy === s
                       ? 'border-green-500 bg-green-500/10 text-green-400'
-                      : 'border-neutral-700 bg-neutral-800/60 text-neutral-300'
+                      : 'border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60 text-gray-700 dark:text-neutral-300'
                   }`}
                 >
                   <span className="font-medium">{STRATEGY_LABELS[s] ?? s}</span>
@@ -604,7 +605,7 @@ const MatchGrouping: React.FC = () => {
 
           {hasAnyGrouped && (
             <div>
-              <p className="text-xs text-neutral-400 mb-2 uppercase tracking-wide font-semibold">处理方式</p>
+              <p className="text-xs text-gray-500 dark:text-neutral-400 mb-2 uppercase tracking-wide font-semibold">处理方式</p>
               <div className="space-y-2">
                 {[
                   { value: false, title: '重新开始', desc: '清空全部分配，对所有球员重新分组' },
@@ -616,7 +617,7 @@ const MatchGrouping: React.FC = () => {
                     className={`w-full flex items-start gap-3 px-4 py-3 rounded-xl border text-sm transition-colors text-left ${
                       keepExisting === opt.value
                         ? 'border-green-500 bg-green-500/10'
-                        : 'border-neutral-700 bg-neutral-800/60'
+                        : 'border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60'
                     }`}
                   >
                     <span
@@ -625,10 +626,10 @@ const MatchGrouping: React.FC = () => {
                       }`}
                     />
                     <div>
-                      <p className={`font-semibold ${keepExisting === opt.value ? 'text-green-400' : 'text-neutral-300'}`}>
+                      <p className={`font-semibold ${keepExisting === opt.value ? 'text-green-400' : 'text-gray-700 dark:text-neutral-300'}`}>
                         {opt.title}
                       </p>
-                      <p className="text-xs text-neutral-500 mt-0.5">{opt.desc}</p>
+                      <p className="text-xs text-gray-500 dark:text-neutral-500 mt-0.5">{opt.desc}</p>
                     </div>
                   </button>
                 ))}
@@ -642,7 +643,7 @@ const MatchGrouping: React.FC = () => {
               size="large"
               disabled={autoGroupLoading}
               onClick={() => setAutoGroupVisible(false)}
-              className="flex-1 rounded-2xl border-neutral-700 text-neutral-300"
+              className="flex-1 rounded-2xl border-gray-300 dark:border-neutral-700 text-gray-600 dark:text-neutral-300"
             >
               取消
             </Button>

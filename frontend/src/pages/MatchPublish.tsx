@@ -26,7 +26,7 @@ const cn = (...classes: Array<string | false | null | undefined>) => classes.fil
 /* ─── 表单字段组件（严格复用现有设计语言） ─── */
 
 const SectionHeader: React.FC<{ icon: React.ElementType; title: string }> = ({ icon: Icon, title }) => (
-  <div className="flex items-center space-x-2 text-neutral-400 font-black text-[10px] uppercase tracking-widest border-b border-neutral-900 pb-4">
+  <div className="flex items-center space-x-2 text-gray-500 dark:text-neutral-400 font-black text-[10px] uppercase tracking-widest border-b border-gray-100 dark:border-neutral-900 pb-4">
     <Icon size={14} className="text-primary" />
     <span>{title}</span>
   </div>
@@ -40,8 +40,8 @@ const Field: React.FC<{ label: string; hint?: string; children: React.ReactNode;
 }) => (
   <div className={cn('space-y-3', className)}>
     <div className="flex items-baseline justify-between">
-      <label className="inline-block ml-1 text-[11px] font-black tracking-[0.2em] text-neutral-500">{label}</label>
-      {hint && <span className="text-[10px] font-medium text-neutral-600">{hint}</span>}
+      <label className="inline-block ml-1 text-[11px] font-black tracking-[0.2em] text-gray-500 dark:text-neutral-500">{label}</label>
+      {hint && <span className="text-[10px] font-medium text-gray-400 dark:text-neutral-600">{hint}</span>}
     </div>
     {children}
   </div>
@@ -50,12 +50,12 @@ const Field: React.FC<{ label: string; hint?: string; children: React.ReactNode;
 const TextInput: React.FC<
   React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ElementType }
 > = ({ className, icon: Icon, ...props }) => (
-  <div className="group flex h-14 items-center rounded-2xl border border-neutral-800 bg-black/40 px-5 transition-all duration-300 focus-within:border-primary/40 focus-within:bg-neutral-950">
-    {Icon && <Icon size={18} className="mr-4 text-neutral-600 transition-colors duration-300 group-focus-within:text-primary" />}
+  <div className="group flex h-14 items-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-black/40 px-5 transition-all duration-300 focus-within:border-primary/40 focus-within:bg-white dark:focus-within:bg-neutral-950">
+    {Icon && <Icon size={18} className="mr-4 text-gray-400 dark:text-neutral-600 transition-colors duration-300 group-focus-within:text-primary" />}
     <input
       {...props}
       className={cn(
-        'auth-input h-full w-full bg-transparent text-base font-bold text-white placeholder:text-neutral-600 outline-none',
+        'auth-input h-full w-full bg-transparent text-base font-bold text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-neutral-600 outline-none',
         className,
       )}
     />
@@ -77,12 +77,12 @@ const Chip: React.FC<{
       'relative flex flex-col items-center justify-center rounded-2xl border px-3 py-2.5 text-center transition-all duration-200 active:scale-95',
       selected
         ? 'border-primary/40 bg-primary/[0.12] text-primary shadow-[0_0_20px_rgba(29,185,84,0.1)]'
-        : 'border-neutral-800 bg-black/40 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200',
+        : 'border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-black/40 text-gray-500 dark:text-neutral-400 hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-700 dark:hover:text-neutral-200',
     )}
   >
     <span className="text-[13px] font-black leading-tight">{label}</span>
     {subLabel && (
-      <span className={cn('mt-0.5 text-[10px] font-semibold', selected ? 'text-primary/70' : 'text-neutral-600')}>
+      <span className={cn('mt-0.5 text-[10px] font-semibold', selected ? 'text-primary/70' : 'text-gray-400 dark:text-neutral-600')}>
         {subLabel}
       </span>
     )}
@@ -101,7 +101,7 @@ const TimeChip: React.FC<{
       'flex h-11 items-center justify-center rounded-xl border text-[13px] font-black tabular-nums transition-all duration-200 active:scale-95',
       selected
         ? 'border-primary/40 bg-primary/[0.12] text-primary'
-        : 'border-neutral-800 bg-black/40 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200',
+        : 'border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-black/40 text-gray-500 dark:text-neutral-400 hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-700 dark:hover:text-neutral-200',
     )}
   >
     {label}
@@ -120,20 +120,20 @@ const Stepper: React.FC<{
       type="button"
       onClick={() => onChange(Math.max(min, value - 1))}
       disabled={value <= min}
-      className="flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-800 bg-black/40 text-neutral-300 transition-all hover:border-neutral-600 hover:text-white active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+      className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-black/40 text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-900 dark:hover:text-white active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
     >
       <span className="text-lg font-bold leading-none">−</span>
     </button>
-    <span className="min-w-[3rem] text-center text-lg font-black text-white tabular-nums">{value}</span>
+    <span className="min-w-[3rem] text-center text-lg font-black text-gray-900 dark:text-white tabular-nums">{value}</span>
     <button
       type="button"
       onClick={() => onChange(Math.min(max, value + 1))}
       disabled={value >= max}
-      className="flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-800 bg-black/40 text-neutral-300 transition-all hover:border-neutral-600 hover:text-white active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+      className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-black/40 text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-900 dark:hover:text-white active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
     >
       <span className="text-lg font-bold leading-none">+</span>
     </button>
-    {unit && <span className="text-sm font-semibold text-neutral-500">{unit}</span>}
+    {unit && <span className="text-sm font-semibold text-gray-500 dark:text-neutral-500">{unit}</span>}
   </div>
 );
 
@@ -429,14 +429,14 @@ const MatchPublish: React.FC = () => {
 
   if (pageLoading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-neutral-500">加载中...</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white flex items-center justify-center">
+        <div className="text-gray-400 dark:text-neutral-500">加载中...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white overflow-x-hidden">
       <div className="relative mx-auto max-w-3xl px-6 py-8 sm:px-8 lg:px-10 lg:py-12">
         {/* 背景光晕 */}
         <div className="pointer-events-none absolute top-16 right-[-8%] h-64 w-64 rounded-full bg-primary/10 blur-[150px]"></div>
@@ -446,7 +446,7 @@ const MatchPublish: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate('/matches')}
-          className="flex items-center text-neutral-500 hover:text-white transition-colors font-bold mb-12 group"
+          className="flex items-center text-gray-500 dark:text-neutral-500 hover:text-gray-900 dark:hover:text-white transition-colors font-bold mb-12 group"
         >
           <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" />
           返回赛事广场
@@ -454,7 +454,7 @@ const MatchPublish: React.FC = () => {
 
         {/* 页面标题 */}
         <header className="mb-16">
-          <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-6">
+          <div className="inline-flex items-center rounded-full border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-6">
             {isEditMode ? '赛事编辑' : '赛事发布'}
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter mb-4">
@@ -462,7 +462,7 @@ const MatchPublish: React.FC = () => {
             <br />
             <span className="text-primary">比赛日程</span>
           </h1>
-          <p className="max-w-2xl text-neutral-500 font-medium text-base sm:text-lg">
+          <p className="max-w-2xl text-gray-500 dark:text-neutral-500 font-medium text-base sm:text-lg">
             {isEditMode 
               ? '修改赛事的时间、地点、分组规则与费用，仅在筹备阶段可编辑。' 
               : '设定赛事的时间、地点、分组规则与费用，发布后即刻进入报名阶段，球员可在赛事广场中报名参赛。'}
@@ -470,7 +470,7 @@ const MatchPublish: React.FC = () => {
         </header>
 
         {/* 表单卡片 */}
-        <div className="rounded-[2.5rem] border border-neutral-900 bg-neutral-950/90 p-6 sm:p-8 shadow-[0_24px_80px_rgba(0,0,0,0.45)] relative z-10">
+        <div className="rounded-[2.5rem] border border-gray-200 dark:border-neutral-900 bg-white dark:bg-neutral-950/90 p-6 sm:p-8 shadow-[0_8px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.45)] relative z-10">
           <form onSubmit={handleSubmit} className="space-y-10">
             {/* ── 第一部分：基础信息 ── */}
             <section className="space-y-6">
@@ -519,12 +519,12 @@ const MatchPublish: React.FC = () => {
                 </div>
                 {form.startDateMode === 'custom' && (
                   <div className="mt-3 flex items-center gap-3">
-                    <CalendarDays size={14} className="text-neutral-600 shrink-0" />
+                    <CalendarDays size={14} className="text-gray-400 dark:text-neutral-600 shrink-0" />
                     <input
                       type="date"
                       value={form.startDateCustom}
                       onChange={(e) => update('startDateCustom', e.target.value)}
-                      className="h-10 w-full rounded-xl border border-neutral-800 bg-black/40 px-4 text-[13px] font-bold text-white outline-none transition-all focus:border-primary/40 [color-scheme:dark]"
+                      className="h-10 w-full rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-black/40 px-4 text-[13px] font-bold text-gray-900 dark:text-white outline-none transition-all focus:border-primary/40 [color-scheme:dark]"
                     />
                   </div>
                 )}
@@ -549,12 +549,12 @@ const MatchPublish: React.FC = () => {
                 </div>
                 {form.startTimeMode === 'custom' && (
                   <div className="mt-3 flex items-center gap-3">
-                    <Timer size={14} className="text-neutral-600 shrink-0" />
+                    <Timer size={14} className="text-gray-400 dark:text-neutral-600 shrink-0" />
                     <input
                       type="time"
                       value={form.startTimeCustom}
                       onChange={(e) => update('startTimeCustom', e.target.value)}
-                      className="h-10 w-full rounded-xl border border-neutral-800 bg-black/40 px-4 text-[13px] font-bold text-white outline-none transition-all focus:border-primary/40 [color-scheme:dark]"
+                      className="h-10 w-full rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-black/40 px-4 text-[13px] font-bold text-gray-900 dark:text-white outline-none transition-all focus:border-primary/40 [color-scheme:dark]"
                     />
                   </div>
                 )}
@@ -563,7 +563,7 @@ const MatchPublish: React.FC = () => {
               {/* 实时预览：组合后的开赛时间 */}
               <div className="rounded-2xl border border-primary/12 bg-primary/[0.04] px-5 py-3.5 flex items-center gap-3">
                 <Timer size={16} className="text-primary shrink-0" />
-                <div className="text-sm font-bold text-white">
+                <div className="text-sm font-bold text-gray-900 dark:text-white">
                   开赛时间：
                   <span className="text-primary ml-1">{startTimeDayjs.format('YYYY年M月D日 (ddd) HH:mm')}</span>
                 </div>
@@ -595,13 +595,13 @@ const MatchPublish: React.FC = () => {
                 </div>
                 {form.endTimeMode === 'custom' && (
                   <div className="mt-3 flex items-center gap-3">
-                    <Timer size={14} className="text-neutral-600 shrink-0" />
+                    <Timer size={14} className="text-gray-400 dark:text-neutral-600 shrink-0" />
                     <input
                       type="datetime-local"
                       value={form.endTimeCustom}
                       min={startTimeDayjs.format('YYYY-MM-DDTHH:mm')}
                       onChange={(e) => handleEndTimeCustomChange(e.target.value)}
-                      className="h-10 w-full rounded-xl border border-neutral-800 bg-black/40 px-4 text-[13px] font-bold text-white outline-none transition-all focus:border-primary/40 [color-scheme:dark]"
+                      className="h-10 w-full rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-black/40 px-4 text-[13px] font-bold text-gray-900 dark:text-white outline-none transition-all focus:border-primary/40 [color-scheme:dark]"
                     />
                   </div>
                 )}
@@ -610,7 +610,7 @@ const MatchPublish: React.FC = () => {
               {/* 结束时间预览 */}
               <div className="rounded-2xl border border-primary/12 bg-primary/[0.04] px-5 py-3.5 flex items-center gap-3">
                 <Timer size={16} className="text-primary shrink-0" />
-                <div className="text-sm font-bold text-white">
+                <div className="text-sm font-bold text-gray-900 dark:text-white">
                   结束时间：
                   <span className="text-primary ml-1">{endTimeDayjs.format('YYYY年M月D日 (ddd) HH:mm')}</span>
                 </div>
@@ -736,16 +736,16 @@ const MatchPublish: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[10px] font-black tracking-[0.18em] text-primary/70 mb-1">参赛总人数</div>
-                    <div className="text-2xl font-black tracking-tight text-white">
+                    <div className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
                       {totalPlayers}
-                      <span className="ml-1 text-sm font-semibold text-neutral-500">人</span>
+                      <span className="ml-1 text-sm font-semibold text-gray-500 dark:text-neutral-500">人</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-[10px] font-black tracking-[0.18em] text-primary/70 mb-1">生成场次</div>
-                    <div className="text-2xl font-black tracking-tight text-white">
+                    <div className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
                       {form.plannedGameCount}
-                      <span className="ml-1 text-sm font-semibold text-neutral-500">场</span>
+                      <span className="ml-1 text-sm font-semibold text-gray-500 dark:text-neutral-500">场</span>
                     </div>
                   </div>
                 </div>
@@ -771,9 +771,9 @@ const MatchPublish: React.FC = () => {
               {/* 费用预览 */}
               {Number(form.totalCost) > 0 && (
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-2xl border border-neutral-800/80 bg-white/[0.02] px-4 py-3 text-center">
-                    <div className="text-[10px] font-black tracking-[0.16em] text-neutral-600 mb-1">总费用</div>
-                    <div className="text-xl font-black italic tracking-tight text-white">
+                  <div className="rounded-2xl border border-gray-200 dark:border-neutral-800/80 bg-gray-50 dark:bg-white/[0.02] px-4 py-3 text-center">
+                    <div className="text-[10px] font-black tracking-[0.16em] text-gray-400 dark:text-neutral-600 mb-1">总费用</div>
+                    <div className="text-xl font-black italic tracking-tight text-gray-900 dark:text-white">
                       ¥{Number(form.totalCost).toFixed(2)}
                     </div>
                   </div>
@@ -802,7 +802,7 @@ const MatchPublish: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate('/matches')}
-                className="flex h-14 w-full items-center justify-center rounded-[1.5rem] border border-neutral-800 bg-white/5 text-[12px] font-black tracking-[0.12em] text-neutral-400 transition-all duration-300 hover:border-neutral-700 hover:text-white"
+                className="flex h-14 w-full items-center justify-center rounded-[1.5rem] border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-white/5 text-[12px] font-black tracking-[0.12em] text-gray-500 dark:text-neutral-400 transition-all duration-300 hover:border-gray-300 dark:hover:border-neutral-700 hover:text-gray-900 dark:hover:text-white"
               >
                 放弃编辑
                 <span className="ml-2 text-primary inline-flex items-center">
@@ -816,17 +816,17 @@ const MatchPublish: React.FC = () => {
 
         {/* 底部信息卡片 */}
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-[1.5rem] border border-neutral-900 bg-neutral-950/70 px-4 py-4 text-center">
+          <div className="rounded-[1.5rem] border border-gray-200 dark:border-neutral-900 bg-white dark:bg-neutral-950/70 px-4 py-4 text-center">
             <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">Publish</div>
-            <div className="text-xs font-bold text-neutral-400">发布即进入报名阶段</div>
+            <div className="text-xs font-bold text-gray-500 dark:text-neutral-400">发布即进入报名阶段</div>
           </div>
-          <div className="rounded-[1.5rem] border border-neutral-900 bg-neutral-950/70 px-4 py-4 text-center">
+          <div className="rounded-[1.5rem] border border-gray-200 dark:border-neutral-900 bg-white dark:bg-neutral-950/70 px-4 py-4 text-center">
             <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">Auto Group</div>
-            <div className="text-xs font-bold text-neutral-400">截止后自动触发分组算法</div>
+            <div className="text-xs font-bold text-gray-500 dark:text-neutral-400">截止后自动触发分组算法</div>
           </div>
-          <div className="rounded-[1.5rem] border border-neutral-900 bg-neutral-950/70 px-4 py-4 text-center">
+          <div className="rounded-[1.5rem] border border-gray-200 dark:border-neutral-900 bg-white dark:bg-neutral-950/70 px-4 py-4 text-center">
             <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">Settlement</div>
-            <div className="text-xs font-bold text-neutral-400">赛后按参与人数均摊费用</div>
+            <div className="text-xs font-bold text-gray-500 dark:text-neutral-400">赛后按参与人数均摩费用</div>
           </div>
         </div>
       </div>

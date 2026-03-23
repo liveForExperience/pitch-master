@@ -17,11 +17,11 @@ interface AuthHeaderProps {
 
 const AuthHeader: React.FC<AuthHeaderProps> = ({ badge, title, description, className }) => (
   <header className={cn('text-left', className)}>
-    <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-6">
+    <div className="inline-flex items-center rounded-full border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-6">
       {badge}
     </div>
     <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter mb-4">{title}</h1>
-    <p className="max-w-2xl text-neutral-500 font-medium text-base sm:text-lg">{description}</p>
+    <p className="max-w-2xl text-gray-500 dark:text-neutral-500 font-medium text-base sm:text-lg">{description}</p>
   </header>
 );
 
@@ -33,10 +33,10 @@ const AuthInfoCards: React.FC<{
     {items.map((item) => (
       <div
         key={item.label}
-        className="rounded-[1.5rem] border border-neutral-900 bg-neutral-950/70 px-4 py-4 text-center"
+        className="rounded-[1.5rem] border border-gray-200 dark:border-neutral-900 bg-white dark:bg-neutral-950/70 px-4 py-4 text-center"
       >
         <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">{item.label}</div>
-        <div className="text-xs font-bold text-neutral-400">{item.description}</div>
+        <div className="text-xs font-bold text-gray-500 dark:text-neutral-400">{item.description}</div>
       </div>
     ))}
   </div>
@@ -48,7 +48,7 @@ export const AuthCard: React.FC<{
 }> = ({ children, className }) => (
   <div
     className={cn(
-      'rounded-[2.5rem] border border-neutral-900 bg-neutral-950/90 p-6 sm:p-8 shadow-[0_24px_80px_rgba(0,0,0,0.45)]',
+      'rounded-[2.5rem] border border-gray-200 dark:border-neutral-900 bg-white dark:bg-neutral-950/90 p-6 sm:p-8 shadow-[0_8px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.45)]',
       className,
     )}
   >
@@ -124,9 +124,9 @@ export const AuthPageShell: React.FC<{
 }) => {
   if (desktopAside) {
     return (
-      <div className="flex min-h-screen bg-black overflow-hidden font-sans text-white">
+      <div className="flex min-h-screen bg-gray-50 dark:bg-black overflow-hidden font-sans text-gray-900 dark:text-white">
         {desktopAside}
-        <div className="w-full lg:w-1/2 flex flex-col items-center justify-center px-6 py-8 sm:px-8 lg:px-10 bg-black relative">
+        <div className="w-full lg:w-1/2 flex flex-col items-center justify-center px-6 py-8 sm:px-8 lg:px-10 bg-gray-50 dark:bg-black relative">
           <div className="absolute top-16 right-[-10%] h-56 w-56 rounded-full bg-primary/10 blur-[140px] pointer-events-none"></div>
           <div className="absolute bottom-8 left-[-10%] h-48 w-48 rounded-full bg-white/5 blur-[120px] pointer-events-none"></div>
 
@@ -135,7 +135,7 @@ export const AuthPageShell: React.FC<{
               <button
                 type="button"
                 onClick={onBack}
-                className="flex items-center text-neutral-500 hover:text-white transition-colors font-bold mb-12 group"
+                className="flex items-center text-gray-500 dark:text-neutral-500 hover:text-gray-900 dark:hover:text-white transition-colors font-bold mb-12 group"
               >
                 <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" />
                 {backLabel}
@@ -158,7 +158,7 @@ export const AuthPageShell: React.FC<{
   }
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white overflow-x-hidden">
       <div className={cn('relative mx-auto px-6 py-8 sm:px-8 lg:px-10 lg:py-12', contentMaxWidthClassName ?? 'max-w-3xl')}>
         <div className="pointer-events-none absolute top-16 right-[-8%] h-64 w-64 rounded-full bg-primary/10 blur-[150px]"></div>
         <div className="pointer-events-none absolute bottom-12 left-[-10%] h-56 w-56 rounded-full bg-white/5 blur-[130px]"></div>
@@ -167,7 +167,7 @@ export const AuthPageShell: React.FC<{
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center text-neutral-500 hover:text-white transition-colors font-bold mb-12 group"
+            className="flex items-center text-gray-500 dark:text-neutral-500 hover:text-gray-900 dark:hover:text-white transition-colors font-bold mb-12 group"
           >
             <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" />
             {backLabel}
@@ -195,7 +195,7 @@ export const AuthSectionHeader: React.FC<{
 }> = ({ icon: Icon, title, className }) => (
   <div
     className={cn(
-      'flex items-center space-x-2 text-neutral-400 font-black text-[10px] uppercase tracking-widest border-b border-neutral-900 pb-4',
+      'flex items-center space-x-2 text-gray-500 dark:text-neutral-400 font-black text-[10px] uppercase tracking-widest border-b border-gray-100 dark:border-neutral-900 pb-4',
       className,
     )}
   >
@@ -210,7 +210,7 @@ export const AuthField: React.FC<{
   className?: string;
 }> = ({ label, children, className }) => (
   <div className={cn('space-y-3', className)}>
-    <label className="inline-block ml-1 text-[11px] font-black tracking-[0.2em] text-neutral-500">{label}</label>
+    <label className="inline-block ml-1 text-[11px] font-black tracking-[0.2em] text-gray-500 dark:text-neutral-500">{label}</label>
     {children}
   </div>
 );
@@ -224,18 +224,18 @@ export const AuthTextInput = forwardRef<HTMLInputElement, AuthTextInputProps>(
   ({ className, icon: Icon, inputSize = 'md', ...props }, ref) => (
     <div
       className={cn(
-        'group flex items-center rounded-2xl border border-neutral-800 bg-black/40 px-5 transition-all duration-300 focus-within:border-primary/40 focus-within:bg-neutral-950',
+        'group flex items-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-black/40 px-5 transition-all duration-300 focus-within:border-primary/40 focus-within:bg-white dark:focus-within:bg-neutral-950',
         inputSize === 'lg' ? 'h-16' : 'h-14',
       )}
     >
       {Icon && (
-        <Icon size={18} className="mr-4 text-neutral-600 transition-colors duration-300 group-focus-within:text-primary" />
+        <Icon size={18} className="mr-4 text-gray-400 dark:text-neutral-600 transition-colors duration-300 group-focus-within:text-primary" />
       )}
       <input
         ref={ref}
         {...props}
         className={cn(
-          'auth-input h-full w-full bg-transparent text-base font-bold text-white placeholder:text-neutral-600 outline-none',
+          'auth-input h-full w-full bg-transparent text-base font-bold text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-neutral-600 outline-none',
           className,
         )}
       />
@@ -269,7 +269,7 @@ export const AuthSecondaryButton: React.FC<React.ButtonHTMLAttributes<HTMLButton
   <button
     {...props}
     className={cn(
-      'flex h-14 w-full items-center justify-center rounded-[1.5rem] border border-neutral-800 bg-white/5 text-[12px] font-black tracking-[0.12em] text-neutral-400 transition-all duration-300 hover:border-neutral-700 hover:text-white',
+      'flex h-14 w-full items-center justify-center rounded-[1.5rem] border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-white/5 text-[12px] font-black tracking-[0.12em] text-gray-500 dark:text-neutral-400 transition-all duration-300 hover:border-gray-300 dark:hover:border-neutral-700 hover:text-gray-900 dark:hover:text-white',
       className,
     )}
   >
@@ -293,18 +293,18 @@ export const AuthStepper: React.FC<{
         type="button"
         onClick={decrement}
         disabled={value <= min}
-        className="flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-800 bg-black/40 text-neutral-300 transition-all hover:border-neutral-600 hover:text-white active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-black/40 text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-900 dark:hover:text-white active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <Minus size={16} />
       </button>
-      <span className="min-w-[3rem] text-center text-base font-bold text-white tabular-nums">
+      <span className="min-w-[3rem] text-center text-base font-bold text-gray-900 dark:text-white tabular-nums">
         {value}
       </span>
       <button
         type="button"
         onClick={increment}
         disabled={value >= max}
-        className="flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-800 bg-black/40 text-neutral-300 transition-all hover:border-neutral-600 hover:text-white active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-black/40 text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-900 dark:hover:text-white active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <Plus size={16} />
       </button>

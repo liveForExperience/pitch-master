@@ -74,8 +74,8 @@ const PlayerRatingDemo: React.FC = () => {
       
       <div className="p-4 space-y-4">
         {/* 模式切换器 */}
-        <div className="glass rounded-xl p-4 border border-white/10">
-          <div className="text-sm text-gray-400 mb-3">展示模式</div>
+        <div className="glass rounded-xl p-4 border border-gray-200 dark:border-white/10">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-3">展示模式</div>
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setViewMode('full')}
@@ -84,7 +84,7 @@ const PlayerRatingDemo: React.FC = () => {
                 transition-all duration-200 font-medium
                 ${viewMode === 'full' 
                   ? 'bg-[#1DB954] text-white shadow-lg shadow-[#1DB954]/30' 
-                  : 'bg-white/5 text-gray-400 border border-white/10'
+                  : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-white/10'
                 }
               `}
             >
@@ -98,7 +98,7 @@ const PlayerRatingDemo: React.FC = () => {
                 transition-all duration-200 font-medium
                 ${viewMode === 'compact' 
                   ? 'bg-[#1DB954] text-white shadow-lg shadow-[#1DB954]/30' 
-                  : 'bg-white/5 text-gray-400 border border-white/10'
+                  : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-white/10'
                 }
               `}
             >
@@ -125,7 +125,7 @@ const PlayerRatingDemo: React.FC = () => {
         )}
 
         {viewMode === 'compact' && (
-          <div className="glass rounded-xl border border-white/10 overflow-hidden">
+          <div className="glass rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
             <PlayerRatingDisplay
               playerId={ratingData.playerId}
               playerName={ratingData.playerName}
@@ -142,13 +142,13 @@ const PlayerRatingDemo: React.FC = () => {
         )}
 
         {/* 集成说明 */}
-        <div className="glass rounded-xl p-5 border border-white/10">
-          <div className="text-white font-semibold mb-4">💡 集成指南</div>
+        <div className="glass rounded-xl p-5 border border-gray-200 dark:border-white/10">
+          <div className="text-gray-900 dark:text-white font-semibold mb-4">💡 集成指南</div>
           
           <div className="space-y-4 text-sm">
             <div>
-              <div className="text-gray-300 font-medium mb-2">1. 比赛详情页 - 紧凑模式</div>
-              <pre className="bg-black/40 p-3 rounded-lg text-xs text-gray-300 overflow-x-auto border border-white/10">
+              <div className="text-gray-700 dark:text-gray-300 font-medium mb-2">1. 比赛详情页 - 紧凑模式</div>
+              <pre className="bg-gray-100 dark:bg-black/40 p-3 rounded-lg text-xs text-gray-700 dark:text-gray-300 overflow-x-auto border border-gray-200 dark:border-white/10">
 {`import PlayerRatingDisplay from '@/components/PlayerRatingDisplay';
 
 {participants.map(p => (
@@ -162,8 +162,8 @@ const PlayerRatingDemo: React.FC = () => {
             </div>
 
             <div>
-              <div className="text-gray-300 font-medium mb-2">2. 球员详情页 - 完整卡片</div>
-              <pre className="bg-black/40 p-3 rounded-lg text-xs text-gray-300 overflow-x-auto border border-white/10">
+              <div className="text-gray-700 dark:text-gray-300 font-medium mb-2">2. 球员详情页 - 完整卡片</div>
+              <pre className="bg-gray-100 dark:bg-black/40 p-3 rounded-lg text-xs text-gray-700 dark:text-gray-300 overflow-x-auto border border-gray-200 dark:border-white/10">
 {`<PlayerRatingDisplay
   playerId={player.id}
   playerName={player.nickname}

@@ -151,6 +151,27 @@ public class MatchController {
         return Result.success();
     }
 
+    @PostMapping("/{matchId}/settle")
+    @RequiresRoles("admin")
+    public Result<Void> settleFees(@PathVariable Long matchId) {
+        matchService.settleFees(matchId);
+        return Result.success();
+    }
+
+    @PostMapping("/{matchId}/settlement")
+    @RequiresRoles("admin")
+    public Result<Void> saveAndPublishSettlement(@PathVariable Long matchId, @RequestBody com.bottomlord.dto.SettlementRequest request) {
+        matchService.saveAndPublishSettlement(matchId, request);
+        return Result.success();
+    }
+
+    @PostMapping("/{matchId}/payment/batch")
+    @RequiresRoles("admin")
+    public Result<Void> batchUpdatePaymentToPaid(@PathVariable Long matchId) {
+        matchService.batchUpdatePaymentToPaid(matchId);
+        return Result.success();
+    }
+
     @GetMapping("/{id}/registrations")
     public Result<List<MatchRegistration>> listRegistrations(@PathVariable Long id) {
         return Result.success(registrationService.getBillableRegistrations(id));

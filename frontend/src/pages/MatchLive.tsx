@@ -3,28 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, ChevronLeft, Trophy, BarChart2, Swords, Target, Handshake } from 'lucide-react';
 import apiClient from '../api/client';
 import { matchApi } from '../api/match';
-import type { StandingsVO, MatchStatsVO } from '../api/match';
+import type { StandingsVO, MatchStatsVO, MatchGame } from '../api/match';
 import dayjs from 'dayjs';
-
-/* ── Types ── */
-interface MatchGame {
-  id: number;
-  matchId: number;
-  teamAIndex: number;
-  teamBIndex: number;
-  scoreA: number | null;
-  scoreB: number | null;
-  status: 'READY' | 'PLAYING' | 'FINISHED';
-  startTime: string | null;
-  endTime: string | null;
-}
+import GameCard from '../components/GameCard';
 
 type GameTab = 'PLAYING' | 'READY' | 'FINISHED';
 type StatsTab = 'scorers' | 'assisters';
 
 /* ── Helpers ── */
-const teamName = (index: number, teamNames?: Record<number, string>) =>
-  teamNames?.[index] ?? `队伍 ${String.fromCharCode(65 + index)}`;
 
 const gameStatusLabel: Record<string, string> = {
   READY: '待开始',
@@ -33,9 +19,16 @@ const gameStatusLabel: Record<string, string> = {
 };
 
 /* ── Component ── */
+import { useConfirmDialog } from '../components/ConfirmDialog';
+import { Toast } from 'antd-mobile';
+import useAuthStore from '../store/useAuthStore';
+
 const MatchLive: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuthStore();
+  const admin = isAdmin();
+  const { show: showConfirm, DialogComponent } = useConfirmDialog();
 
   const [match, setMatch] = useState<any>(null);
   const [games, setGames] = useState<MatchGame[]>([]);
@@ -132,17 +125,40 @@ const MatchLive: React.FC = () => {
       <nav className="relative z-10 mb-8 flex items-center gap-4">
         <button
           onClick={() => navigate(`/matches/${id}`)}
-          className="group flex items-center text-neutral-500 font-bold hover:text-white transition-colors"
+          className="group flex items-center text-gray-500 dark:text-neutral-500 font-bold hover:text-gray-900 dark:hover:text-white transition-colors"
         >
           <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" />
           赛事详情
         </button>
-        <span className="text-neutral-800">/</span>
-        <span className="text-sm font-semibold text-neutral-400">赛场</span>
+        <span className="text-gray-300 dark:text-neutral-800">/</span>
+        <span className="text-sm font-semibold text-gray-500 dark:text-neutral-400">赛场</span>
+        {admin && match?.status === 'ONGOING' && (
+          <button
+            onClick={async () => {
+              const result = await showConfirm({
+                title: '结束比赛',
+                content: '确定要结束比赛吗？未结束的场次将作废为0:0。',
+              });
+              if (result) {
+                try {
+                  await apiClient.post(`/api/match/${id}/finish`);
+                  Toast.show({ icon: 'success', content: '比赛已结束' });
+                  navigate(`/matches/${id}`);
+                } catch {}
+              }
+            }}
+            className="ml-auto flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-[11px] font-bold text-red-400 transition-colors hover:bg-red-500/15"
+          >
+            结束比赛
+          </button>
+        )}
       </nav>
 
+      {/* Dialog Context */}
+      <DialogComponent />
+
       {/* ── Hero ── */}
-      <header className="relative z-10 mb-10 overflow-hidden rounded-[2rem] border border-orange-500/20 bg-[linear-gradient(180deg,rgba(234,88,12,0.08)_0%,rgba(10,10,10,1)_100%)] px-6 py-5 sm:px-8 sm:py-6">
+      <header className="relative z-10 mb-10 overflow-hidden rounded-[2rem] border border-orange-500/20 bg-[linear-gradient(180deg,rgba(234,88,12,0.08)_0%,rgba(249,250,251,1)_100%)] dark:bg-[linear-gradient(180deg,rgba(234,88,12,0.08)_0%,rgba(10,10,10,1)_100%)] px-6 py-5 sm:px-8 sm:py-6">
         <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 text-[11px] font-bold text-orange-400">
           <span className="h-2 w-2 animate-pulse rounded-full bg-orange-400" />
           比赛进行中
@@ -150,8 +166,8 @@ const MatchLive: React.FC = () => {
         <div className="text-[11px] font-bold tracking-[0.12em] text-primary/80 mb-2">
           {match.tournamentName || '老男孩俱乐部'}
         </div>
-        <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">{match.title}</h1>
-        <div className="mt-3 flex flex-wrap gap-4 text-xs text-neutral-500">
+        <h1 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white sm:text-3xl">{match.title}</h1>
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500 dark:text-neutral-500">
           <span>{match.location}</span>
           <span>{match.numGroups} 队 · {match.plannedGameCount} 场</span>
           <span>{dayjs(match.startTime).format('MM月DD日 HH:mm')}</span>
@@ -162,19 +178,19 @@ const MatchLive: React.FC = () => {
       <section className="relative z-10 mb-8">
         <div className="mb-4 flex items-center gap-3">
           <Swords size={16} className="text-orange-400" />
-          <h2 className="text-xs font-black tracking-[0.18em] text-neutral-400">场次</h2>
+          <h2 className="text-xs font-black tracking-[0.18em] text-gray-500 dark:text-neutral-400">场次</h2>
         </div>
 
         {/* Tab bar */}
-        <div className="mb-5 flex gap-1 rounded-2xl border border-white/6 bg-white/[0.02] p-1">
+        <div className="mb-5 flex gap-1 rounded-2xl border border-gray-200 dark:border-white/6 bg-gray-100 dark:bg-white/[0.02] p-1">
           {(['PLAYING', 'READY', 'FINISHED'] as GameTab[]).map(tab => (
             <button
               key={tab}
               onClick={() => setGameTab(tab)}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[11px] font-bold transition-all ${
                 gameTab === tab
-                  ? 'bg-white/8 text-white'
-                  : 'text-neutral-600 hover:text-neutral-400'
+                  ? 'bg-white dark:bg-white/8 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-neutral-600 hover:text-gray-700 dark:hover:text-neutral-400'
               }`}
             >
               {tab === 'PLAYING' && (
@@ -183,7 +199,7 @@ const MatchLive: React.FC = () => {
               {gameStatusLabel[tab]}
               {tabCounts[tab] > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${
-                  gameTab === tab ? 'bg-white/10 text-white' : 'bg-white/5 text-neutral-600'
+                  gameTab === tab ? 'bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white' : 'bg-gray-200/50 dark:bg-white/5 text-gray-400 dark:text-neutral-600'
                 }`}>
                   {tabCounts[tab]}
                 </span>
@@ -194,11 +210,11 @@ const MatchLive: React.FC = () => {
 
         {/* Game cards */}
         {activeGames[gameTab].length === 0 ? (
-          <div className="rounded-2xl border border-white/6 bg-white/[0.02] py-10 text-center text-sm text-neutral-600">
+          <div className="rounded-2xl border border-gray-200 dark:border-white/6 bg-gray-50 dark:bg-white/[0.02] py-10 text-center text-sm text-gray-400 dark:text-neutral-600">
             暂无{gameStatusLabel[gameTab]}场次
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-3">
             {activeGames[gameTab].map(game => (
               <GameCard key={game.id} game={game} tNames={tNames} matchId={id!} />
             ))}
@@ -210,13 +226,13 @@ const MatchLive: React.FC = () => {
       <section className="relative z-10 mb-8">
         <div className="mb-4 flex items-center gap-3">
           <Trophy size={16} className="text-amber-400" />
-          <h2 className="text-xs font-black tracking-[0.18em] text-neutral-400">积分榜</h2>
-          <span className="text-[10px] font-medium text-neutral-700">联赛积分制</span>
+          <h2 className="text-xs font-black tracking-[0.18em] text-gray-500 dark:text-neutral-400">积分榜</h2>
+          <span className="text-[10px] font-medium text-gray-400 dark:text-neutral-700">联赛积分制</span>
         </div>
 
-        <div className="overflow-hidden rounded-[1.6rem] border border-white/6 bg-white/[0.02]">
+        <div className="overflow-hidden rounded-[1.6rem] border border-gray-200 dark:border-white/6 bg-white dark:bg-white/[0.02]">
           {/* Table header */}
-          <div className="grid grid-cols-[2rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem] items-center gap-1 border-b border-white/5 px-4 py-2.5 text-[10px] font-black tracking-widest text-neutral-600">
+          <div className="grid grid-cols-[2rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem] items-center gap-1 border-b border-gray-100 dark:border-white/5 px-4 py-2.5 text-[10px] font-black tracking-widest text-gray-400 dark:text-neutral-600">
             <span>#</span>
             <span>队伍</span>
             <span className="text-center">场</span>
@@ -232,27 +248,27 @@ const MatchLive: React.FC = () => {
             standings.standings.map((row, idx) => (
               <div
                 key={row.teamIndex}
-                className={`grid grid-cols-[2rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem] items-center gap-1 px-4 py-3 text-sm transition-colors hover:bg-white/[0.02] ${
-                  idx < standings.standings.length - 1 ? 'border-b border-white/[0.04]' : ''
+                className={`grid grid-cols-[2rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem] items-center gap-1 px-4 py-3 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02] ${
+                  idx < standings.standings.length - 1 ? 'border-b border-gray-100 dark:border-white/[0.04]' : ''
                 }`}
               >
-                <span className={`text-xs font-black ${row.rank === 1 ? 'text-amber-400' : 'text-neutral-600'}`}>
+                <span className={`text-xs font-black ${row.rank === 1 ? 'text-amber-400' : 'text-gray-400 dark:text-neutral-600'}`}>
                   {row.rank}
                 </span>
-                <span className="font-semibold text-white truncate">{row.teamName}</span>
-                <span className="text-center text-xs text-neutral-500">{row.played}</span>
+                <span className="font-semibold text-gray-900 dark:text-white truncate">{row.teamName}</span>
+                <span className="text-center text-xs text-gray-500 dark:text-neutral-500">{row.played}</span>
                 <span className="text-center text-xs text-primary">{row.wins}</span>
-                <span className="text-center text-xs text-neutral-400">{row.draws}</span>
+                <span className="text-center text-xs text-gray-500 dark:text-neutral-400">{row.draws}</span>
                 <span className="text-center text-xs text-red-400/70">{row.losses}</span>
-                <span className="text-center text-xs text-neutral-400">{row.goalsFor}</span>
+                <span className="text-center text-xs text-gray-500 dark:text-neutral-400">{row.goalsFor}</span>
                 <span className={`text-center text-xs font-semibold ${row.goalDifference > 0 ? 'text-primary' : row.goalDifference < 0 ? 'text-red-400/70' : 'text-neutral-500'}`}>
                   {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
                 </span>
-                <span className="text-center text-sm font-black text-white">{row.points}</span>
+                <span className="text-center text-sm font-black text-gray-900 dark:text-white">{row.points}</span>
               </div>
             ))
           ) : (
-            <div className="py-10 text-center text-sm text-neutral-600">暂无积分数据</div>
+            <div className="py-10 text-center text-sm text-gray-400 dark:text-neutral-600">暂无积分数据</div>
           )}
         </div>
       </section>
@@ -261,15 +277,15 @@ const MatchLive: React.FC = () => {
       <section className="relative z-10">
         <div className="mb-4 flex items-center gap-3">
           <BarChart2 size={16} className="text-sky-400" />
-          <h2 className="text-xs font-black tracking-[0.18em] text-neutral-400">数据榜</h2>
+          <h2 className="text-xs font-black tracking-[0.18em] text-gray-500 dark:text-neutral-400">数据榜</h2>
         </div>
 
         {/* Tab */}
-        <div className="mb-5 flex gap-1 rounded-2xl border border-white/6 bg-white/[0.02] p-1">
+        <div className="mb-5 flex gap-1 rounded-2xl border border-gray-200 dark:border-white/6 bg-gray-100 dark:bg-white/[0.02] p-1">
           <button
             onClick={() => setStatsTab('scorers')}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[11px] font-bold transition-all ${
-              statsTab === 'scorers' ? 'bg-white/8 text-white' : 'text-neutral-600 hover:text-neutral-400'
+              statsTab === 'scorers' ? 'bg-white dark:bg-white/8 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-neutral-600 hover:text-gray-700 dark:hover:text-neutral-400'
             }`}
           >
             <Target size={12} /> 射手榜
@@ -277,7 +293,7 @@ const MatchLive: React.FC = () => {
           <button
             onClick={() => setStatsTab('assisters')}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[11px] font-bold transition-all ${
-              statsTab === 'assisters' ? 'bg-white/8 text-white' : 'text-neutral-600 hover:text-neutral-400'
+              statsTab === 'assisters' ? 'bg-white dark:bg-white/8 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-neutral-600 hover:text-gray-700 dark:hover:text-neutral-400'
             }`}
           >
             <Handshake size={12} /> 助攻榜
@@ -285,7 +301,7 @@ const MatchLive: React.FC = () => {
         </div>
 
         {/* Stats list */}
-        <div className="overflow-hidden rounded-[1.6rem] border border-white/6 bg-white/[0.02]">
+        <div className="overflow-hidden rounded-[1.6rem] border border-gray-200 dark:border-white/6 bg-white dark:bg-white/[0.02]">
           {(() => {
             const list = statsTab === 'scorers'
               ? (stats?.topScorers ?? [])
@@ -296,111 +312,34 @@ const MatchLive: React.FC = () => {
             const subKey = statsTab === 'scorers' ? 'assists' : 'goals';
 
             if (list.length === 0) {
-              return <div className="py-10 text-center text-sm text-neutral-600">暂无数据</div>;
+              return <div className="py-10 text-center text-sm text-gray-400 dark:text-neutral-600">暂无数据</div>;
             }
             return list.map((p, idx) => (
               <div
                 key={p.playerId}
-                className={`flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-white/[0.02] ${
-                  idx < list.length - 1 ? 'border-b border-white/[0.04]' : ''
+                className={`flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02] ${
+                  idx < list.length - 1 ? 'border-b border-gray-100 dark:border-white/[0.04]' : ''
                 }`}
               >
                 <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${
                   idx === 0 ? 'bg-amber-400/15 text-amber-400' :
                   idx === 1 ? 'bg-neutral-400/15 text-neutral-400' :
                   idx === 2 ? 'bg-amber-700/15 text-amber-700' :
-                  'bg-white/5 text-neutral-600'
+                  'bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-neutral-600'
                 }`}>
                   {idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="truncate text-sm font-bold text-white">{p.playerName}</div>
-                  <div className="text-[10px] text-neutral-600">{subLabel} {p[subKey as keyof typeof p]}</div>
+                  <div className="truncate text-sm font-bold text-gray-900 dark:text-white">{p.playerName}</div>
+                  <div className="text-[10px] text-gray-400 dark:text-neutral-600">{subLabel} {p[subKey as keyof typeof p]}</div>
                 </div>
                 <div className="text-2xl font-black text-primary">{p[mainKey as keyof typeof p]}</div>
-                <div className="w-10 text-right text-[10px] font-semibold text-neutral-600">{mainLabel}</div>
+                <div className="w-10 text-right text-[10px] font-semibold text-gray-400 dark:text-neutral-600">{mainLabel}</div>
               </div>
             ));
           })()}
         </div>
       </section>
-    </div>
-  );
-};
-
-/* ── Game Card Sub-component ── */
-const GameCard: React.FC<{ game: MatchGame; tNames: Record<number, string>; matchId: string }> = ({ game, tNames, matchId }) => {
-  const navigate = useNavigate();
-  const nameA = teamName(game.teamAIndex, tNames);
-  const nameB = teamName(game.teamBIndex, tNames);
-  const scoreA = game.scoreA ?? 0;
-  const scoreB = game.scoreB ?? 0;
-  const isPlaying = game.status === 'PLAYING';
-  const isFinished = game.status === 'FINISHED';
-
-  return (
-    <div
-      onClick={() => navigate(`/matches/${matchId}/games/${game.id}`)}
-      className={`relative overflow-hidden rounded-2xl border px-5 py-4 transition-colors cursor-pointer hover:border-primary/30 ${
-        isPlaying
-          ? 'border-orange-500/30 bg-[linear-gradient(135deg,rgba(234,88,12,0.08),rgba(10,10,10,1))]'
-          : isFinished
-          ? 'border-white/6 bg-white/[0.02]'
-          : 'border-white/6 bg-white/[0.015]'
-      }`}>
-      {isPlaying && (
-        <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-orange-500/15 px-2 py-1 text-[9px] font-black text-orange-400">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
-          LIVE
-        </div>
-      )}
-
-      <div className="flex items-center justify-between gap-2">
-        {/* Team A */}
-        <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-          <div className={`truncate text-sm font-bold ${isPlaying ? 'text-white' : 'text-neutral-300'}`}>
-            {nameA}
-          </div>
-          {game.status !== 'READY' && (
-            <div className={`text-3xl font-black leading-none ${
-              isPlaying ? 'text-white' : isFinished && scoreA > scoreB ? 'text-primary' : 'text-neutral-400'
-            }`}>
-              {scoreA}
-            </div>
-          )}
-        </div>
-
-        {/* Divider */}
-        <div className="flex flex-col items-center px-2">
-          {game.status === 'READY' ? (
-            <span className="text-xs font-bold text-neutral-700">VS</span>
-          ) : (
-            <span className="text-lg font-black text-neutral-700">:</span>
-          )}
-          {isFinished && (
-            <span className="mt-1 text-[9px] font-bold text-neutral-700">FT</span>
-          )}
-          {game.status === 'READY' && game.startTime && (
-            <span className="mt-1 text-[9px] text-neutral-700">
-              {dayjs(game.startTime).format('HH:mm')}
-            </span>
-          )}
-        </div>
-
-        {/* Team B */}
-        <div className="flex min-w-0 flex-1 flex-col items-end gap-1">
-          <div className={`truncate text-sm font-bold ${isPlaying ? 'text-white' : 'text-neutral-300'}`}>
-            {nameB}
-          </div>
-          {game.status !== 'READY' && (
-            <div className={`text-3xl font-black leading-none ${
-              isPlaying ? 'text-white' : isFinished && scoreB > scoreA ? 'text-primary' : 'text-neutral-400'
-            }`}>
-              {scoreB}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 };
