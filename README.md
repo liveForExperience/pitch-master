@@ -115,7 +115,7 @@ Frontend runs at `http://localhost:5173`
 
 ```
 PREPARING → PUBLISHED → REGISTRATION_CLOSED → GROUPING_DRAFT
-    → ONGOING → MATCH_FINISHED → SETTLED
+    → ONGOING → MATCH_FINISHED
 ```
 
 ### Rating System (FM Style 1-20)

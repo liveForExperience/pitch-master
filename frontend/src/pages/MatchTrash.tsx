@@ -13,7 +13,6 @@ const matchStatusMeta: Record<string, { label: string; badgeClass: string }> = {
   GROUPING_DRAFT: { label: '分组中', badgeClass: 'border-violet-500/20 bg-violet-500/10 text-violet-400' },
   ONGOING: { label: '比赛中', badgeClass: 'border-orange-500/20 bg-orange-500/10 text-orange-400' },
   MATCH_FINISHED: { label: '待核算', badgeClass: 'border-amber-500/20 bg-amber-500/10 text-amber-400' },
-  SETTLED: { label: '已完结', badgeClass: 'border-neutral-300 dark:border-neutral-700 bg-gray-100 dark:bg-neutral-800/80 text-gray-600 dark:text-neutral-300' },
   CANCELLED: { label: '已取消', badgeClass: 'border-red-500/20 bg-red-500/10 text-red-400' },
 };
 

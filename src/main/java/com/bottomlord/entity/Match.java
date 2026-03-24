@@ -71,7 +71,6 @@ public class Match extends BaseEntity {
     public static final String STATUS_REGISTRATION_CLOSED = "REGISTRATION_CLOSED";
     public static final String STATUS_ONGOING = "ONGOING";
     public static final String STATUS_MATCH_FINISHED = "MATCH_FINISHED";
-    public static final String STATUS_SETTLED = "SETTLED";
     public static final String STATUS_CANCELLED = "CANCELLED";
 
     /**
@@ -99,7 +98,7 @@ public class Match extends BaseEntity {
     private BigDecimal perPersonCost;
 
     /**
-     * 状态：PREPARING, PUBLISHED, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, SETTLED, CANCELLED
+     * 状态：PREPARING, PUBLISHED, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, CANCELLED
      */
     private String status;
 

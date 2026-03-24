@@ -63,7 +63,7 @@ erDiagram
         int planned_game_count
         decimal total_cost
         decimal per_person_cost
-        string status "PREPARING, PUBLISHED, GROUPING_DRAFT, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, SETTLED, CANCELLED"
+        string status "PREPARING, PUBLISHED, GROUPING_DRAFT, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, CANCELLED"
         tinyint groups_published "0=draft, 1=published"
         json team_names "Custom team names map {0: 'Eagles', 1: 'Lions'}"
         string game_format "赛制: LEAGUE=联赛积分制（默认，预留扩展）"
@@ -200,7 +200,7 @@ erDiagram
     - `TOURNAMENT` (赛事)：最高级隔离，如“老男孩俱乐部公开赛”。
     - `CLUB` (俱乐部)：逻辑组织层，属于某个 `TOURNAMENT`。
 * **状态机流转**：
-    - `MATCH_EVENT`：`PREPARING` -> `PUBLISHED` (开放报名) -> `REGISTRATION_CLOSED` -> `ONGOING` -> `MATCH_FINISHED` -> `SETTLED` (费用结算)。
+    - `MATCH_EVENT`：`PREPARING` -> `PUBLISHED` (开放报名) -> `REGISTRATION_CLOSED` -> `ONGOING` -> `MATCH_FINISHED`。
 * **费用分摊与豁免**：
     - `is_exempt`：标记特定人员（如特殊嘉宾或伤退者）不参与分摊。
     - `NO_SHOW`：报名后未准时参加且未提前取消，需参与费用平摊。

@@ -48,7 +48,8 @@
 | `/{matchId}/start` | POST | 确认分组并正式开赛 | 需 ADMIN，要求 `groups_published=true`，Body: `{"actualStartTime": "2026-03-22T19:00:00"}`；执行开赛前置检测 |
 | `/{matchId}/rollback` | POST | 回退赛事状态 | 需 ADMIN，仅允许从 ONGOING 回退，Query: `targetStatus`（REGISTRATION_CLOSED / GROUPING_DRAFT） |
 | `/{matchId}/actual-start-time` | PUT | 修改实际开赛时间 | 需 ADMIN，仅在 ONGOING 状态，Body: `{"actualStartTime": "2026-03-22T20:00:00"}` |
-| `/{matchId}/finish` | POST | 完成赛事并结算费用 | 触发 perPersonCost 计算 |
+| `/{matchId}/finish` | POST | 完成赛事 | 将赛事置为 `MATCH_FINISHED` |
+| `/{matchId}/settlement` | POST | 保存并发布结算信息 | 需 ADMIN，Body: `SettlementRequest` |
 | `/{matchId}/soft` | DELETE | 软删除赛事 | 需 ADMIN，任何状态均可删除，软删除后进入回收站 |
 | `/trash` | GET | 获取回收站赛事列表 | 需 ADMIN，返回所有已软删除的赛事 |
 | `/{matchId}/permanent` | DELETE | 物理删除赛事 | 需 ADMIN，彻底删除赛事及所有关联数据（不可恢复） |
@@ -140,7 +141,6 @@
     - `REGISTRATION_CLOSED`: 报名截止
     - `ONGOING`: 比赛进行中
     - `MATCH_FINISHED`: 所有场次结束
-    - `SETTLED`: 已结算费用
     - `CANCELLED`: 已取消
 - `numGroups`: 分组数量
 - `playersPerGroup`: 每组人数限制

@@ -137,7 +137,7 @@ Frontend architecture and design system
 **Match Lifecycle**
 ```
 PREPARING → PUBLISHED → REGISTRATION_CLOSED → GROUPING_DRAFT 
-    → ONGOING → MATCH_FINISHED → SETTLED
+    → ONGOING → MATCH_FINISHED
 ```
 
 **Game Status**

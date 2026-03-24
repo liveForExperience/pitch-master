@@ -151,13 +151,6 @@ public class MatchController {
         return Result.success();
     }
 
-    @PostMapping("/{matchId}/settle")
-    @RequiresRoles("admin")
-    public Result<Void> settleFees(@PathVariable Long matchId) {
-        matchService.settleFees(matchId);
-        return Result.success();
-    }
-
     @PostMapping("/{matchId}/settlement")
     @RequiresRoles("admin")
     public Result<Void> saveAndPublishSettlement(@PathVariable Long matchId, @RequestBody com.bottomlord.dto.SettlementRequest request) {

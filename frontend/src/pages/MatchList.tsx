@@ -45,12 +45,6 @@ const matchStatusMeta: Record<string, { label: string; badgeClass: string; dotCl
     dotClass: 'bg-amber-400',
     accentClass: 'from-amber-400/80 to-amber-400/10',
   },
-  SETTLED: {
-    label: '已完结',
-    badgeClass: 'border-neutral-700 bg-neutral-800/80 text-neutral-300',
-    dotClass: 'bg-neutral-400',
-    accentClass: 'from-neutral-300/70 to-neutral-300/5',
-  },
   CANCELLED: {
     label: '已取消',
     badgeClass: 'border-red-500/20 bg-red-500/10 text-red-400',
@@ -136,7 +130,7 @@ const MatchList: React.FC = () => {
       if (match.status === 'PUBLISHED') summary.published += 1;
       else if (match.status === 'REGISTRATION_CLOSED') summary.grouping += 1;
       else if (match.status === 'ONGOING') summary.ongoing += 1;
-      else if (['MATCH_FINISHED', 'SETTLED'].includes(match.status)) summary.finished += 1;
+      else if (match.status === 'MATCH_FINISHED') summary.finished += 1;
       return summary;
     },
     { published: 0, grouping: 0, ongoing: 0, finished: 0 }
@@ -175,7 +169,7 @@ const MatchList: React.FC = () => {
       </header>
 
       <section className="relative z-10 mx-auto mb-10 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-[1.75rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-white/[0.03] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:border-gray-300 dark:hover:border-white/12">
+        <div className="rounded-[1.75rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-white/[0.03] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:border-gray-300 dark:hover:border-neutral-600">
           <div className="mb-2 text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-600">赛事总览</div>
           <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{matches.length}</div>
           <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">当前可见赛事总数</div>
@@ -199,10 +193,10 @@ const MatchList: React.FC = () => {
         <div className="rounded-[1.75rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-white/[0.02] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:border-gray-300 dark:hover:border-neutral-600">
           <div className="mb-2 flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-400">
             <span className="h-2 w-2 rounded-full bg-gray-400 dark:bg-neutral-400"></span>
-            已完结
+            已结束
           </div>
           <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{statusSummary.finished}</div>
-          <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">待核算或已结算的赛事</div>
+          <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">已结束并待处理结算的赛事</div>
         </div>
       </section>
 

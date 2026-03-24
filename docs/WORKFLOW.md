@@ -20,8 +20,7 @@ stateDiagram-v2
     ONGOING --> REGISTRATION_CLOSED : 管理员回退状态 (rollbackStatus)
     ONGOING --> GROUPING_DRAFT : 管理员回退状态 (rollbackStatus)
     ONGOING --> MATCH_FINISHED : 比赛结束 (finishMatch)
-    MATCH_FINISHED --> SETTLED : 确认结算 (settleFees)
-    SETTLED --> [*]
+    MATCH_FINISHED --> [*]
     
     note right of ONGOING
         开赛前置检测：
@@ -40,8 +39,7 @@ stateDiagram-v2
 | **PUBLISHED** | 报名中 | **球员报名**（容量内直接成功，超容量进入待审批）、撤回至筹备、修改时间 | 管理员点击"开启报名" | **报名中** (球员端可见) |
 | **REGISTRATION_CLOSED** | 报名截止 | **无法新报名**、管理员可随时分组/调整/发布分组、所有人分配完成后可开赛 | 管理员点击"关闭报名" | **报名已截止** (球员可见，管理员可管理分组) |
 | **ONGOING** | 比赛中 | 比分/进球录入、SSE 实时同步、**管理员可回退状态**、**管理员可调整实际开赛时间** | 所有球员分配到组后 `startMatch` 触发，需提供实际开赛时间 | **比赛中** (实时比分流) |
-| **MATCH_FINISHED** | 待核算 | 修正数据、设置豁免、结算费用 | 管理员点击"完成比赛" | **待核算** (赛后数据审计) |
-| **SETTLED** | 已完结 | 查看战报、查看费用分摊、**触发评分演进** | 管理员点击"结算费用" | **已完结** (战报与结算单) |
+| **MATCH_FINISHED** | 已结束/待结算 | 修正数据、设置豁免、保存并发布结算信息、查看战报与费用分摊 | 管理员点击"完成比赛" | **已结束** (赛后数据审计与结算) |
 | **CANCELLED** | 已取消 | 无 | 管理员手动取消赛事 | **已取消** |
 
 ### 关键逻辑规则：

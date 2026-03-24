@@ -51,12 +51,6 @@ const matchStatusMeta: Record<string, { label: string; badgeClass: string; dotCl
     dotClass: 'bg-amber-400',
     accentClass: 'from-amber-400/80 to-amber-400/10',
   },
-  SETTLED: {
-    label: '已完结',
-    badgeClass: 'border-neutral-700 bg-neutral-800/80 text-neutral-300',
-    dotClass: 'bg-neutral-400',
-    accentClass: 'from-neutral-300/70 to-neutral-300/5',
-  },
   CANCELLED: {
     label: '已取消',
     badgeClass: 'border-red-500/20 bg-red-500/10 text-red-400',
@@ -164,8 +158,8 @@ const MatchDetail: React.FC = () => {
         setPendingRegistrations([]);
       }
 
-      // Fetch post-match info if finished/settled
-      if (matchData.status === 'MATCH_FINISHED' || matchData.status === 'SETTLED') {
+      // Fetch post-match info if finished
+      if (matchData.status === 'MATCH_FINISHED') {
         try {
           const [st, ss, gm] = await Promise.all([
             matchApi.getStandings(id!),
@@ -411,7 +405,7 @@ const MatchDetail: React.FC = () => {
         {admin && match?.status === 'PUBLISHED' && (
           <button
             onClick={handleRevertToPreparing}
-            className="hidden h-11 items-center gap-2 rounded-full border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-5 text-xs font-bold tracking-wide text-gray-500 dark:text-neutral-400 transition-all hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-900 dark:hover:text-white md:flex"
+            className="hidden h-11 items-center gap-2 rounded-full border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-5 text-xs font-bold text-gray-500 dark:text-neutral-400 transition-all hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-900 dark:hover:text-white md:flex"
           >
             <Undo2 size={14} /> 回退到筹备
           </button>
@@ -696,8 +690,8 @@ const MatchDetail: React.FC = () => {
             )}
           </div>
 
-          {/* Post-Match Summary (MATCH_FINISHED or SETTLED) */}
-          {['MATCH_FINISHED', 'SETTLED'].includes(match.status) && standings && stats && (
+          {/* Post-Match Summary */}
+          {match.status === 'MATCH_FINISHED' && standings && stats && (
             <div className="space-y-6">
               {/* Games List */}
               {games.length > 0 && (
@@ -806,7 +800,7 @@ const MatchDetail: React.FC = () => {
             </div>
 
             <div className="mt-6">
-              {admin && ['MATCH_FINISHED', 'SETTLED'].includes(match.status) && (
+              {admin && match.status === 'MATCH_FINISHED' && (
                 <button
                   onClick={() => navigate(`/matches/${id}/finance`)}
                   className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 py-3.5 text-sm font-black text-primary transition-all hover:bg-primary/20 hover:scale-[1.02] active:scale-[0.98]"
@@ -897,7 +891,7 @@ const MatchDetail: React.FC = () => {
           </div>
 
           {/* Admin Fee List (Right Sidebar) */}
-          {admin && ['MATCH_FINISHED', 'SETTLED'].includes(match.status) && (
+          {admin && match.status === 'MATCH_FINISHED' && (
             <div className="rounded-[2rem] border border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-neutral-950 p-6 sm:p-8">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-xs font-black tracking-[0.2em] text-rose-500 dark:text-rose-400">应付费明细</h3>
@@ -916,21 +910,7 @@ const MatchDetail: React.FC = () => {
                    );
                 })}
               </div>
-              {match.status === 'MATCH_FINISHED' && (
-                <button
-                  onClick={async () => {
-                     try {
-                        await apiClient.post(`/api/match/${id}/settle`);
-                        Toast.show({ icon: 'success', content: '费用已结算' });
-                        fetchData();
-                     } catch {}
-                  }}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-900 bg-rose-950 py-3 text-xs font-bold text-rose-100 transition-all hover:bg-rose-900 hover:border-rose-800 active:scale-[0.98]"
-                >
-                  确认开始结算
-                </button>
-              )}
-              {match.status === 'SETTLED' && (
+              {match.settlementPublished && (
                 <button
                   onClick={() => navigate(`/matches/${id}/finance`)}
                   className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-900 bg-rose-950 py-3 text-xs font-bold text-rose-100 transition-all hover:bg-rose-900 hover:border-rose-800 active:scale-[0.98]"

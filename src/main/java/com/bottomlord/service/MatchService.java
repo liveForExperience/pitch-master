@@ -167,13 +167,6 @@ public interface MatchService extends IService<Match> {
     void finishMatch(Long matchId);
 
     /**
-     * 结算费用并更新支付状态（原有逻辑保留，可作为历史功能）
-     *
-     * @param matchId 赛事ID
-     */
-    void settleFees(Long matchId);
-
-    /**
      * 保存并发布结算信息
      *
      * @param matchId 赛事ID

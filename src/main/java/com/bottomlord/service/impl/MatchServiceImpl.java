@@ -35,7 +35,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -68,9 +67,6 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
 
     @Autowired
     private TournamentMapper tournamentMapper;
-
-    @Autowired
-    private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Autowired
     private MatchGoalMapper matchGoalMapper;
@@ -316,9 +312,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         Match match = this.getById(matchId);
 
         String currentStatus = match.getStatus();
-        if (Match.STATUS_ONGOING.equals(currentStatus) ||
-            Match.STATUS_SETTLED.equals(currentStatus) ||
-            Match.STATUS_MATCH_FINISHED.equals(currentStatus)) {
+        if (Match.STATUS_ONGOING.equals(currentStatus) || Match.STATUS_MATCH_FINISHED.equals(currentStatus)) {
             throw new IllegalStateException("当前状态不允许重新分组");
         }
 
@@ -369,8 +363,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
                 || Match.STATUS_REGISTRATION_CLOSED.equals(status)
                 || Match.STATUS_GROUPING_DRAFT.equals(status)
                 || Match.STATUS_ONGOING.equals(status)
-                || Match.STATUS_MATCH_FINISHED.equals(status)
-                || Match.STATUS_SETTLED.equals(status);
+                || Match.STATUS_MATCH_FINISHED.equals(status);
 
         if (!groupingRelevant) {
             return null;
@@ -603,41 +596,12 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
-    public void settleFees(Long matchId) {
-        Match match = this.getById(matchId);
-        if (!Match.STATUS_MATCH_FINISHED.equals(match.getStatus())) {
-            throw new IllegalStateException("只有在 MATCH_FINISHED 状态下才能进行结算");
-        }
-        List<MatchRegistration> billable = registrationService.list(new LambdaQueryWrapper<MatchRegistration>()
-                .eq(MatchRegistration::getMatchId, matchId)
-                .in(MatchRegistration::getStatus, "REGISTERED", "NO_SHOW")
-                .eq(MatchRegistration::getIsExempt, false));
-
-        if (CollUtil.isNotEmpty(billable) && match.getTotalCost() != null) {
-            BigDecimal count = new BigDecimal(billable.size());
-            BigDecimal perPerson = match.getTotalCost().divide(count, 0, RoundingMode.CEILING);
-            match.setPerPersonCost(perPerson);
-            registrationService.update(new LambdaUpdateWrapper<MatchRegistration>()
-                    .eq(MatchRegistration::getMatchId, matchId)
-                    .in(MatchRegistration::getStatus, "REGISTERED", "NO_SHOW")
-                    .eq(MatchRegistration::getIsExempt, false)
-                    .set(MatchRegistration::getPaymentStatus, "UNPAID"));
-        }
-        match.setStatus(Match.STATUS_SETTLED);
-        this.updateById(match);
-        eventPublisher.publishEvent(new com.bottomlord.common.event.MatchSettledEvent(this, match.getId(), match.getTournamentId()));
-        sseManager.broadcastToClub(match.getTournamentId(), "match_settled", match.getTitle() + " 费用已结算");
-    }
-
-    @Override
-    @RequiresRoles("admin")
-    @Transactional(rollbackFor = Exception.class)
     public void saveAndPublishSettlement(Long matchId, com.bottomlord.dto.SettlementRequest request) {
         Match match = this.getById(matchId);
         if (match == null) {
             throw new IllegalArgumentException("赛事不存在");
         }
-        if (!Match.STATUS_MATCH_FINISHED.equals(match.getStatus()) && !Match.STATUS_SETTLED.equals(match.getStatus())) {
+        if (!Match.STATUS_MATCH_FINISHED.equals(match.getStatus())) {
             throw new IllegalStateException("赛事未结束，无法保存结算信息");
         }
 
@@ -646,7 +610,6 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         // 当发布标志改变或者是确定发布时，才更新
         if (Boolean.TRUE.equals(request.getPublish())) {
             match.setSettlementPublished(true);
-            match.setStatus(Match.STATUS_SETTLED);
         } else if (match.getSettlementPublished() == null) {
             match.setSettlementPublished(false);
         }
@@ -697,7 +660,6 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         }
         
         if (Boolean.TRUE.equals(request.getPublish())) {
-            eventPublisher.publishEvent(new com.bottomlord.common.event.MatchSettledEvent(this, match.getId(), match.getTournamentId()));
             sseManager.broadcastToClub(match.getTournamentId(), "match_settled", match.getTitle() + " 结算信息已发布");
         }
     }
