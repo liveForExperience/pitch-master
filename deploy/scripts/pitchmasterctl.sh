@@ -73,13 +73,11 @@ load_env() {
 }
 
 build_backend() {
-  require_cmd mvn
   log "Building backend jar"
   mvn -q -DskipTests clean package -f "${REPO_DIR}/pom.xml"
 }
 
 build_frontend() {
-  require_cmd npm
   log "Building frontend dist"
   npm --prefix "${REPO_DIR}/frontend" ci
   npm --prefix "${REPO_DIR}/frontend" run build
@@ -101,25 +99,6 @@ deploy_frontend_artifact() {
   rm -rf "${FRONTEND_DIR}/dist"
   mkdir -p "${FRONTEND_DIR}"
   cp -R "${dist_src}" "${FRONTEND_DIR}/dist"
-}
-
-ensure_database() {
-  load_env
-  require_cmd mysql
-
-  local db_host="${DB_HOST:-127.0.0.1}"
-  local db_port="${DB_PORT:-3306}"
-  local db_name="${DB_NAME:-pitch_master}"
-  local db_user="${DB_USER:-root}"
-  local db_password="${DB_PASSWORD:-}"
-
-  if [[ -z "${db_password}" ]]; then
-    die "DB_PASSWORD is empty in ${ENV_FILE}"
-  fi
-
-  log "Ensuring database exists: ${db_name}"
-  MYSQL_PWD="${db_password}" mysql -h "${db_host}" -P "${db_port}" -u "${db_user}" \
-    -e "CREATE DATABASE IF NOT EXISTS ${db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 }
 
 install_systemd_and_nginx() {
@@ -162,7 +141,6 @@ cmd_install() {
   ensure_dirs
   ensure_repo
   ensure_env_file
-  ensure_database
   build_backend
   build_frontend
   deploy_backend_artifact
