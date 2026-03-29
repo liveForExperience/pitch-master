@@ -73,15 +73,7 @@ load_env() {
 
 build_backend() {
   log "Building backend jar"
-  local mvn_cmd="mvn"
-  if ! command -v mvn &> /dev/null; then
-    if [[ -x "/opt/maven/apache-maven-3.9.12/bin/mvn" ]]; then
-      mvn_cmd="/opt/maven/apache-maven-3.9.12/bin/mvn"
-    else
-      die "mvn command not found and /opt/maven/apache-maven-3.9.12/bin/mvn is not executable."
-    fi
-  fi
-  "${mvn_cmd}" -q -DskipTests clean package -f "${REPO_DIR}/pom.xml"
+  mvn -q -DskipTests clean package -f "${REPO_DIR}/pom.xml"
 }
 
 build_frontend() {
