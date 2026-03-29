@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+env PATH=$PATH:/opt/maven/apache-maven-3.9.12/bin
 
 APP_NAME="pitchmaster"
 SERVICE_NAME="pitchmaster"
