@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-env PATH=$PATH:/opt/maven/apache-maven-3.9.12/bin
 
 APP_NAME="pitchmaster"
 SERVICE_NAME="pitchmaster"
@@ -20,6 +19,9 @@ BRANCH="${BRANCH:-$BRANCH_DEFAULT}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PROJECT_ROOT="$(cd "${DEPLOY_DIR}/.." && pwd)"
+
+# 补充由于 sudo 导致的 PATH 丢失问题，将自定义的 Maven 路径加入 PATH
+export PATH="${PATH}:/opt/maven/apache-maven-3.9.12/bin"
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
