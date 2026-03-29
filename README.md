@@ -162,6 +162,39 @@ This repository includes deployment templates for non-containerized deployment:
 - Nginx config: `deploy/nginx/pitchmaster.conf`
 - systemd service: `deploy/systemd/pitchmaster.service`
 - Prod env template: `deploy/env/pitchmaster.prod.example`
+- One-script ops entry: `deploy/scripts/pitchmasterctl.sh`
+
+### One-script operations (recommended)
+
+After cloning the repository on ECS, you can manage the full lifecycle with one script:
+
+```bash
+sudo bash deploy/scripts/pitchmasterctl.sh install
+```
+
+Daily commands:
+
+```bash
+# Pull latest code -> rebuild backend/frontend -> redeploy -> restart service
+sudo bash deploy/scripts/pitchmasterctl.sh upgrade
+
+# Service lifecycle
+sudo bash deploy/scripts/pitchmasterctl.sh start
+sudo bash deploy/scripts/pitchmasterctl.sh stop
+sudo bash deploy/scripts/pitchmasterctl.sh restart
+sudo bash deploy/scripts/pitchmasterctl.sh status
+sudo bash deploy/scripts/pitchmasterctl.sh logs
+```
+
+Optional overrides:
+
+```bash
+# Deploy a different branch
+sudo BRANCH=release-2026-03 bash deploy/scripts/pitchmasterctl.sh upgrade
+
+# Deploy from another repository URL
+sudo REPO_URL=https://github.com/your-org/pitch-master.git bash deploy/scripts/pitchmasterctl.sh install
+```
 
 ### 1) Build artifacts locally
 
