@@ -10,6 +10,9 @@ import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreato
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import org.apache.shiro.session.mgt.SessionManager;
+import org.apache.shiro.web.session.mgt.DefaultWebSessionManager;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -64,9 +67,17 @@ public class ShiroConfig {
     }
 
     @Bean
-    public DefaultWebSecurityManager securityManager(UserRealm userRealm) {
+    public SessionManager sessionManager() {
+        DefaultWebSessionManager sessionManager = new DefaultWebSessionManager();
+        sessionManager.setSessionIdUrlRewritingEnabled(false);
+        return sessionManager;
+    }
+
+    @Bean
+    public DefaultWebSecurityManager securityManager(UserRealm userRealm, SessionManager sessionManager) {
         DefaultWebSecurityManager securityManager = new DefaultWebSecurityManager();
         securityManager.setRealm(userRealm);
+        securityManager.setSessionManager(sessionManager);
         return securityManager;
     }
 
