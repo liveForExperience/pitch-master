@@ -36,10 +36,6 @@ require_root() {
   fi
 }
 
-require_cmd() {
-  command -v "$1" >/dev/null 2>&1 || die "Missing command: $1"
-}
-
 ensure_dirs() {
   mkdir -p "${APP_HOME}" "${APP_DIR}" "${FRONTEND_DIR}" /etc/pitchmaster
 }
@@ -135,9 +131,6 @@ logs_service() {
 
 cmd_install() {
   require_root
-  require_cmd git
-  require_cmd systemctl
-  require_cmd nginx
 
   ensure_dirs
   ensure_repo
@@ -155,7 +148,6 @@ cmd_install() {
 
 cmd_upgrade() {
   require_root
-  require_cmd git
 
   ensure_dirs
   ensure_repo
