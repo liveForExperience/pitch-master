@@ -1,0 +1,19 @@
+[Unit]
+Description=PitchMaster Spring Boot Service
+After=network.target mysqld.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/pitchmaster/app
+EnvironmentFile=/etc/pitchmaster/pitchmaster.env
+ExecStart=/usr/bin/java -jar /opt/pitchmaster/app/current.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

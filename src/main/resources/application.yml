@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: mysql # 默认激活 MySQL 配置
+    active: ${SPRING_PROFILES_ACTIVE:local}
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -16,7 +16,7 @@ mybatis-plus:
 
 logging:
   level:
-    com.bottomlord: debug
+    "[com.bottomlord]": info
 
 match:
   grouping:

@@ -39,15 +39,15 @@
 mysql -u root -p
 CREATE DATABASE pitch_master CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-# 2. Configure database connection
-# Edit src/main/resources/application.yml
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/pitch_master
-    username: YOUR_USERNAME
-    password: YOUR_PASSWORD
+# 2. Set local environment variables
+export SPRING_PROFILES_ACTIVE=local
+export DB_HOST=localhost
+export DB_PORT=3306
+export DB_NAME=pitch_master
+export DB_USER=root
+export DB_PASSWORD=YOUR_LOCAL_DB_PASSWORD
 
-# 3. Run application
+# 3. Run application (Flyway migrations run on startup)
 ./mvnw spring-boot:run
 ```
 
@@ -154,6 +154,81 @@ Comprehensive documentation available in [`docs/`](./docs):
 cd frontend
 npm test
 ```
+
+## Deployment (Alibaba Cloud Linux 3, A Mode)
+
+This repository includes deployment templates for non-containerized deployment:
+
+- Nginx config: `deploy/nginx/pitchmaster.conf`
+- systemd service: `deploy/systemd/pitchmaster.service`
+- Prod env template: `deploy/env/pitchmaster.prod.example`
+
+### 1) Build artifacts locally
+
+```bash
+# Backend jar
+./mvnw clean package -DskipTests
+
+# Frontend static assets
+cd frontend
+npm install
+npm run build
+```
+
+### 2) Upload to ECS
+
+Recommended target structure on server:
+
+- `/opt/pitchmaster/app/current.jar`
+- `/opt/pitchmaster/frontend/dist/`
+- `/etc/pitchmaster/pitchmaster.env`
+
+### 3) Configure production environment variables
+
+Use `deploy/env/pitchmaster.prod.example` as the source, then create:
+
+```bash
+sudo mkdir -p /etc/pitchmaster
+sudo vi /etc/pitchmaster/pitchmaster.env
+```
+
+Required keys:
+
+- `SPRING_PROFILES_ACTIVE=prod`
+- `DB_HOST=127.0.0.1`
+- `DB_PORT=3306`
+- `DB_NAME=pitch_master`
+- `DB_USER=root`
+- `DB_PASSWORD=YOUR_SERVER_DB_PASSWORD`
+
+### 4) Install and start backend service
+
+```bash
+sudo cp deploy/systemd/pitchmaster.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable pitchmaster
+sudo systemctl start pitchmaster
+sudo systemctl status pitchmaster
+```
+
+### 5) Install Nginx site config
+
+```bash
+sudo cp deploy/nginx/pitchmaster.conf /etc/nginx/conf.d/pitchmaster.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 6) Alibaba Cloud security group
+
+- Open inbound `80/tcp` to public network
+- Keep backend `8080` private (localhost + Nginx reverse proxy)
+
+### 7) Smoke test
+
+- Open `http://<ECS_PUBLIC_IP>`
+- Validate login, match list, registration, and realtime score updates
+
 
 ### Code Standards
 
