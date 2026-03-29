@@ -141,18 +141,19 @@ const Stepper: React.FC<{
 
 const MatchPublish: React.FC = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { id, tournamentId } = useParams<{ id: string; tournamentId: string }>();
   const isEditMode = Boolean(id);
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(isEditMode);
-  const { fetchMe, fetched, isAdmin } = useAuthStore();
+  const { fetchMe, fetched, isAdmin, isTournamentAdmin } = useAuthStore();
+  const basePath = `/tournaments/${tournamentId}/matches`;
 
   useEffect(() => {
     if (!fetched) {
       fetchMe();
-    } else if (fetched && !isAdmin()) {
+    } else if (fetched && !isAdmin() && !(tournamentId && isTournamentAdmin(Number(tournamentId)))) {
       Toast.show({ icon: 'fail', content: '仅管理员可发布赛事' });
-      navigate('/matches', { replace: true });
+      navigate(basePath, { replace: true });
     }
   }, [fetched, isAdmin, fetchMe, navigate]);
 
@@ -164,7 +165,7 @@ const MatchPublish: React.FC = () => {
         .then((match: any) => {
           if (match.status !== 'PREPARING') {
             Toast.show({ icon: 'fail', content: '只能编辑筹备中的赛事' });
-            navigate('/matches', { replace: true });
+            navigate(basePath, { replace: true });
             return;
           }
           const startDayjs = dayjs(match.startTime);
@@ -194,7 +195,7 @@ const MatchPublish: React.FC = () => {
         })
         .catch(() => {
           Toast.show({ icon: 'fail', content: '加载赛事信息失败' });
-          navigate('/matches', { replace: true });
+          navigate(basePath, { replace: true });
         })
         .finally(() => setPageLoading(false));
     }
@@ -408,11 +409,11 @@ const MatchPublish: React.FC = () => {
       if (isEditMode && id) {
         await apiClient.put(`/api/match/${id}`, payload);
         Toast.show({ icon: 'success', content: '赛事更新成功' });
-        navigate(`/matches/${id}`);
+        navigate(`${basePath}/${id}`);
       } else {
         await apiClient.post('/api/match/publish', payload);
         Toast.show({ icon: 'success', content: '赛事发布成功' });
-        navigate('/matches');
+        navigate(basePath);
       }
     } catch {
       // 拦截器已处理错误
@@ -445,11 +446,11 @@ const MatchPublish: React.FC = () => {
         {/* 返回按钮 */}
         <button
           type="button"
-          onClick={() => navigate('/matches')}
+          onClick={() => navigate(basePath)}
           className="flex items-center text-gray-500 dark:text-neutral-500 hover:text-gray-900 dark:hover:text-white transition-colors font-bold mb-12 group"
         >
           <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" />
-          返回赛事广场
+          返回赛事中心
         </button>
 
         {/* 页面标题 */}
@@ -465,7 +466,7 @@ const MatchPublish: React.FC = () => {
           <p className="max-w-2xl text-gray-500 dark:text-neutral-500 font-medium text-base sm:text-lg">
             {isEditMode 
               ? '修改赛事的时间、地点、分组规则与费用，仅在筹备阶段可编辑。' 
-              : '设定赛事的时间、地点、分组规则与费用，发布后即刻进入报名阶段，球员可在赛事广场中报名参赛。'}
+              : '设定赛事的时间、地点、分组规则与费用，发布后即刻进入报名阶段，球员可在赛事中心中报名参赛。'}
           </p>
         </header>
 
@@ -801,7 +802,7 @@ const MatchPublish: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => navigate('/matches')}
+                onClick={() => navigate(basePath)}
                 className="flex h-14 w-full items-center justify-center rounded-[1.5rem] border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-white/5 text-[12px] font-black tracking-[0.12em] text-gray-500 dark:text-neutral-400 transition-all duration-300 hover:border-gray-300 dark:hover:border-neutral-700 hover:text-gray-900 dark:hover:text-white"
               >
                 放弃编辑

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { PullToRefresh, FloatingBubble, Toast } from 'antd-mobile';
 import { useConfirmDialog } from '../components/ConfirmDialog';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Plus, Calendar, MapPin, Users, ChevronRight, Trash2, Megaphone } from 'lucide-react';
 import apiClient from '../api/client';
 import { matchApi } from '../api/match';
@@ -27,12 +27,6 @@ const matchStatusMeta: Record<string, { label: string; badgeClass: string; dotCl
     dotClass: 'bg-sky-400',
     accentClass: 'from-sky-400/80 to-sky-400/10',
   },
-  GROUPING_DRAFT: {
-    label: '分组中',
-    badgeClass: 'border-violet-500/20 bg-violet-500/10 text-violet-400',
-    dotClass: 'bg-violet-400',
-    accentClass: 'from-violet-400/80 to-violet-400/10',
-  },
   ONGOING: {
     label: '比赛中',
     badgeClass: 'border-orange-500/20 bg-orange-500/10 text-orange-400',
@@ -40,7 +34,7 @@ const matchStatusMeta: Record<string, { label: string; badgeClass: string; dotCl
     accentClass: 'from-orange-400/80 to-orange-400/10',
   },
   MATCH_FINISHED: {
-    label: '待核算',
+    label: '比赛结束',
     badgeClass: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
     dotClass: 'bg-amber-400',
     accentClass: 'from-amber-400/80 to-amber-400/10',
@@ -62,11 +56,24 @@ const formatPosterDate = (value: string | number | Date) => {
   };
 };
 
+type MatchFilterKey = 'FOCUS' | 'ALL' | 'PUBLISHED' | 'ONGOING' | 'MATCH_FINISHED';
+const DEFAULT_FILTER: MatchFilterKey = 'FOCUS';
+const MATCH_FILTER_KEYS: MatchFilterKey[] = ['FOCUS', 'ALL', 'PUBLISHED', 'ONGOING', 'MATCH_FINISHED'];
+
+const parseFilterFromQuery = (value: string | null): MatchFilterKey => {
+  if (!value) return DEFAULT_FILTER;
+  return MATCH_FILTER_KEYS.includes(value as MatchFilterKey) ? (value as MatchFilterKey) : DEFAULT_FILTER;
+};
+
 const MatchList: React.FC = () => {
   const [matches, setMatches] = useState<any[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeFilter, setActiveFilter] = useState<MatchFilterKey>(() => parseFilterFromQuery(searchParams.get('filter')));
   const navigate = useNavigate();
-  const { fetchMe, fetched, isAdmin } = useAuthStore();
-  const admin = isAdmin();
+  const { tournamentId } = useParams<{ tournamentId: string }>();
+  const { fetchMe, fetched, isAdmin, isTournamentAdmin } = useAuthStore();
+  const admin = isAdmin() || (tournamentId ? isTournamentAdmin(Number(tournamentId)) : false);
+  const basePath = `/tournaments/${tournamentId}/matches`;
   const { show: showConfirm, DialogComponent } = useConfirmDialog();
 
   const fetchMatches = async () => {
@@ -81,6 +88,30 @@ const MatchList: React.FC = () => {
     fetchMatches();
     if (!fetched) fetchMe();
   }, []);
+
+  useEffect(() => {
+    const currentFilter = parseFilterFromQuery(searchParams.get('filter'));
+    if (currentFilter !== activeFilter) {
+      setActiveFilter(currentFilter);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const currentRawFilter = searchParams.get('filter');
+    if (activeFilter === DEFAULT_FILTER) {
+      if (currentRawFilter !== null) {
+        const next = new URLSearchParams(searchParams);
+        next.delete('filter');
+        setSearchParams(next, { replace: true });
+      }
+      return;
+    }
+    if (currentRawFilter !== activeFilter) {
+      const next = new URLSearchParams(searchParams);
+      next.set('filter', activeFilter);
+      setSearchParams(next, { replace: true });
+    }
+  }, [activeFilter, searchParams, setSearchParams]);
 
   const getStatusMeta = (status: string) => {
     return matchStatusMeta[status] || {
@@ -136,6 +167,39 @@ const MatchList: React.FC = () => {
     { published: 0, grouping: 0, ongoing: 0, finished: 0 }
   );
 
+  const sortedMatches = useMemo(() => {
+    const statusPriority: Record<string, number> = {
+      ONGOING: 0,
+      PUBLISHED: 1,
+      REGISTRATION_CLOSED: 2,
+      PREPARING: 3,
+      MATCH_FINISHED: 4,
+      CANCELLED: 5,
+    };
+
+    return [...matches].sort((a, b) => {
+      const priorityDiff = (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99);
+      if (priorityDiff !== 0) return priorityDiff;
+      return dayjs(b.startTime).valueOf() - dayjs(a.startTime).valueOf();
+    });
+  }, [matches]);
+
+  const filteredMatches = useMemo(() => {
+    if (activeFilter === 'ALL') return sortedMatches;
+    if (activeFilter === 'FOCUS') {
+      return sortedMatches.filter((match) => ['PUBLISHED', 'ONGOING'].includes(match.status));
+    }
+    return sortedMatches.filter((match) => match.status === activeFilter);
+  }, [activeFilter, sortedMatches]);
+
+  const filterOptions: Array<{ key: MatchFilterKey; label: string; count: number }> = [
+    { key: 'FOCUS', label: '关注中', count: statusSummary.published + statusSummary.ongoing },
+    { key: 'ALL', label: '全部', count: matches.length },
+    { key: 'PUBLISHED', label: '报名中', count: statusSummary.published },
+    { key: 'ONGOING', label: '比赛中', count: statusSummary.ongoing },
+    { key: 'MATCH_FINISHED', label: '已结束', count: statusSummary.finished },
+  ];
+
   return (
     <div className="relative mx-auto max-w-6xl px-6 py-10 sm:px-8 lg:px-10 lg:py-16">
       <div className="pointer-events-none absolute left-[-8%] top-14 h-64 w-64 rounded-full bg-primary/8 blur-[140px]"></div>
@@ -145,21 +209,21 @@ const MatchList: React.FC = () => {
           <div className="mb-4 inline-flex items-center rounded-full border border-gray-200 dark:border-white/8 bg-gray-100 dark:bg-white/[0.03] px-4 py-2 text-[10px] font-black tracking-[0.28em] text-primary">
             赛事中枢
           </div>
-          <h1 className="text-5xl font-black tracking-tighter text-gray-900 dark:text-white lg:text-7xl">赛事广场</h1>
+          <h1 className="text-5xl font-black tracking-tighter text-gray-900 dark:text-white lg:text-7xl">赛事中心</h1>
           <p className="mt-5 max-w-xl text-sm font-medium leading-7 text-gray-500 dark:text-neutral-500 sm:text-[15px]">
-            查看当前开放赛事、进行中对局与费用信息，用更清晰的卡片结构快速判断每场比赛的状态与参与规模。
+            聚焦报名中与比赛中的关键赛事，快速进入详情、查看费用与进度，减少无效浏览与重复操作。
           </p>
         </div>
         {admin && (
           <div className="relative z-10 hidden items-center gap-3 md:flex">
             <button
-              onClick={() => navigate('/matches/trash')}
+              onClick={() => navigate(`${basePath}/trash`)}
               className="flex h-12 items-center rounded-full border border-gray-200 dark:border-neutral-700 bg-gray-100 dark:bg-neutral-900 px-5 text-sm font-bold text-gray-500 dark:text-neutral-400 transition-all hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-900 dark:hover:text-white active:scale-[0.98]"
             >
               <Trash2 size={16} className="mr-2" /> 回收站
             </button>
             <button 
-              onClick={() => navigate('/matches/publish')}
+              onClick={() => navigate(`${basePath}/publish`)}
               className="flex h-12 items-center rounded-full border border-gray-300 dark:border-white/10 bg-gray-900 dark:bg-white px-6 text-sm font-black text-white dark:text-black shadow-[0_4px_16px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_30px_rgba(255,255,255,0.08)] transition-[box-shadow,border-color] duration-300 hover:shadow-[0_8px_28px_rgba(0,0,0,0.25)] dark:hover:shadow-[0_16px_36px_rgba(255,255,255,0.14)] active:opacity-80"
             >
               <Plus size={20} className="mr-2" /> 发布新赛事
@@ -168,48 +232,49 @@ const MatchList: React.FC = () => {
         )}
       </header>
 
-      <section className="relative z-10 mx-auto mb-10 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="relative z-10 mx-auto mb-8 max-w-5xl">
         <div className="rounded-[1.75rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-white/[0.03] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:border-gray-300 dark:hover:border-neutral-600">
           <div className="mb-2 text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-600">赛事总览</div>
           <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{matches.length}</div>
           <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">当前可见赛事总数</div>
         </div>
-        <div className="rounded-[1.75rem] border border-primary/12 bg-primary/[0.05] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(29,185,84,0.12)] dark:hover:shadow-[0_8px_24px_rgba(29,185,84,0.2)] hover:border-primary/20">
-          <div className="mb-2 flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-primary/80">
-            <span className="h-2 w-2 rounded-full bg-primary"></span>
-            报名中
-          </div>
-          <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{statusSummary.published}</div>
-          <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">可继续加入与报名</div>
-        </div>
-        <div className="rounded-[1.75rem] border border-orange-500/12 bg-orange-500/[0.05] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(249,115,22,0.12)] dark:hover:shadow-[0_8px_24px_rgba(249,115,22,0.2)] hover:border-orange-500/20">
-          <div className="mb-2 flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-orange-400">
-            <span className="h-2 w-2 rounded-full bg-orange-400"></span>
-            比赛中
-          </div>
-          <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{statusSummary.ongoing}</div>
-          <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">正在进行的实时赛事</div>
-        </div>
-        <div className="rounded-[1.75rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-white/[0.02] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:border-gray-300 dark:hover:border-neutral-600">
-          <div className="mb-2 flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-400">
-            <span className="h-2 w-2 rounded-full bg-gray-400 dark:bg-neutral-400"></span>
-            已结束
-          </div>
-          <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{statusSummary.finished}</div>
-          <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">已结束并待处理结算的赛事</div>
-        </div>
+      </section>
+
+      <section className="relative z-10 mx-auto mb-7 flex max-w-5xl flex-wrap gap-2.5">
+        {filterOptions.map((option) => {
+          const active = option.key === activeFilter;
+          return (
+            <button
+              key={option.key}
+              onClick={() => setActiveFilter(option.key)}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black tracking-[0.08em] transition-all ${
+                active
+                  ? 'border-primary/35 bg-primary/15 text-primary shadow-[0_8px_20px_rgba(29,185,84,0.16)]'
+                  : 'border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] text-gray-500 dark:text-neutral-500 hover:border-gray-300 dark:hover:border-neutral-700 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <span>{option.label}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] ${active ? 'bg-primary/20 text-primary' : 'bg-gray-100 dark:bg-black/40 text-gray-400 dark:text-neutral-600'}`}>
+                {option.count}
+              </span>
+            </button>
+          );
+        })}
       </section>
 
       <PullToRefresh onRefresh={fetchMatches}>
         <div className="mx-auto grid max-w-5xl grid-cols-1 gap-7 lg:grid-cols-2 xl:gap-8">
-          {matches.map(match => {
+          {filteredMatches.map(match => {
             const statusMeta = getStatusMeta(match.status);
             const posterDate = formatPosterDate(match.startTime);
             const isPreparing = match.status === 'PREPARING';
             return (
             <div
               key={match.id}
-              onClick={() => navigate(`/matches/${match.id}`)}
+              onClick={() => {
+                const query = searchParams.toString();
+                navigate(`${basePath}/${match.id}${query ? `?${query}` : ''}`);
+              }}
               className="group relative overflow-hidden rounded-[2.5rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_24%),linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] cursor-pointer transition-all duration-500 hover:-translate-y-2 hover:border-gray-300 dark:hover:border-neutral-700 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_28px_80px_rgba(0,0,0,0.62)]"
             >
               <div className={`absolute right-[-12%] top-10 h-44 w-44 rounded-full bg-gradient-to-br ${statusMeta.accentClass} opacity-20 blur-3xl transition-all duration-500 group-hover:scale-110 group-hover:opacity-30`}></div>
@@ -298,6 +363,15 @@ const MatchList: React.FC = () => {
             </div>
             );
           })}
+
+          {filteredMatches.length === 0 && (
+            <div className="col-span-full rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-white/[0.03] px-6 py-12 text-center">
+              <div className="text-sm font-bold text-gray-900 dark:text-white">当前筛选下暂无赛事</div>
+              <p className="mt-2 text-xs font-medium text-gray-500 dark:text-neutral-500">
+                可切换到“全部”查看完整列表，或下拉刷新获取最新赛事状态。
+              </p>
+            </div>
+          )}
         </div>
       </PullToRefresh>
 
@@ -305,7 +379,7 @@ const MatchList: React.FC = () => {
         <FloatingBubble
           className="md:hidden"
           style={{ '--initial-position-bottom': '40px', '--initial-position-right': '24px', '--background': '#1DB954' }}
-          onClick={() => navigate('/matches/publish')}
+          onClick={() => navigate(`${basePath}/publish`)}
         >
           <Plus size={24} color="white" />
         </FloatingBubble>
