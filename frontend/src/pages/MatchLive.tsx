@@ -24,10 +24,11 @@ import { Toast } from 'antd-mobile';
 import useAuthStore from '../store/useAuthStore';
 
 const MatchLive: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, tournamentId } = useParams<{ id: string; tournamentId: string }>();
   const navigate = useNavigate();
-  const { isAdmin } = useAuthStore();
-  const admin = isAdmin();
+  const { isAdmin, isTournamentAdmin } = useAuthStore();
+  const admin = isAdmin() || (tournamentId ? isTournamentAdmin(Number(tournamentId)) : false);
+  const basePath = `/tournaments/${tournamentId}/matches`;
   const { show: showConfirm, DialogComponent } = useConfirmDialog();
 
   const [match, setMatch] = useState<any>(null);
@@ -78,8 +79,8 @@ const MatchLive: React.FC = () => {
           prev.map(g => (g.id === updated.id ? { ...g, ...updated } : g))
         );
         if (updated.status === 'FINISHED') {
-          matchApi.getStandings(id).then(setStandings).catch(() => {});
-          matchApi.getStats(id).then(setStats).catch(() => {});
+          matchApi.getStandings(id).then(setStandings).catch(() => { });
+          matchApi.getStats(id).then(setStats).catch(() => { });
         }
       } catch { /* ignore parse errors */ }
     };
@@ -124,7 +125,7 @@ const MatchLive: React.FC = () => {
       {/* ── Nav ── */}
       <nav className="relative z-10 mb-8 flex items-center gap-4">
         <button
-          onClick={() => navigate(`/matches/${id}`)}
+          onClick={() => navigate(`${basePath}/${id}`)}
           className="group flex items-center text-gray-500 dark:text-neutral-500 font-bold hover:text-gray-900 dark:hover:text-white transition-colors"
         >
           <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" />
@@ -143,8 +144,8 @@ const MatchLive: React.FC = () => {
                 try {
                   await apiClient.post(`/api/match/${id}/finish`);
                   Toast.show({ icon: 'success', content: '比赛已结束' });
-                  navigate(`/matches/${id}`);
-                } catch {}
+                  navigate(`${basePath}/${id}`);
+                } catch { }
               }
             }}
             className="ml-auto flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-[11px] font-bold text-red-400 transition-colors hover:bg-red-500/15"
@@ -187,20 +188,18 @@ const MatchLive: React.FC = () => {
             <button
               key={tab}
               onClick={() => setGameTab(tab)}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[11px] font-bold transition-all ${
-                gameTab === tab
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[11px] font-bold transition-all ${gameTab === tab
                   ? 'bg-white dark:bg-white/8 text-gray-900 dark:text-white shadow-sm'
                   : 'text-gray-500 dark:text-neutral-600 hover:text-gray-700 dark:hover:text-neutral-400'
-              }`}
+                }`}
             >
               {tab === 'PLAYING' && (
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
               )}
               {gameStatusLabel[tab]}
               {tabCounts[tab] > 0 && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${
-                  gameTab === tab ? 'bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white' : 'bg-gray-200/50 dark:bg-white/5 text-gray-400 dark:text-neutral-600'
-                }`}>
+                <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${gameTab === tab ? 'bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white' : 'bg-gray-200/50 dark:bg-white/5 text-gray-400 dark:text-neutral-600'
+                  }`}>
                   {tabCounts[tab]}
                 </span>
               )}
@@ -248,9 +247,8 @@ const MatchLive: React.FC = () => {
             standings.standings.map((row, idx) => (
               <div
                 key={row.teamIndex}
-                className={`grid grid-cols-[2rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem] items-center gap-1 px-4 py-3 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02] ${
-                  idx < standings.standings.length - 1 ? 'border-b border-gray-100 dark:border-white/[0.04]' : ''
-                }`}
+                className={`grid grid-cols-[2rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem] items-center gap-1 px-4 py-3 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02] ${idx < standings.standings.length - 1 ? 'border-b border-gray-100 dark:border-white/[0.04]' : ''
+                  }`}
               >
                 <span className={`text-xs font-black ${row.rank === 1 ? 'text-amber-400' : 'text-gray-400 dark:text-neutral-600'}`}>
                   {row.rank}
@@ -284,17 +282,15 @@ const MatchLive: React.FC = () => {
         <div className="mb-5 flex gap-1 rounded-2xl border border-gray-200 dark:border-white/6 bg-gray-100 dark:bg-white/[0.02] p-1">
           <button
             onClick={() => setStatsTab('scorers')}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[11px] font-bold transition-all ${
-              statsTab === 'scorers' ? 'bg-white dark:bg-white/8 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-neutral-600 hover:text-gray-700 dark:hover:text-neutral-400'
-            }`}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[11px] font-bold transition-all ${statsTab === 'scorers' ? 'bg-white dark:bg-white/8 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-neutral-600 hover:text-gray-700 dark:hover:text-neutral-400'
+              }`}
           >
             <Target size={12} /> 射手榜
           </button>
           <button
             onClick={() => setStatsTab('assisters')}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[11px] font-bold transition-all ${
-              statsTab === 'assisters' ? 'bg-white dark:bg-white/8 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-neutral-600 hover:text-gray-700 dark:hover:text-neutral-400'
-            }`}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[11px] font-bold transition-all ${statsTab === 'assisters' ? 'bg-white dark:bg-white/8 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-neutral-600 hover:text-gray-700 dark:hover:text-neutral-400'
+              }`}
           >
             <Handshake size={12} /> 助攻榜
           </button>
@@ -317,16 +313,14 @@ const MatchLive: React.FC = () => {
             return list.map((p, idx) => (
               <div
                 key={p.playerId}
-                className={`flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02] ${
-                  idx < list.length - 1 ? 'border-b border-gray-100 dark:border-white/[0.04]' : ''
-                }`}
+                className={`flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02] ${idx < list.length - 1 ? 'border-b border-gray-100 dark:border-white/[0.04]' : ''
+                  }`}
               >
-                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${
-                  idx === 0 ? 'bg-amber-400/15 text-amber-400' :
-                  idx === 1 ? 'bg-neutral-400/15 text-neutral-400' :
-                  idx === 2 ? 'bg-amber-700/15 text-amber-700' :
-                  'bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-neutral-600'
-                }`}>
+                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${idx === 0 ? 'bg-amber-400/15 text-amber-400' :
+                    idx === 1 ? 'bg-neutral-400/15 text-neutral-400' :
+                      idx === 2 ? 'bg-amber-700/15 text-amber-700' :
+                        'bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-neutral-600'
+                  }`}>
                   {idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">

@@ -10,9 +10,8 @@ const matchStatusMeta: Record<string, { label: string; badgeClass: string }> = {
   PREPARING: { label: '筹备中', badgeClass: 'border-neutral-500/20 bg-neutral-500/10 text-neutral-400' },
   PUBLISHED: { label: '报名中', badgeClass: 'border-primary/20 bg-primary/10 text-primary' },
   REGISTRATION_CLOSED: { label: '报名已截止', badgeClass: 'border-sky-500/20 bg-sky-500/10 text-sky-400' },
-  GROUPING_DRAFT: { label: '分组中', badgeClass: 'border-violet-500/20 bg-violet-500/10 text-violet-400' },
   ONGOING: { label: '比赛中', badgeClass: 'border-orange-500/20 bg-orange-500/10 text-orange-400' },
-  MATCH_FINISHED: { label: '待核算', badgeClass: 'border-amber-500/20 bg-amber-500/10 text-amber-400' },
+  MATCH_FINISHED: { label: '比赛结束', badgeClass: 'border-amber-500/20 bg-amber-500/10 text-amber-400' },
   CANCELLED: { label: '已取消', badgeClass: 'border-red-500/20 bg-red-500/10 text-red-400' },
 };
 

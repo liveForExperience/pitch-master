@@ -19,6 +19,8 @@ public class PlayerRatingHistory {
 
     private Long playerId;
 
+    private Long tournamentId;
+
     private Long matchId;
 
     private String dimension;

@@ -202,7 +202,6 @@ public class MatchController {
     }
 
     @PostMapping("/{matchId}/rollback")
-    @RequiresRoles("admin")
     public Result<Void> rollbackStatus(@PathVariable Long matchId, @RequestParam String targetStatus) {
         matchService.rollbackMatchStatus(matchId, targetStatus);
         return Result.success();
@@ -244,15 +243,25 @@ public class MatchController {
     }
 
     @GetMapping("/{matchId}/eligible-players")
-    @RequiresRoles("admin")
     public Result<List<com.bottomlord.entity.Player>> getEligiblePlayers(@PathVariable Long matchId) {
         return Result.success(matchService.getEligiblePlayers(matchId));
     }
 
     @PostMapping("/{matchId}/admin/add-player")
-    @RequiresRoles("admin")
     public Result<Void> adminAddPlayer(@PathVariable Long matchId, @RequestParam Long playerId) {
         matchService.adminAddPlayer(matchId, playerId);
+        return Result.success();
+    }
+
+    @PostMapping("/{matchId}/admin/batch-add-players")
+    public Result<Void> adminBatchAddPlayers(@PathVariable Long matchId, @RequestBody List<Long> playerIds) {
+        matchService.adminBatchAddPlayers(matchId, playerIds);
+        return Result.success();
+    }
+
+    @PostMapping("/{matchId}/admin/cancel-player")
+    public Result<Void> adminCancelPlayer(@PathVariable Long matchId, @RequestParam Long playerId) {
+        matchService.adminCancelRegistration(matchId, playerId);
         return Result.success();
     }
 }

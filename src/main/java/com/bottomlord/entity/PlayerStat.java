@@ -18,6 +18,8 @@ public class PlayerStat {
 
     private Long playerId;
 
+    private Long tournamentId;
+
     private Integer totalMatches;
 
     private Integer wins;

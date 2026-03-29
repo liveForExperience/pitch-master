@@ -15,6 +15,7 @@ import com.bottomlord.entity.GameParticipant;
 import com.bottomlord.entity.MatchGoal;
 import com.bottomlord.entity.MatchScoreLog;
 import com.bottomlord.entity.PlayerMutualRating;
+import com.bottomlord.entity.User;
 import com.bottomlord.mapper.GameParticipantMapper;
 import com.bottomlord.mapper.MatchGoalMapper;
 import com.bottomlord.mapper.MatchMapper;
@@ -24,6 +25,7 @@ import com.bottomlord.service.MatchService;
 import com.bottomlord.service.MatchGameService;
 import com.bottomlord.service.MatchRegistrationService;
 import com.bottomlord.service.PlayerService;
+import com.bottomlord.service.TournamentService;
 import com.bottomlord.strategy.GroupingStrategy;
 import com.bottomlord.strategy.GroupingStrategyFactory;
 import com.bottomlord.mapper.TournamentMapper;
@@ -79,6 +81,9 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
 
     @Autowired
     private PlayerMutualRatingMapper playerMutualRatingMapper;
+
+    @Autowired
+    private TournamentService tournamentService;
 
     @Override
     public Match getMatchDetail(Long matchId) {
@@ -361,7 +366,6 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         String status = match.getStatus();
         boolean groupingRelevant = Match.STATUS_PUBLISHED.equals(status)
                 || Match.STATUS_REGISTRATION_CLOSED.equals(status)
-                || Match.STATUS_GROUPING_DRAFT.equals(status)
                 || Match.STATUS_ONGOING.equals(status)
                 || Match.STATUS_MATCH_FINISHED.equals(status);
 
@@ -392,10 +396,10 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Transactional(rollbackFor = Exception.class)
     public void startMatch(Long matchId, LocalDateTime actualStartTime) {
         Match match = this.getById(matchId);
+        assertMatchAdmin(match);
         
-        if (!Match.STATUS_REGISTRATION_CLOSED.equals(match.getStatus()) 
-                && !Match.STATUS_GROUPING_DRAFT.equals(match.getStatus())) {
-            throw new IllegalStateException("只有报名截止或分组草稿状态下才能开赛");
+        if (!Match.STATUS_REGISTRATION_CLOSED.equals(match.getStatus())) {
+            throw new IllegalStateException("只有报名截止状态下才能开赛");
         }
 
         if (actualStartTime == null) {
@@ -717,10 +721,10 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     }
 
     @Override
-    @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void rollbackMatchStatus(Long matchId, String targetStatus) {
         Match match = getById(matchId);
+        assertMatchAdmin(match);
         if (match == null) {
             throw new IllegalArgumentException("赛事不存在");
         }
@@ -729,9 +733,15 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
             throw new IllegalStateException("只能从 ONGOING 状态回退");
         }
 
-        if (!Match.STATUS_REGISTRATION_CLOSED.equals(targetStatus) 
-                && !Match.STATUS_GROUPING_DRAFT.equals(targetStatus)) {
-            throw new IllegalArgumentException("只能回退到 REGISTRATION_CLOSED 或 GROUPING_DRAFT 状态");
+        if (!Match.STATUS_REGISTRATION_CLOSED.equals(targetStatus)) {
+            throw new IllegalArgumentException("只能回退到 REGISTRATION_CLOSED 状态");
+        }
+
+        long startedGameCount = gameService.count(new LambdaQueryWrapper<MatchGame>()
+                .eq(MatchGame::getMatchId, matchId)
+                .in(MatchGame::getStatus, "PLAYING", "FINISHED"));
+        if (startedGameCount > 0) {
+            throw new IllegalStateException("已有场次开始或结束，无法回退状态");
         }
 
         gameService.remove(new LambdaQueryWrapper<MatchGame>()
@@ -849,12 +859,12 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     }
 
     @Override
-    @RequiresRoles("admin")
     public List<Player> getEligiblePlayers(Long matchId) {
         Match match = this.getById(matchId);
         if (match == null) {
             throw new IllegalArgumentException("赛事不存在");
         }
+        assertMatchAdmin(match);
 
         List<Player> allPlayers = playerService.list(new LambdaQueryWrapper<Player>()
                 .eq(Player::getTournamentId, match.getTournamentId())
@@ -873,13 +883,13 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     }
 
     @Override
-    @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
     public void adminAddPlayer(Long matchId, Long playerId) {
         Match match = this.getById(matchId);
         if (match == null) {
             throw new IllegalArgumentException("赛事不存在");
         }
+        assertMatchAdmin(match);
 
         if (!Match.STATUS_PUBLISHED.equals(match.getStatus()) 
                 && !Match.STATUS_REGISTRATION_CLOSED.equals(match.getStatus())) {
@@ -911,6 +921,60 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
             reg.setStatus("REGISTERED");
             reg.setIsExempt(false);
             registrationService.save(reg);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void adminBatchAddPlayers(Long matchId, List<Long> playerIds) {
+        Match match = this.getById(matchId);
+        assertMatchAdmin(match);
+
+        if (CollUtil.isEmpty(playerIds)) {
+            return;
+        }
+
+        List<Long> deduplicatedPlayerIds = playerIds.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+
+        for (Long playerId : deduplicatedPlayerIds) {
+            adminAddPlayer(matchId, playerId);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void adminCancelRegistration(Long matchId, Long playerId) {
+        Match match = this.getById(matchId);
+        assertMatchAdmin(match);
+
+        MatchRegistration reg = registrationService.getOne(new LambdaQueryWrapper<MatchRegistration>()
+                .eq(MatchRegistration::getMatchId, matchId)
+                .eq(MatchRegistration::getPlayerId, playerId)
+                .in(MatchRegistration::getStatus, "REGISTERED", "PENDING"));
+
+        if (reg == null) {
+            return;
+        }
+
+        reg.setStatus("CANCELLED");
+        reg.setGroupIndex(null);
+        registrationService.updateById(reg);
+    }
+
+    private void assertMatchAdmin(Match match) {
+        if (match == null) {
+            throw new IllegalArgumentException("赛事不存在");
+        }
+        Object principal = SecurityUtils.getSubject().getPrincipal();
+        if (!(principal instanceof User)) {
+            throw new SecurityException("权限不足");
+        }
+        User user = (User) principal;
+        if (!tournamentService.isAdmin(match.getTournamentId(), user.getId())) {
+            throw new SecurityException("权限不足");
         }
     }
 }

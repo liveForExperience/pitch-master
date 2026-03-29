@@ -73,6 +73,16 @@ public class Player extends BaseEntity {
     private String preferredFoot;
 
     /**
+     * 性别: MALE / FEMALE
+     */
+    private String gender;
+
+    /**
+     * 身高(cm)
+     */
+    private Integer height;
+
+    /**
      * 状态：1-活跃，0-隐退
      */
     private Integer status;

@@ -17,6 +17,8 @@ public class PlayerRatingProfile {
 
     private Long playerId;
 
+    private Long tournamentId;
+
     private BigDecimal skillRating;
 
     private BigDecimal performanceRating;

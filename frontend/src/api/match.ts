@@ -123,6 +123,12 @@ export const matchApi = {
   adminAddPlayer: (matchId: string | number, playerId: number): Promise<void> =>
     apiClient.post(`/api/match/${matchId}/admin/add-player?playerId=${playerId}`),
 
+  adminBatchAddPlayers: (matchId: string | number, playerIds: number[]): Promise<void> =>
+    apiClient.post(`/api/match/${matchId}/admin/batch-add-players`, playerIds),
+
+  adminCancelPlayer: (matchId: string | number, playerId: number): Promise<void> =>
+    apiClient.post(`/api/match/${matchId}/admin/cancel-player?playerId=${playerId}`),
+
   settlement: (matchId: string | number, request: SettlementRequest): Promise<void> =>
     apiClient.post(`/api/match/${matchId}/settlement`, request),
 

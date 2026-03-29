@@ -109,6 +109,16 @@ Frontend architecture and design system
 
 **When to read**: Before frontend development, when designing new pages
 
+#### [FRONTEND_TOURNAMENT_MAPPING.md](./FRONTEND_TOURNAMENT_MAPPING.md)
+Tournament list card field-to-copy mapping reference
+- UI copy to API field mapping
+- API field to DB column mapping
+- `joinMode` copy rules (`OPEN`/`APPROVAL`)
+- Default seed data source and migration references
+- Required doc-sync checklist for frontend mapping changes
+
+**When to read**: Before modifying `TournamentList` card copy, frontend field mapping, or `/api/tournament/list` integration
+
 ---
 
 ## Quick Reference
@@ -123,6 +133,7 @@ Frontend architecture and design system
 | Implement new feature | [WORKFLOW.md](./WORKFLOW.md) | All docs |
 | Debug state machine | [WORKFLOW.md](./WORKFLOW.md) | [DATA_MODEL.md](./DATA_MODEL.md) |
 | Frontend integration | [API_SPEC.md](./API_SPEC.md) + [UI_DESIGN.md](./UI_DESIGN.md) | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| Modify Tournament card mapping/copy | [FRONTEND_TOURNAMENT_MAPPING.md](./FRONTEND_TOURNAMENT_MAPPING.md) | [WORKFLOW.md](./WORKFLOW.md) + [API_SPEC.md](./API_SPEC.md) |
 
 ### Key Principles
 
@@ -167,6 +178,7 @@ This documentation should be updated when:
 - Changing API endpoints or contracts
 - Updating business logic or state machines
 - Modifying rating calculation algorithms
+- Changing Tournament list mapping/copy rules (`name`/`description`/`joinMode`/`maxPlayers`)
 - Introducing new design patterns
 - Changing development workflows
 

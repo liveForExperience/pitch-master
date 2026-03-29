@@ -67,7 +67,6 @@ public class Match extends BaseEntity {
      */
     public static final String STATUS_PREPARING = "PREPARING";
     public static final String STATUS_PUBLISHED = "PUBLISHED";
-    public static final String STATUS_GROUPING_DRAFT = "GROUPING_DRAFT";
     public static final String STATUS_REGISTRATION_CLOSED = "REGISTRATION_CLOSED";
     public static final String STATUS_ONGOING = "ONGOING";
     public static final String STATUS_MATCH_FINISHED = "MATCH_FINISHED";

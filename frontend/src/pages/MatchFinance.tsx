@@ -17,15 +17,16 @@ interface LocalReg {
 }
 
 const MatchFinance: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, tournamentId } = useParams<{ id: string; tournamentId: string }>();
   const navigate = useNavigate();
-  const { isAdmin, fetched } = useAuthStore();
+  const { isAdmin, isTournamentAdmin, fetched } = useAuthStore();
+  const basePath = `/tournaments/${tournamentId}/matches`;
   const { show: showConfirm, DialogComponent } = useConfirmDialog();
 
   useEffect(() => {
-    if (fetched && !isAdmin()) {
+    if (fetched && !isAdmin() && !(tournamentId && isTournamentAdmin(Number(tournamentId)))) {
       Toast.show({ icon: 'fail', content: '权限不足' });
-      navigate(`/matches/${id}`, { replace: true });
+      navigate(`${basePath}/${id}`, { replace: true });
     }
   }, [fetched, isAdmin, navigate, id]);
 
@@ -85,9 +86,9 @@ const MatchFinance: React.FC = () => {
       Toast.show('没有可参与分摊的人员');
       return;
     }
-    
+
     const perPerson = Math.ceil(cost / eligibleRegs.length);
-    
+
     setRegistrations(prev => prev.map((reg) => {
       if (reg.isExempt) {
         return { ...reg, paymentAmount: 0 };
@@ -124,10 +125,10 @@ const MatchFinance: React.FC = () => {
       await apiClient.post(`/api/match/${id}/payment`, null, {
         params: { playerId, status: nextStatus }
       });
-      setRegistrations(prev => prev.map(reg => 
+      setRegistrations(prev => prev.map(reg =>
         reg.playerId === playerId ? { ...reg, paymentStatus: nextStatus } : reg
       ));
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleBatchPay = async () => {
@@ -136,12 +137,12 @@ const MatchFinance: React.FC = () => {
       content: '是否将所有未支付的人员(不含豁免)一键标记为已支付？'
     });
     if (!confirmed) return;
-    
+
     try {
       await matchApi.batchUpdatePayment(id!);
       Toast.show({ icon: 'success', content: '批量更新成功' });
       fetchData();
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleSaveAndPublish = async () => {
@@ -149,15 +150,15 @@ const MatchFinance: React.FC = () => {
       Toast.show('请输入总费用');
       return;
     }
-    
+
     const confirmed = await showConfirm({
       title: isPublished ? '更新结算' : '确认发布结算',
-      content: isPublished 
+      content: isPublished
         ? '修改金额会使相关人员支付状态变回未支付，确定继续？'
         : '确定后，所有球员将看到自己的应付金额。'
     });
     if (!confirmed) return;
-    
+
     setSaving(true);
     try {
       await matchApi.settlement(id!, {
@@ -171,7 +172,7 @@ const MatchFinance: React.FC = () => {
       });
       Toast.show({ icon: 'success', content: '发布成功' });
       fetchData();
-    } catch (e) {} finally {
+    } catch (e) { } finally {
       setSaving(false);
     }
   };
@@ -210,7 +211,7 @@ const MatchFinance: React.FC = () => {
       <DialogComponent />
 
       <div className="p-4 space-y-6">
-        
+
         {/* Total Cost Card */}
         <div className="bg-white dark:bg-gradient-to-br dark:from-neutral-900 dark:to-neutral-800 border border-gray-200 dark:border-neutral-800 rounded-3xl p-6 shadow-sm">
           <div className="flex justify-between items-center mb-4">
@@ -221,7 +222,7 @@ const MatchFinance: React.FC = () => {
           </div>
           <div className="flex items-end gap-3 mb-4">
             <span className="text-2xl font-black text-neutral-400 mb-1">¥</span>
-            <input 
+            <input
               type="number"
               value={totalCost}
               onChange={e => setTotalCost(e.target.value)}
@@ -233,7 +234,7 @@ const MatchFinance: React.FC = () => {
             <div className="text-neutral-500">
               各人分摊之和: <span className={`font-bold ${currentTotalCalculated < parseFloat(totalCost || '0') ? 'text-amber-500' : 'text-primary'}`}>¥{currentTotalCalculated.toFixed(2)}</span>
             </div>
-            <button 
+            <button
               onClick={autoSplit}
               className="flex items-center gap-1 text-primary bg-primary/10 px-3 py-1.5 rounded-full font-bold transition-colors hover:bg-primary/20"
             >
@@ -250,7 +251,7 @@ const MatchFinance: React.FC = () => {
                 {registrations.filter(r => r.paymentStatus === 'PAID' || r.isExempt).length} / {registrations.length}
               </div>
             </div>
-            <button 
+            <button
               onClick={handleBatchPay}
               className="flex items-center gap-1.5 bg-neutral-800 text-white dark:bg-white dark:text-black px-4 py-2.5 rounded-xl font-bold text-sm shadow-lg hover:opacity-90 active:scale-95 transition-all"
             >
@@ -281,7 +282,7 @@ const MatchFinance: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {isPublished && !reg.isExempt && (
                     <div className="flex flex-col items-end gap-1">
                       <span className="text-[10px] font-bold text-neutral-500">已支付</span>
@@ -298,11 +299,11 @@ const MatchFinance: React.FC = () => {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex items-center gap-3 mt-1 bg-gray-50 dark:bg-neutral-800/50 p-2 rounded-xl border border-gray-100 dark:border-white/5">
                   <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 dark:text-neutral-400">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={reg.isExempt}
                       onChange={e => handleRegUpdate(reg.playerId, 'isExempt', e.target.checked)}
                       className="accent-primary rounded-sm w-3.5 h-3.5"
@@ -310,7 +311,7 @@ const MatchFinance: React.FC = () => {
                   </label>
                   <div className="flex-1 flex justify-end items-center gap-2">
                     <span className="text-xs font-bold text-neutral-500">¥</span>
-                    <input 
+                    <input
                       type="number"
                       value={reg.paymentAmount}
                       onChange={e => handleRegUpdate(reg.playerId, 'paymentAmount', e.target.value)}

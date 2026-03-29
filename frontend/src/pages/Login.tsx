@@ -33,7 +33,7 @@ const Login: React.FC = () => {
       await apiClient.post('/auth/login', formData);
       await useAuthStore.getState().fetchMe();
       Toast.show({ icon: 'success', content: '欢迎回来，老男孩' });
-      navigate('/matches');
+      navigate('/tournaments');
     } catch (err) {
       // 错误已由拦截器处理
     } finally {

@@ -2,6 +2,7 @@ import { useLayoutEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import TournamentList from './pages/TournamentList';
 import MatchList from './pages/MatchList';
 import MatchDetail from './pages/MatchDetail';
 import MatchFinance from './pages/MatchFinance';
@@ -28,7 +29,7 @@ const ThemeApplier = () => {
 // 导航包装组件：处理全局导航的显示逻辑
 const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const hideNavPaths = ['/login', '/register'];
+  const hideNavPaths = ['/login', '/register', '/tournaments'];
   const shouldShowNav = !hideNavPaths.includes(location.pathname);
 
   return (
@@ -50,18 +51,28 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/matches" element={<MatchList />} />
-          <Route path="/matches/publish" element={<MatchPublish />} />
-          <Route path="/matches/trash" element={<MatchTrash />} />
-          <Route path="/matches/:id" element={<MatchDetail />} />
-          <Route path="/matches/:id/edit" element={<MatchPublish />} />
-          <Route path="/matches/:id/finance" element={<MatchFinance />} />
-          <Route path="/matches/:id/grouping" element={<MatchGrouping />} />
-          <Route path="/matches/:id/live" element={<MatchLive />} />
-          <Route path="/matches/:id/games/:gameId" element={<GameDetail />} />
+
+          {/* Tournament 大厅（登录后首页） */}
+          <Route path="/tournaments" element={<TournamentList />} />
+
+          {/* Tournament 维度下的赛事路由 */}
+          <Route path="/tournaments/:tournamentId/matches" element={<MatchList />} />
+          <Route path="/tournaments/:tournamentId/matches/publish" element={<MatchPublish />} />
+          <Route path="/tournaments/:tournamentId/matches/trash" element={<MatchTrash />} />
+          <Route path="/tournaments/:tournamentId/matches/:id" element={<MatchDetail />} />
+          <Route path="/tournaments/:tournamentId/matches/:id/edit" element={<MatchPublish />} />
+          <Route path="/tournaments/:tournamentId/matches/:id/finance" element={<MatchFinance />} />
+          <Route path="/tournaments/:tournamentId/matches/:id/grouping" element={<MatchGrouping />} />
+          <Route path="/tournaments/:tournamentId/matches/:id/live" element={<MatchLive />} />
+          <Route path="/tournaments/:tournamentId/matches/:id/games/:gameId" element={<GameDetail />} />
+
+          {/* 兼容旧路由：重定向到 tournaments */}
+          <Route path="/matches" element={<Navigate to="/tournaments" replace />} />
+          <Route path="/matches/*" element={<Navigate to="/tournaments" replace />} />
+
           <Route path="/player/rating-demo" element={<PlayerRatingDemo />} />
-          <Route path="/" element={<Navigate to="/matches" replace />} />
-          <Route path="*" element={<Navigate to="/matches" replace />} />
+          <Route path="/" element={<Navigate to="/tournaments" replace />} />
+          <Route path="*" element={<Navigate to="/tournaments" replace />} />
         </Routes>
       </LayoutWrapper>
     </Router>

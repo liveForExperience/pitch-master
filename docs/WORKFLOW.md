@@ -215,6 +215,7 @@ sequenceDiagram
     - 同一提交中尽量同时收口代码、迁移、文档、必要验证。
 * **文档是交付物的一部分**：
     - 只要接口、数据模型、状态流、评分规则发生变化，就同步更新 `docs/`。
+    - 若涉及 `frontend/src/pages/TournamentList.tsx` 的字段映射文案（如 `joinMode -> 自由加入/需审批`），必须同步更新 `docs/FRONTEND_TOURNAMENT_MAPPING.md`。
 * **维护性优先于短期快写**：
     - 避免临时逻辑散落在 Controller 和页面。
     - 核心业务规则统一沉淀在 Service、Migration、文档中。
@@ -292,6 +293,7 @@ sequenceDiagram
 * **核心接口可用**
 * **关键页面可操作**
 * **文档已同步**
+* **若改动 Tournament 卡片映射，`docs/FRONTEND_TOURNAMENT_MAPPING.md` 已同步**
 * **Git 改动范围清晰**
 * **提交信息能准确说明目的**
 
@@ -363,6 +365,7 @@ sequenceDiagram
 - docs/API_SPEC.md 是否同步
 - docs/DATA_MODEL.md 是否同步
 - docs/ARCHITECTURE.md 或 docs/WORKFLOW.md 是否同步
+- 若改动 Tournament 列表文案/映射，docs/FRONTEND_TOURNAMENT_MAPPING.md 是否同步
 - 是否需要补测试或手工验证
 ```
 

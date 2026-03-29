@@ -6,29 +6,44 @@
 
 | 层级 | 概念名称 | 业务定义 | 核心属性 |
 | :--- | :--- | :--- | :--- |
-| **L1: 租户层** | **Tournament (赛事)** | 系统的顶层容器，定义全局规则。 | 名称、规则配置、租户ID |
+| **L0: 平台层** | **Platform (平台)** | 隐式的最顶层概念，管理所有 Tournament。 | 平台管理员角色 |
+| **L1: 租户层** | **Tournament (赛事)** | 系统的顶层容器，定义全局规则。 | 名称、加入模式(OPEN/APPROVAL)、最大人数 |
 | **L2: 组织层** | **Club (俱乐部/球队)** | 球员的归属单位，属于具体赛事。 | 名称、Logo、所属赛事ID |
-| **L3: 身份层** | **User / Player** | **User** 是账户主体（权限控制），**Player** 是竞赛主体（数据记录）。 | 账号、角色(admin/player)、能力值 |
+| **L3: 身份层** | **User / Player / TournamentPlayer** | **User** = 账户，**Player** = 全局球员档案，**TournamentPlayer** = 赛事级数据。 | 账号、角色、全局属性、赛事级评分 |
 | **L4: 活动层** | **Match (比赛)** | 一次具体的活动实例。 | 时间、报名列表、计划场次、状态机 |
 | **L5: 执行层** | **Game (场次)** | Match 中的具体对阵。 | 比分、实时统计 |
 
 ## 2. 核心关系与角色
 
-### 2.1 身份与权限 (Roles & Identity)
-系统采用“身份与权限解耦”的设计，支持以下场景：
-*   **Player (球员)**：系统中最基础的竞赛主体。在 `player` 表中有档案的用户即为球员。
-*   **Admin (管理员)**：拥有赛事管理权限的用户。
-*   **身份叠加 (Overlap)**：**一个用户可以同时拥有 `admin` 和 `player` 身份**。
-    - 当其以 `admin` 身份操作时，可以发布赛事、处理结算。
-    - 当其以 `player` 身份操作时，可以报名参赛、产生进球数据、参与评分。
-*   **关系约束**：`User` 与 `Player` 始终保持 1:1 关系，确保每个账号对应唯一的竞技档案。
+### 2.1 角色与权限 (Roles & Identity)
 
-### 2.2 组织关系
+系统采用三级角色体系：
+
+| 角色 | 作用域 | 权限 |
+| :--- | :--- | :--- |
+| **platform_admin** | 全平台 | 创建/管理所有 Tournament，任命 Tournament 管理员 |
+| **tournament_admin** | 指定 Tournament | 管理其下所有赛事、球员、分组、结算 |
+| **player** | 全局 + 赛事级 | 加入 Tournament、报名参赛、进球数据、参与评分 |
+
+*   **身份叠加**：一个用户可同时拥有 `platform_admin`、`tournament_admin`、`player` 身份。
+*   **向后兼容**：原有 `admin` 角色自动映射为 `platform_admin`。
+*   **关系约束**：`User` 与 `Player` 保持 1:1 关系（全局球员档案），一个 `Player` 可通过 `TournamentPlayer` 加入多个 Tournament。
+
+### 2.2 球员数据分层
+
+| 实体 | 作用域 | 存储内容 |
+| :--- | :--- | :--- |
+| **Player** | 全局 | 昵称、位置、年龄、性别、身高、惯用脚、俱乐部 |
+| **TournamentPlayer** | 赛事级 | 加入状态(ACTIVE/PENDING/LEFT)、赛事内评分、昵称覆写、球衣号 |
+| **PlayerRatingProfile** | 赛事级 | Skill/Performance/Engagement 三维评分 |
+| **PlayerStat** | 赛事级 | 胜/平/负、进球、助攻、MVP 统计 |
+
+### 2.3 组织关系
 * 一个 **Tournament** 包含多个 **Club**。
-* 一个 **Player** 必须归属于一个 **Club**。
-* **Admin** 属于 **Tournament**，拥有管理其下所有俱乐部、球员和比赛的权限。
+* 一个 **Player** 可加入多个 **Tournament**（通过 `TournamentPlayer` 关联）。
+* **tournament_admin** 通过 `tournament_admin` 表关联，拥有管理其下所有俱乐部、球员和比赛的权限。
 
-### 2.3 活动与执行
+### 2.4 活动与执行
 * 一场 **Match** 包含多次 **Game**（基于分组算法动态生成）。
 * **计划场次 (Planned Game Count)**：由管理员在发布活动时设定，直接影响系统自动排赛的数量。
 * **Registration (报名)** 是球员（或未来俱乐部）参与 **Match** 的凭证。

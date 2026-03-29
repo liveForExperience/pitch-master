@@ -124,9 +124,10 @@ const DroppableUnassigned: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 const MatchGrouping: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, tournamentId } = useParams<{ id: string; tournamentId: string }>();
   const navigate = useNavigate();
-  const { isAdmin, fetched } = useAuthStore();
+  const { isAdmin, isTournamentAdmin, fetched } = useAuthStore();
+  const basePath = `/tournaments/${tournamentId}/matches`;
   const { show: showConfirm, DialogComponent } = useConfirmDialog();
 
   const [vo, setVo] = useState<GroupsVO | null>(null);
@@ -152,9 +153,9 @@ const MatchGrouping: React.FC = () => {
   );
 
   useEffect(() => {
-    if (fetched && !isAdmin()) {
+    if (fetched && !isAdmin() && !(tournamentId && isTournamentAdmin(Number(tournamentId)))) {
       Toast.show({ icon: 'fail', content: '权限不足' });
-      navigate(`/matches/${id}`, { replace: true });
+      navigate(`${basePath}/${id}`, { replace: true });
     }
   }, [fetched, isAdmin, navigate, id]);
 
@@ -273,7 +274,7 @@ const MatchGrouping: React.FC = () => {
       const actualStartTime = new Date().toISOString();
       await matchApi.startMatch(id!, actualStartTime);
       Toast.show({ icon: 'success', content: '比赛已开始！' });
-      navigate(`/matches/${id}`, { replace: true });
+      navigate(`${basePath}/${id}`, { replace: true });
     } catch {}
   };
 

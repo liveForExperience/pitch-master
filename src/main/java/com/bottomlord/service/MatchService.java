@@ -192,7 +192,7 @@ public interface MatchService extends IService<Match> {
 
     /**
      * 回退赛事状态（仅限管理员）
-     * 允许从 ONGOING 回退到 REGISTRATION_CLOSED 或 GROUPING_DRAFT
+     * 允许从 ONGOING 回退到 REGISTRATION_CLOSED
      *
      * @param matchId 赛事ID
      * @param targetStatus 目标状态
@@ -253,4 +253,21 @@ public interface MatchService extends IService<Match> {
      * @param playerId 球员ID
      */
     void adminAddPlayer(Long matchId, Long playerId);
+
+    /**
+     * 管理员批量强制添加球员（仅限管理员，绕过容量限制）
+     * 允许状态：PUBLISHED 或 REGISTRATION_CLOSED
+     *
+     * @param matchId 赛事ID
+     * @param playerIds 球员ID列表
+     */
+    void adminBatchAddPlayers(Long matchId, List<Long> playerIds);
+
+    /**
+     * 管理员取消报名（仅限管理员，一律设为 CANCELLED）
+     *
+     * @param matchId 赛事ID
+     * @param playerId 球员ID
+     */
+    void adminCancelRegistration(Long matchId, Long playerId);
 }

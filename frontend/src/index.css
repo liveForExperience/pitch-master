@@ -56,9 +56,11 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 10px;
@@ -74,6 +76,7 @@ body {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
+
 .dark .glass {
   background: rgba(28, 28, 30, 0.7);
 }
@@ -83,16 +86,25 @@ body {
   background: var(--bg-surface);
   border-color: var(--border-color);
 }
+
 .dark .card-surface {
-  background: radial-gradient(circle at top right, rgba(255,255,255,0.08), transparent 24%),
-              linear-gradient(180deg, rgba(24,24,27,1) 0%, rgba(10,10,10,1) 100%);
+  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(24, 24, 27, 1) 0%, rgba(10, 10, 10, 1) 100%);
 }
 
 /* 呼吸灯动效 */
 @keyframes glow {
-  0% { box-shadow: 0 0 5px var(--primary-glow); }
-  50% { box-shadow: 0 0 20px var(--primary-glow); }
-  100% { box-shadow: 0 0 5px var(--primary-glow); }
+  0% {
+    box-shadow: 0 0 5px var(--primary-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 20px var(--primary-glow);
+  }
+
+  100% {
+    box-shadow: 0 0 5px var(--primary-glow);
+  }
 }
 
 .animate-glow {
@@ -154,4 +166,3 @@ body {
 .dark .auth-selector .adm-selector-item-check-mark-wrapper {
   color: #1db954;
 }
-

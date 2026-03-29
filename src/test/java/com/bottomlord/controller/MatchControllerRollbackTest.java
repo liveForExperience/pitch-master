@@ -59,7 +59,7 @@ class MatchControllerRollbackTest {
         Long matchId = 1L;
         String invalidStatus = "INVALID_STATUS";
 
-        doThrow(new IllegalArgumentException("只能回退到 REGISTRATION_CLOSED 或 GROUPING_DRAFT 状态"))
+        doThrow(new IllegalArgumentException("只能回退到 REGISTRATION_CLOSED 状态"))
                 .when(matchService).rollbackMatchStatus(matchId, invalidStatus);
 
         assertThrows(IllegalArgumentException.class, () -> {

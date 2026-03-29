@@ -14,8 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-
 /**
  * 用户服务实现类 (重构：支持球员同步注册)
  *
@@ -79,18 +77,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 3. 为用户分配球员角色
         addRoleToUser(user.getId(), "player");
 
-        // 4. 创建并保存球员档案
+        // 4. 创建并保存球员档案（全局属性，不再绑定 Tournament）
         Player player = new Player();
         player.setUserId(user.getId());
         player.setNickname(request.getNickname());
         player.setPosition(request.getPosition());
         player.setAge(request.getAge());
         player.setPreferredFoot(request.getPreferredFoot() != null ? request.getPreferredFoot() : "RIGHT");
-        
-        // 关联信息 (L1 & L2) - 若请求未传则默认关联租户1和俱乐部1
-        player.setTournamentId(request.getTournamentId() != null ? request.getTournamentId() : 1L);
-        player.setClubId(request.getClubId() != null ? request.getClubId() : 1L);
-        player.setRating(new BigDecimal("5.0")); // 初始默认分
+        player.setGender(request.getGender());
+        player.setHeight(request.getHeight());
         player.setStatus(1);
         
         playerService.save(player);

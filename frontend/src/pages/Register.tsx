@@ -23,6 +23,11 @@ const preferredFootOptions = [
   { label: '双脚', value: 'BOTH' },
 ];
 
+const genderOptions = [
+  { label: '男', value: 'MALE' },
+  { label: '女', value: 'FEMALE' },
+];
+
 const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [formValues, setFormValues] = useState({
@@ -33,6 +38,8 @@ const Register: React.FC = () => {
     age: 25,
     preferredFoot: ['RIGHT'],
     position: ['MF'],
+    gender: ['MALE'],
+    height: 175,
   });
   const navigate = useNavigate();
   const { theme, setTheme } = useThemeStore();
@@ -61,6 +68,8 @@ const Register: React.FC = () => {
         age: formValues.age,
         preferredFoot: formValues.preferredFoot[0],
         position,
+        gender: formValues.gender[0],
+        height: formValues.height,
       };
       await apiClient.post('/auth/register', payload);
       const formData = new FormData();
@@ -69,7 +78,7 @@ const Register: React.FC = () => {
       await apiClient.post('/auth/login', formData);
       await useAuthStore.getState().fetchMe();
       Toast.show({ icon: 'success', content: '激活成功，欢迎加入！' });
-      navigate('/matches');
+      navigate('/tournaments');
     } catch (err) {
     } finally {
       setLoading(false);
@@ -227,6 +236,38 @@ const Register: React.FC = () => {
                       style={{ '--border-radius': '16px', '--checked-color': '#1DB954' }}
                     />
                   </div>
+                </AuthField>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <AuthField label="性别">
+                  <div className="auth-selector">
+                    <Selector 
+                      value={formValues.gender}
+                      onChange={(value) =>
+                        setFormValues((current) => ({
+                          ...current,
+                          gender: value,
+                        }))
+                      }
+                      options={genderOptions}
+                      style={{ '--border-radius': '16px', '--checked-color': '#1DB954' }}
+                    />
+                  </div>
+                </AuthField>
+
+                <AuthField label="身高 (cm)">
+                  <AuthStepper
+                    min={100}
+                    max={220}
+                    value={formValues.height}
+                    onChange={(value) =>
+                      setFormValues((current) => ({
+                        ...current,
+                        height: value,
+                      }))
+                    }
+                  />
                 </AuthField>
               </div>
 
