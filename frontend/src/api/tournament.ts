@@ -29,6 +29,7 @@ export interface AdminUser {
   id: number;
   username: string;
   realName?: string;
+  playerNickname?: string;
   status: number;
 }
 

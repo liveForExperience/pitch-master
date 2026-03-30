@@ -5,6 +5,8 @@ import cn.hutool.crypto.SecureUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.bottomlord.common.base.RegistrationRequest;
+import com.bottomlord.dto.PageResult;
+import com.bottomlord.dto.UserSearchVO;
 import com.bottomlord.entity.Player;
 import com.bottomlord.entity.User;
 import com.bottomlord.mapper.UserMapper;
@@ -114,17 +116,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public java.util.List<User> searchUsers(String keyword) {
-        java.util.List<User> users = this.list(new LambdaQueryWrapper<User>()
-                .and(w -> w.like(User::getUsername, keyword)
-                           .or()
-                           .like(User::getRealName, keyword))
-                .eq(User::getStatus, 1)
-                .last("LIMIT 20"));
-        users.forEach(u -> {
-            u.setPassword(null);
-            u.setSalt(null);
-        });
-        return users;
+    public PageResult<UserSearchVO> searchUsers(String keyword, int page, int pageSize) {
+        String kw = (keyword == null) ? "" : keyword.trim();
+        int offset = (page - 1) * pageSize;
+        java.util.List<UserSearchVO> list = baseMapper.searchUsersPage(kw, offset, pageSize);
+        long total = baseMapper.countSearchUsers(kw);
+        return new PageResult<>(list, total, page, pageSize);
     }
 }

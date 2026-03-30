@@ -52,10 +52,13 @@ public interface UserService extends IService<User> {
     java.util.List<com.bottomlord.entity.Role> getUserRoles(Long userId);
 
     /**
-     * 按用户名或真实姓名模糊搜索用户（脱敏，最多20条）
+     * 按用户名、真实姓名或球场昵称模糊搜索用户（分页）
+     * keyword 为空时返回全部用户（按 ID 倒序）
      *
-     * @param keyword 搜索关键词
-     * @return 用户列表
+     * @param keyword  搜索关键词（可为空）
+     * @param page     页码（从1开始）
+     * @param pageSize 每页条数
+     * @return 分页结果
      */
-    java.util.List<User> searchUsers(String keyword);
+    com.bottomlord.dto.PageResult<com.bottomlord.dto.UserSearchVO> searchUsers(String keyword, int page, int pageSize);
 }

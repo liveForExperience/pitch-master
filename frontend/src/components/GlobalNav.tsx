@@ -6,7 +6,7 @@ import apiClient from '../api/client';
 import useAuthStore from '../store/useAuthStore';
 import useThemeStore from '../store/useThemeStore';
 import { tournamentApi, type Tournament, type AdminUser } from '../api/tournament';
-import { adminApi } from '../api/admin';
+import { adminApi, type PageResult } from '../api/admin';
 const gridStyle = {
   backgroundImage:
     'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
@@ -23,7 +23,8 @@ const GlobalNav: React.FC = () => {
   const [panelAdmins, setPanelAdmins] = useState<AdminUser[]>([]);
   const [panelLoadingAdmins, setPanelLoadingAdmins] = useState(false);
   const [panelSearchQuery, setPanelSearchQuery] = useState('');
-  const [panelSearchResults, setPanelSearchResults] = useState<AdminUser[]>([]);
+  const [panelUserPage, setPanelUserPage] = useState<PageResult<AdminUser> | null>(null);
+  const [panelCurrentPage, setPanelCurrentPage] = useState(1);
   const [panelSearching, setPanelSearching] = useState(false);
   const [panelActionUserId, setPanelActionUserId] = useState<number | null>(null);
   const panelDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -33,12 +34,23 @@ const GlobalNav: React.FC = () => {
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
 
+  const fetchPanelUsers = async (q: string, page: number) => {
+    setPanelSearching(true);
+    try {
+      const result = await adminApi.searchUsers(q, page, 10);
+      setPanelUserPage(result);
+      setPanelCurrentPage(page);
+    } catch {}
+    finally { setPanelSearching(false); }
+  };
+
   const openAdminPanel = async () => {
     setShowProfile(false);
     setSelectedTournament(null);
     setPanelAdmins([]);
     setPanelSearchQuery('');
-    setPanelSearchResults([]);
+    setPanelUserPage(null);
+    setPanelCurrentPage(1);
     setAdminPanelVisible(true);
     try {
       const list = await tournamentApi.list();
@@ -49,27 +61,21 @@ const GlobalNav: React.FC = () => {
   const selectPanelTournament = async (t: Tournament) => {
     setSelectedTournament(t);
     setPanelSearchQuery('');
-    setPanelSearchResults([]);
+    setPanelUserPage(null);
+    setPanelCurrentPage(1);
     setPanelLoadingAdmins(true);
     try {
       const admins = await tournamentApi.getAdmins(t.id);
       setPanelAdmins(admins);
     } catch {}
     finally { setPanelLoadingAdmins(false); }
+    fetchPanelUsers('', 1);
   };
 
   const handlePanelSearch = (val: string) => {
     setPanelSearchQuery(val);
     if (panelDebounceRef.current) clearTimeout(panelDebounceRef.current);
-    if (!val.trim()) { setPanelSearchResults([]); return; }
-    panelDebounceRef.current = setTimeout(async () => {
-      setPanelSearching(true);
-      try {
-        const results = await adminApi.searchUsers(val.trim());
-        setPanelSearchResults(results);
-      } catch {}
-      finally { setPanelSearching(false); }
-    }, 300);
+    panelDebounceRef.current = setTimeout(() => fetchPanelUsers(val, 1), 300);
   };
 
   const handlePanelAdd = async (user: AdminUser) => {
@@ -77,7 +83,7 @@ const GlobalNav: React.FC = () => {
     setPanelActionUserId(user.id);
     try {
       await tournamentApi.addAdmin(selectedTournament.id, user.id);
-      Toast.show({ icon: 'success', content: `已任命 ${user.username} 为管理员` });
+      Toast.show({ icon: 'success', content: `已任命 ${user.playerNickname || user.username} 为管理员` });
       const admins = await tournamentApi.getAdmins(selectedTournament.id);
       setPanelAdmins(admins);
     } catch {}
@@ -89,7 +95,7 @@ const GlobalNav: React.FC = () => {
     setPanelActionUserId(user.id);
     try {
       await tournamentApi.removeAdmin(selectedTournament.id, user.id);
-      Toast.show({ icon: 'success', content: `已移除 ${user.username} 的管理员权限` });
+      Toast.show({ icon: 'success', content: `已移除 ${user.playerNickname || user.username} 的管理员权限` });
       const admins = await tournamentApi.getAdmins(selectedTournament.id);
       setPanelAdmins(admins);
     } catch {}
@@ -355,7 +361,7 @@ const GlobalNav: React.FC = () => {
             <div className="flex items-center gap-3">
               {selectedTournament && (
                 <button
-                  onClick={() => { setSelectedTournament(null); setPanelAdmins([]); setPanelSearchQuery(''); setPanelSearchResults([]); }}
+                  onClick={() => { setSelectedTournament(null); setPanelAdmins([]); setPanelSearchQuery(''); setPanelUserPage(null); }}
                   className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 dark:border-neutral-800 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   <ChevronLeft size={16} />
@@ -424,10 +430,10 @@ const GlobalNav: React.FC = () => {
                               <ShieldCheck size={14} className="text-primary" />
                             </div>
                             <div>
-                              <div className="text-sm font-bold">{admin.username}</div>
-                              {admin.realName && (
-                                <div className="text-[11px] text-gray-400 dark:text-neutral-600">{admin.realName}</div>
-                              )}
+                              <div className="text-sm font-bold">{admin.playerNickname || admin.username}</div>
+                              <div className="text-[11px] text-gray-400 dark:text-neutral-600">
+                                {[admin.playerNickname ? admin.username : null, admin.realName].filter(Boolean).join(' · ')}
+                              </div>
                             </div>
                           </div>
                           <button
@@ -455,7 +461,7 @@ const GlobalNav: React.FC = () => {
                       type="text"
                       value={panelSearchQuery}
                       onChange={e => handlePanelSearch(e.target.value)}
-                      placeholder="搜索用户名或姓名…"
+                      placeholder="搜索球场名 / 用户名 / 真实姓名…"
                       className="flex-1 bg-transparent text-sm font-medium text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-neutral-600 outline-none"
                     />
                     {panelSearching && (
@@ -463,29 +469,23 @@ const GlobalNav: React.FC = () => {
                     )}
                   </div>
 
-                  {panelSearchResults.length > 0 && (
+                  {panelUserPage && panelUserPage.list.length > 0 && (
                     <div className="space-y-2">
-                      {panelSearchResults.map(user => {
+                      {panelUserPage.list.map((user: AdminUser) => {
                         const isAlreadyAdmin = panelAdmins.some(a => a.id === user.id);
+                        const primary = user.playerNickname || user.username;
+                        const secondary = [user.playerNickname ? user.username : null, user.realName].filter(Boolean).join(' · ');
                         return (
-                          <div
-                            key={user.id}
-                            className="flex items-center justify-between rounded-2xl border border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3"
-                          >
+                          <div key={user.id} className="flex items-center justify-between rounded-2xl border border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3">
                             <div>
-                              <div className="text-sm font-bold">{user.username}</div>
-                              {user.realName && (
-                                <div className="text-[11px] text-gray-400 dark:text-neutral-600">{user.realName}</div>
-                              )}
+                              <div className="text-sm font-bold">{primary}</div>
+                              {secondary && <div className="text-[11px] text-gray-400 dark:text-neutral-600">{secondary}</div>}
                             </div>
                             {isAlreadyAdmin ? (
-                              <span className="text-[10px] font-black tracking-wide text-primary/60 uppercase">已是管理员</span>
+                              <span className="text-[10px] font-black tracking-wide text-primary/60 uppercase shrink-0">已是管理员</span>
                             ) : (
-                              <button
-                                onClick={() => handlePanelAdd(user)}
-                                disabled={panelActionUserId === user.id}
-                                className="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-black text-primary hover:bg-primary/20 transition-colors disabled:opacity-40"
-                              >
+                              <button onClick={() => handlePanelAdd(user)} disabled={panelActionUserId === user.id}
+                                className="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-black text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 shrink-0">
                                 <UserPlus size={12} />
                                 任命
                               </button>
@@ -496,8 +496,27 @@ const GlobalNav: React.FC = () => {
                     </div>
                   )}
 
-                  {panelSearchQuery.trim() && !panelSearching && panelSearchResults.length === 0 && (
+                  {panelUserPage && panelUserPage.list.length === 0 && !panelSearching && (
                     <div className="text-sm text-gray-400 dark:text-neutral-600 italic py-2">未找到匹配用户</div>
+                  )}
+
+                  {panelUserPage && Math.ceil(panelUserPage.total / 10) > 1 && (
+                    <div className="flex items-center justify-between pt-3">
+                      <button onClick={() => fetchPanelUsers(panelSearchQuery, panelCurrentPage - 1)}
+                        disabled={panelCurrentPage <= 1 || panelSearching}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 dark:border-neutral-800 text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition-colors">
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span className="text-[11px] font-bold text-gray-400 dark:text-neutral-600">
+                        {panelCurrentPage} / {Math.ceil(panelUserPage.total / 10)}
+                        <span className="ml-2 text-gray-300 dark:text-neutral-700">({panelUserPage.total} 人)</span>
+                      </span>
+                      <button onClick={() => fetchPanelUsers(panelSearchQuery, panelCurrentPage + 1)}
+                        disabled={panelCurrentPage >= Math.ceil(panelUserPage.total / 10) || panelSearching}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 dark:border-neutral-800 text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition-colors">
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
                   )}
                 </section>
               </div>
