@@ -71,4 +71,23 @@ public class PlayerController {
         playerService.updateRatingManually(id, newRating, reason);
         return Result.success(null);
     }
+
+    /**
+     * 用户更新个人概览资料
+     */
+    @PostMapping("/profile")
+    public Result<Void> updateProfile(@RequestBody com.bottomlord.dto.ProfileUpdateRequest request) {
+        Object principal = org.apache.shiro.SecurityUtils.getSubject().getPrincipal();
+        if (principal == null) {
+            return Result.error(401, "请先登录");
+        }
+        com.bottomlord.entity.User user = (com.bottomlord.entity.User) principal;
+        Player player = playerService.getByUserId(user.getId());
+        if (player == null) {
+            return Result.error(404, "球员档案不存在");
+        }
+        
+        playerService.updateProfile(player.getId(), request);
+        return Result.success(null);
+    }
 }

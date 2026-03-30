@@ -11,7 +11,9 @@ import MatchLive from './pages/MatchLive';
 import GameDetail from './pages/GameDetail';
 import MatchPublish from './pages/MatchPublish';
 import MatchTrash from './pages/MatchTrash';
+import MatchAddPlayers from './pages/MatchAddPlayers';
 import PlayerRatingDemo from './pages/PlayerRatingDemo';
+import ProfileEdit from './pages/ProfileEdit';
 import GlobalNav from './components/GlobalNav';
 import useThemeStore from './store/useThemeStore';
 
@@ -63,6 +65,7 @@ function App() {
           <Route path="/tournaments/:tournamentId/matches/:id/edit" element={<MatchPublish />} />
           <Route path="/tournaments/:tournamentId/matches/:id/finance" element={<MatchFinance />} />
           <Route path="/tournaments/:tournamentId/matches/:id/grouping" element={<MatchGrouping />} />
+          <Route path="/tournaments/:tournamentId/matches/:id/add-players" element={<MatchAddPlayers />} />
           <Route path="/tournaments/:tournamentId/matches/:id/live" element={<MatchLive />} />
           <Route path="/tournaments/:tournamentId/matches/:id/games/:gameId" element={<GameDetail />} />
 
@@ -70,6 +73,7 @@ function App() {
           <Route path="/matches" element={<Navigate to="/tournaments" replace />} />
           <Route path="/matches/*" element={<Navigate to="/tournaments" replace />} />
 
+          <Route path="/profile/edit" element={<ProfileEdit />} />
           <Route path="/player/rating-demo" element={<PlayerRatingDemo />} />
           <Route path="/" element={<Navigate to="/tournaments" replace />} />
           <Route path="*" element={<Navigate to="/tournaments" replace />} />

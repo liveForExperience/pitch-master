@@ -35,4 +35,12 @@ public interface PlayerService extends IService<Player> {
      * @param reason 修正原因（用于审计）
      */
     void updateRatingDimensionManually(Long playerId, String dimension, BigDecimal newValue, String reason);
+
+    /**
+     * 更新球员及其关联用户的基本信息
+     *
+     * @param playerId 球员ID
+     * @param request  请求参数
+     */
+    void updateProfile(Long playerId, com.bottomlord.dto.ProfileUpdateRequest request);
 }

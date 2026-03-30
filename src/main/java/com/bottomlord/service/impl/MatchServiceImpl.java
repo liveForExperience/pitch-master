@@ -184,6 +184,19 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     @RequiresRoles("admin")
     @Transactional(rollbackFor = Exception.class)
+    public void closeRegistration(Long matchId) {
+        Match match = this.getById(matchId);
+        if (match == null) throw new IllegalArgumentException("赛事不存在");
+        if (!Match.STATUS_PUBLISHED.equals(match.getStatus())) {
+            throw new IllegalStateException("只有在报名阶段才能关闭报名");
+        }
+        match.setStatus(Match.STATUS_REGISTRATION_CLOSED);
+        this.updateById(match);
+    }
+
+    @Override
+    @RequiresRoles("admin")
+    @Transactional(rollbackFor = Exception.class)
     public void updateRegistrationDeadline(Long matchId, LocalDateTime newDeadline) {
         Match match = this.getById(matchId);
         if (match == null) return;

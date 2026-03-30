@@ -114,7 +114,7 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public MatchGame startGame(Long gameId) {
+    public MatchGame startGame(Long gameId, LocalDateTime actualStartTime) {
         MatchGame game = this.getById(gameId);
         if (game == null) throw new IllegalArgumentException("场次不存在");
         if (!"READY".equals(game.getStatus())) throw new IllegalStateException("只有 READY 状态的场次才能开始");
@@ -132,11 +132,11 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         if (playingCount > 0) throw new IllegalStateException("同一赛事中同一时刻只允许一个场次处于进行中");
 
         Long currentUserId = getCurrentUserId();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime start = actualStartTime != null ? actualStartTime : LocalDateTime.now();
         int duration = (match.getDurationPerGame() != null && match.getDurationPerGame() > 0)
                 ? match.getDurationPerGame() : 10;
-        game.setStartTime(now);
-        game.setEndTime(now.plusMinutes(duration));
+        game.setStartTime(start);
+        game.setEndTime(start.plusMinutes(duration));
         game.setStatus("PLAYING");
         game.setScoreA(0);
         game.setScoreB(0);
@@ -235,12 +235,24 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void finishGame(Long gameId) {
+    public void finishGame(Long gameId, LocalDateTime actualEndTime) {
         MatchGame game = this.getById(gameId);
         if (game == null) throw new IllegalArgumentException("场次不存在");
         if (!"PLAYING".equals(game.getStatus())) throw new IllegalStateException("只有进行中的场次才能结束");
 
+        Match match = matchService.getById(game.getMatchId());
         checkParticipantPermission(game.getMatchId());
+
+        LocalDateTime end = actualEndTime != null ? actualEndTime : LocalDateTime.now();
+        if (game.getStartTime() != null) {
+            int duration = (match != null && match.getDurationPerGame() != null && match.getDurationPerGame() > 0)
+                    ? match.getDurationPerGame() : 10;
+            long playTime = java.time.Duration.between(game.getStartTime(), end).toMinutes();
+            int ot = (int) (playTime - duration);
+            if (ot < 0) ot = 0;
+            game.setOvertimeMinutes(ot);
+        }
+        game.setEndTime(end);
 
         game.setStatus("FINISHED");
         game.setLockUserId(null);

@@ -64,6 +64,14 @@ public interface MatchService extends IService<Match> {
     void revertToPreparing(Long matchId);
 
     /**
+     * 关闭报名（状态：PUBLISHED -> REGISTRATION_CLOSED）
+     * 报名截止后管理员手动关闭，不可再报名，进入分组准备阶段
+     *
+     * @param matchId 赛事ID
+     */
+    void closeRegistration(Long matchId);
+
+    /**
      * 更新报名截止时间（支持从 REGISTRATION_CLOSED 回退至 PUBLISHED）
      *
      * @param matchId 赛事ID

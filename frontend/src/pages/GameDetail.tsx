@@ -26,6 +26,21 @@ export default function GameDetail() {
   const [overtimeInput, setOvertimeInput] = useState('');
   const [showOvertimeInput, setShowOvertimeInput] = useState(false);
 
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const [showStartModal, setShowStartModal] = useState(false);
+  const [showFinishModal, setShowFinishModal] = useState(false);
+  const [timeInput, setTimeInput] = useState('');
+
+  const toLocalIsoString = (date: Date) => {
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+
   const fetchGame = useCallback(async () => {
     if (!gameId) return;
     try {
@@ -63,11 +78,13 @@ export default function GameDetail() {
     return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleStart = async () => {
+  const confirmStart = async () => {
     if (!gameId || actionLoading) return;
     setActionLoading(true);
     try {
-      await gameApi.startGame(gameId);
+      const formattedTime = timeInput.length === 16 ? timeInput + ':00' : timeInput;
+      await gameApi.startGame(gameId, timeInput ? formattedTime : undefined);
+      setShowStartModal(false);
       await fetchGame();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : '操作失败');
@@ -76,12 +93,13 @@ export default function GameDetail() {
     }
   };
 
-  const handleFinish = async () => {
+  const confirmFinish = async () => {
     if (!gameId || actionLoading) return;
-    if (!confirm('确认结束本场比赛？')) return;
     setActionLoading(true);
     try {
-      await gameApi.finishGame(gameId);
+      const formattedTime = timeInput.length === 16 ? timeInput + ':00' : timeInput;
+      await gameApi.finishGame(gameId, timeInput ? formattedTime : undefined);
+      setShowFinishModal(false);
       await fetchGame();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : '操作失败');
@@ -208,39 +226,72 @@ export default function GameDetail() {
           </div>
 
           <button
-            onClick={handleStart}
+            onClick={() => {
+              setTimeInput(toLocalIsoString(new Date()));
+              setShowStartModal(true);
+            }}
             disabled={actionLoading}
             className="w-full bg-primary text-black font-bold py-3 rounded-xl hover:opacity-90 disabled:opacity-40"
           >
-            {actionLoading ? '请稍候…' : '开始比赛'}
+            设置并开始比赛
           </button>
+
+          {showStartModal && (
+            <GoalModal title="确认开赛时间" onCancel={() => setShowStartModal(false)}>
+              <div className="flex flex-col gap-3">
+                <input
+                  type="datetime-local"
+                  value={timeInput}
+                  onChange={e => setTimeInput(e.target.value)}
+                  className="bg-gray-200 dark:bg-neutral-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white outline-none w-full"
+                />
+                <button
+                  onClick={confirmStart}
+                  disabled={actionLoading}
+                  className="w-full bg-primary text-black font-bold py-3 rounded-xl mt-2 disabled:opacity-40"
+                >
+                  确认开始
+                </button>
+              </div>
+            </GoalModal>
+          )}
         </div>
       )}
 
       {/* ===== PLAYING STATE ===== */}
-      {game.status === 'PLAYING' && (
-        <div className="space-y-4">
-          {/* Scoreboard */}
-          <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 text-center">
-                <p className="text-xs text-gray-500 dark:text-neutral-400 mb-1 truncate">{teamName(game.teamAIndex)}</p>
-                <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreA ?? 0}</p>
-              </div>
-              <div className="text-center px-4">
-                <p className="text-gray-500 dark:text-neutral-500 text-sm font-mono">
-                  {formatTime(game.startTime)} ~ {formatTime(game.endTime)}
-                </p>
-                {(game.overtimeMinutes ?? 0) > 0 && (
-                  <p className="text-xs text-yellow-400">+{game.overtimeMinutes}分钟</p>
-                )}
-              </div>
-              <div className="flex-1 text-center">
-                <p className="text-xs text-gray-500 dark:text-neutral-400 mb-1 truncate">{teamName(game.teamBIndex)}</p>
-                <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreB ?? 0}</p>
+      {game.status === 'PLAYING' && (() => {
+        let elapsedMins = 0; let elapsedSecs = 0;
+        if (game.startTime) {
+          const diff = Math.max(0, Math.floor((now.getTime() - new Date(game.startTime).getTime()) / 1000));
+          elapsedMins = Math.floor(diff / 60);
+          elapsedSecs = diff % 60;
+        }
+        const isOvertime = game.durationPerGame && elapsedMins >= game.durationPerGame;
+        const timerDisplay = `${elapsedMins.toString().padStart(2, '0')}:${elapsedSecs.toString().padStart(2, '0')}`;
+
+        return (
+          <div className="space-y-4">
+            {/* Scoreboard */}
+            <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 text-center">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mb-1 truncate">{teamName(game.teamAIndex)}</p>
+                  <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreA ?? 0}</p>
+                </div>
+                <div className="text-center px-4 flex flex-col items-center">
+                  <div className={`text-2xl font-mono font-black mb-1 ${isOvertime ? 'text-red-500 animate-pulse' : 'text-primary'}`}>
+                    {timerDisplay}
+                  </div>
+                  <p className="text-gray-500 dark:text-neutral-500 text-[10px] font-mono whitespace-nowrap">
+                    {formatTime(game.startTime)} ~ {formatTime(game.endTime)}
+                  </p>
+                </div>
+                <div className="flex-1 text-center">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mb-1 truncate">{teamName(game.teamBIndex)}</p>
+                  <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreB ?? 0}</p>
+                </div>
               </div>
             </div>
-          </div>
 
           {/* Goal recording flow */}
           {goalStep === 'idle' && (
@@ -348,14 +399,40 @@ export default function GameDetail() {
 
           {/* Finish */}
           <button
-            onClick={handleFinish}
+            onClick={() => {
+              setTimeInput(toLocalIsoString(new Date()));
+              setShowFinishModal(true);
+            }}
             disabled={actionLoading}
-            className="w-full bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 text-gray-800 dark:text-white font-bold py-3 rounded-xl disabled:opacity-40"
+            className="w-full bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 text-gray-800 dark:text-white font-bold py-3 rounded-xl disabled:opacity-40 transition-colors"
           >
-            {actionLoading ? '请稍候…' : '结束比赛'}
+            设置并结束比赛
           </button>
+
+          {showFinishModal && (
+            <GoalModal title="确认结束并结算时间" onCancel={() => setShowFinishModal(false)}>
+              <div className="flex flex-col gap-3">
+                <input
+                  type="datetime-local"
+                  value={timeInput}
+                  onChange={e => setTimeInput(e.target.value)}
+                  className="bg-gray-200 dark:bg-neutral-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white outline-none w-full"
+                />
+                <p className="text-xs text-gray-500">将基于此时间和原定时长，自动计算本场比赛的补时。</p>
+                <button
+                  onClick={confirmFinish}
+                  disabled={actionLoading}
+                  className="w-full bg-red-600 text-white font-bold py-3 rounded-xl mt-2 disabled:opacity-40"
+                >
+                  确认结束
+                </button>
+              </div>
+            </GoalModal>
+          )}
+
         </div>
-      )}
+        );
+      })()}
 
       {/* ===== FINISHED STATE ===== */}
       {game.status === 'FINISHED' && (

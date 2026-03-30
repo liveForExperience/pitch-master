@@ -43,7 +43,6 @@ const GlobalNav: React.FC = () => {
 
   const displayName = me?.player?.nickname || me?.user?.username || '';
   const clubName = me?.player?.clubName || 'Free Agent';
-  const rating = me?.player?.rating?.toFixed(1) || '5.0';
   const roles = me?.user?.roles || [];
   const displayRole = roles.map(r => r.name).join(' / ') || '';
   const hasPlayer = !!me?.player;
@@ -105,9 +104,6 @@ const GlobalNav: React.FC = () => {
                     <div className="flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-[1.4rem] border-2 border-primary/15 bg-gray-100 dark:bg-neutral-900">
                       <User size={30} className="text-gray-400 dark:text-neutral-700" />
                     </div>
-                    <div className="absolute -bottom-2 -right-2 rounded-lg bg-primary px-2 py-0.5 text-[10px] font-black text-black shadow-lg shadow-primary/25">
-                      {rating}
-                    </div>
                   </div>
 
                   {/* Name & meta */}
@@ -139,6 +135,10 @@ const GlobalNav: React.FC = () => {
               {/* 基本信息入口 */}
               <button
                 type="button"
+                onClick={() => {
+                  setShowProfile(false);
+                  navigate('/profile/edit');
+                }}
                 className="group flex w-full items-center justify-between rounded-[1.75rem] border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] px-5 py-4 text-left transition-all hover:border-gray-300 dark:hover:border-neutral-700 hover:bg-gray-100 dark:hover:bg-white/[0.05] active:scale-[0.98]"
               >
                 <div className="flex items-center gap-4">
@@ -173,10 +173,10 @@ const GlobalNav: React.FC = () => {
                     <div className="grid grid-cols-3 gap-3">
                       <div className="rounded-[1.2rem] border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] px-3 py-3.5 text-center">
                         <div className="mb-1.5 text-[9px] font-black tracking-[0.16em] text-gray-400 dark:text-neutral-600 uppercase">
-                          Rating
+                          Age
                         </div>
                         <div className="text-xl font-black tracking-tight text-primary">
-                          {rating}
+                          {me.player?.age || '—'}
                         </div>
                       </div>
                       <div className="rounded-[1.2rem] border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] px-3 py-3.5 text-center">

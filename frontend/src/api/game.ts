@@ -54,11 +54,11 @@ export const gameApi = {
   getDetail: (gameId: number | string): Promise<GameDetailVO> =>
     apiClient.get(`/api/game/${gameId}`),
 
-  startGame: (gameId: number | string): Promise<void> =>
-    apiClient.post(`/api/game/${gameId}/start`),
+  startGame: (gameId: number | string, actualStartTime?: string): Promise<void> =>
+    apiClient.post(`/api/game/${gameId}/start`, { actualStartTime }),
 
-  finishGame: (gameId: number | string): Promise<void> =>
-    apiClient.post(`/api/game/${gameId}/finish`),
+  finishGame: (gameId: number | string, actualEndTime?: string): Promise<void> =>
+    apiClient.post(`/api/game/${gameId}/finish`, { actualEndTime }),
 
   addOvertime: (gameId: number | string, extraMinutes: number): Promise<void> =>
     apiClient.post(`/api/game/${gameId}/overtime`, null, { params: { extraMinutes } }),

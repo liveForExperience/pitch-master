@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import type { MatchGame } from '../api/match';
 import { ChevronRight } from 'lucide-react';
@@ -15,6 +15,7 @@ interface GameCardProps {
 
 const GameCard: React.FC<GameCardProps> = ({ game, tNames, matchId }) => {
   const navigate = useNavigate();
+  const { tournamentId } = useParams<{ tournamentId: string }>();
   const nameA = teamName(game.teamAIndex, tNames);
   const nameB = teamName(game.teamBIndex, tNames);
   const scoreA = game.scoreA ?? 0;
@@ -24,7 +25,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, tNames, matchId }) => {
 
   return (
     <div
-      onClick={() => navigate(`/matches/${matchId}/games/${game.id}`)}
+      onClick={() => navigate(`/tournaments/${tournamentId}/matches/${matchId}/games/${game.id}`)}
       className={`group relative overflow-hidden rounded-[1.25rem] border pl-5 pr-10 py-5 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] cursor-pointer hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_8px_30px_rgb(0,0,0,0.3)] active:scale-[0.98] active:shadow-sm ${isPlaying
           ? 'border-orange-400/40 dark:border-orange-500/30 bg-orange-50/80 dark:bg-[linear-gradient(135deg,rgba(234,88,12,0.08),rgba(10,10,10,1))] hover:border-orange-500/60 dark:hover:border-orange-500/50'
           : isFinished

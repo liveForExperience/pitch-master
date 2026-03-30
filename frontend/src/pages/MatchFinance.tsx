@@ -204,13 +204,14 @@ const MatchFinance: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 text-gray-900 dark:text-white pb-24">
-      <NavBar onBack={() => navigate(-1)} className="bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 font-bold sticky top-0 z-10">
-        结算管理中心
-      </NavBar>
-      <DialogComponent />
+    <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 text-gray-900 dark:text-white pb-24 flex justify-center">
+      <div className="w-full max-w-5xl">
+        <NavBar onBack={() => navigate(-1)} className="bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 font-bold sticky top-0 z-10">
+          结算管理中心
+        </NavBar>
+        <DialogComponent />
 
-      <div className="p-4 space-y-6">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
 
         {/* Total Cost Card */}
         <div className="bg-white dark:bg-gradient-to-br dark:from-neutral-900 dark:to-neutral-800 border border-gray-200 dark:border-neutral-800 rounded-3xl p-6 shadow-sm">
@@ -326,16 +327,19 @@ const MatchFinance: React.FC = () => {
           </div>
         </div>
       </div>
+      </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-neutral-950/80 backdrop-blur-md border-t border-gray-200 dark:border-neutral-800 z-20">
-        <button
-          onClick={handleSaveAndPublish}
-          disabled={saving}
-          className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-black py-3.5 rounded-2xl font-black text-sm tracking-widest uppercase transition-all shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-70"
-        >
-          {saving ? <span className="animate-spin border-2 border-black border-t-transparent rounded-full w-5 h-5" /> : <Save size={18} />}
-          {isPublished ? '保存并更新发布' : '保存并确认发布'}
-        </button>
+      <div className="fixed bottom-0 left-0 right-0 p-4 sm:p-6 bg-white/80 dark:bg-neutral-950/80 backdrop-blur-md border-t border-gray-200 dark:border-neutral-800 z-20 flex justify-center">
+        <div className="w-full max-w-5xl">
+          <button
+            onClick={handleSaveAndPublish}
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-black py-3.5 sm:py-4 rounded-2xl font-black text-sm tracking-widest uppercase transition-all shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-70"
+          >
+            {saving ? <span className="animate-spin border-2 border-black border-t-transparent rounded-full w-5 h-5" /> : <Save size={18} />}
+            {isPublished ? '保存并更新发布' : '保存并确认发布'}
+          </button>
+        </div>
       </div>
     </div>
   );

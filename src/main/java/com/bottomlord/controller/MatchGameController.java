@@ -29,8 +29,12 @@ public class MatchGameController {
     }
 
     @PostMapping("/{gameId}/start")
-    public Result<MatchGame> startGame(@PathVariable Long gameId) {
-        return Result.success(matchGameService.startGame(gameId));
+    public Result<MatchGame> startGame(@PathVariable Long gameId, @RequestBody(required = false) java.util.Map<String, String> body) {
+        java.time.LocalDateTime actualStartTime = null;
+        if (body != null && body.containsKey("actualStartTime") && body.get("actualStartTime") != null && !body.get("actualStartTime").isEmpty()) {
+            actualStartTime = java.time.LocalDateTime.parse(body.get("actualStartTime"));
+        }
+        return Result.success(matchGameService.startGame(gameId, actualStartTime));
     }
 
     @PostMapping("/{gameId}/overtime")
@@ -67,8 +71,12 @@ public class MatchGameController {
     }
 
     @PostMapping("/{gameId}/finish")
-    public Result<Void> finishGame(@PathVariable Long gameId) {
-        matchGameService.finishGame(gameId);
+    public Result<Void> finishGame(@PathVariable Long gameId, @RequestBody(required = false) java.util.Map<String, String> body) {
+        java.time.LocalDateTime actualEndTime = null;
+        if (body != null && body.containsKey("actualEndTime") && body.get("actualEndTime") != null && !body.get("actualEndTime").isEmpty()) {
+            actualEndTime = java.time.LocalDateTime.parse(body.get("actualEndTime"));
+        }
+        matchGameService.finishGame(gameId, actualEndTime);
         return Result.success();
     }
 

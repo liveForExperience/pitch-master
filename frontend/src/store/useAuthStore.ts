@@ -6,9 +6,10 @@ interface AuthUser {
   user?: { 
     id: number; 
     username: string; 
+    realName?: string;
     roles?: Array<{ id: number; name: string; description: string }>;
   };
-  player?: { id: number; nickname: string; position: string; preferredFoot: string; rating: number; clubName?: string; gender?: string; height?: number };
+  player?: { id: number; nickname: string; position: string; preferredFoot: string; rating: number; clubName?: string; gender?: string; height?: number; age?: number };
   isPlatformAdmin?: boolean;
   adminTournamentIds?: number[];
   joinedTournamentIds?: number[];

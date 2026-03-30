@@ -14,6 +14,7 @@ import com.bottomlord.mapper.PlayerAttributeMapper;
 import com.bottomlord.mapper.PlayerRatingHistoryMapper;
 import com.bottomlord.mapper.PlayerRatingProfileMapper;
 import com.bottomlord.mapper.PlayerStatMapper;
+import com.bottomlord.mapper.UserMapper;
 import com.bottomlord.entity.Club;
 import com.bottomlord.entity.Tournament;
 import com.bottomlord.service.PlayerService;
@@ -48,6 +49,9 @@ public class PlayerServiceImpl extends ServiceImpl<PlayerMapper, Player> impleme
 
     @Autowired
     private PlayerRatingHistoryMapper playerRatingHistoryMapper;
+
+    @Autowired
+    private UserMapper userMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -235,5 +239,29 @@ public class PlayerServiceImpl extends ServiceImpl<PlayerMapper, Player> impleme
             if (tournament != null) player.setTournamentName(tournament.getName());
         }
         return player;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateProfile(Long playerId, com.bottomlord.dto.ProfileUpdateRequest request) {
+        Player player = this.getById(playerId);
+        if (player == null) {
+            throw new IllegalArgumentException("球员不存在");
+        }
+
+        player.setNickname(request.getNickname());
+        player.setPreferredFoot(request.getPreferredFoot());
+        player.setPosition(request.getPosition());
+        player.setAge(request.getAge());
+        player.setHeight(request.getHeight());
+        this.updateById(player);
+
+        if (player.getUserId() != null && request.getRealName() != null) {
+            com.bottomlord.entity.User user = userMapper.selectById(player.getUserId());
+            if (user != null) {
+                user.setRealName(request.getRealName());
+                userMapper.updateById(user);
+            }
+        }
     }
 }

@@ -68,6 +68,12 @@ public class MatchController {
         return Result.success();
     }
 
+    @PostMapping("/{id}/close-registration")
+    public Result<Void> closeRegistration(@PathVariable Long id) {
+        matchService.closeRegistration(id);
+        return Result.success();
+    }
+
     @PostMapping("/{matchId}/register")
     public Result<Void> register(@PathVariable Long matchId, @RequestParam Long playerId) {
         matchService.registerForMatch(matchId, playerId);

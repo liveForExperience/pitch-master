@@ -224,4 +224,35 @@ class MatchLifecycleTest {
         verify(registrationService, never()).list(anyRegistrationWrapper());
         verify(sseManager, never()).broadcastToClub(anyLong(), anyString(), anyString());
     }
+
+    @Test
+    @DisplayName("closeRegistration 正常将 PUBLISHED 状态关闭为 REGISTRATION_CLOSED")
+    void closeRegistrationShouldTransitionFromPublishedToRegistrationClosed() {
+        Match match = new Match();
+        match.setId(3L);
+        match.setStatus(Match.STATUS_PUBLISHED);
+
+        when(matchMapper.selectById(3L)).thenReturn(match);
+
+        matchService.closeRegistration(3L);
+
+        assertEquals(Match.STATUS_REGISTRATION_CLOSED, match.getStatus());
+        verify(matchMapper).updateById(match);
+    }
+
+    @Test
+    @DisplayName("closeRegistration 在非 PUBLISHED 状态下抛出 IllegalStateException")
+    void closeRegistrationShouldRejectNonPublishedMatch() {
+        Match match = new Match();
+        match.setId(4L);
+        match.setStatus(Match.STATUS_REGISTRATION_CLOSED);
+
+        when(matchMapper.selectById(4L)).thenReturn(match);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> matchService.closeRegistration(4L));
+
+        assertEquals("只有在报名阶段才能关闭报名", ex.getMessage());
+        verify(matchMapper, never()).updateById(any(Match.class));
+    }
 }

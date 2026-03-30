@@ -27,9 +27,10 @@ public interface MatchGameService extends IService<MatchGame> {
      * 开始时自动从分组报名数据填充 GAME_PARTICIPANT。
      *
      * @param gameId 场次ID
+     * @param actualStartTime 实际开始时间 (可为 null)
      * @return 更新后的场次信息
      */
-    MatchGame startGame(Long gameId);
+    MatchGame startGame(Long gameId, java.time.LocalDateTime actualStartTime);
 
     /**
      * 添加比赛加时 (Injury Time)
@@ -81,8 +82,9 @@ public interface MatchGameService extends IService<MatchGame> {
      * 完成比赛场次
      *
      * @param gameId 场次ID
+     * @param actualEndTime 实际结束时间 (可为 null)
      */
-    void finishGame(Long gameId);
+    void finishGame(Long gameId, java.time.LocalDateTime actualEndTime);
     
     /**
      * 获取指定赛事的比分变动日志

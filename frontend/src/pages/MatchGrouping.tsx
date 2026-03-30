@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { NavBar, Button, Tag, Toast, SpinLoading, Popup } from 'antd-mobile';
+import { Toast } from 'antd-mobile';
 import { useConfirmDialog } from '../components/ConfirmDialog';
-import { Wand2, Save, Globe, Play, UserRoundX, Users, Pencil, Check, X } from 'lucide-react';
+import { Wand2, Save, Globe, Play, UserRoundX, Users, Pencil, Check, X, ChevronLeft, Loader2 } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -71,9 +71,9 @@ const DraggablePlayerCard: React.FC<DraggablePlayerCardProps> = ({ player, fromG
       style={overlay ? { cursor: 'grabbing' } : style}
       {...attributes}
       {...(canDrag ? listeners : {})}
-      className={`w-full flex items-center justify-between px-3 py-2.5 bg-gray-100 dark:bg-neutral-900/60 rounded-xl
-        ${overlay ? 'shadow-2xl ring-1 ring-white/10 rotate-2' : 'active:bg-gray-200 dark:active:bg-neutral-800'}
-        ${isDragging ? '' : ''}`}
+      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 bg-white dark:bg-white/[0.05] shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-gray-950/5 dark:ring-white/10 transition-all
+        ${overlay ? 'rotate-2 scale-105 shadow-[0_8px_30px_rgb(0,0,0,0.12)]' : 'active:bg-gray-50 dark:active:bg-white/[0.02]'}
+        ${isDragging ? 'opacity-30' : ''}`}
     >
       <div className="flex items-center gap-3">
         <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-gray-500 dark:text-neutral-400">
@@ -341,63 +341,67 @@ const MatchGrouping: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white pb-32">
-      <NavBar
-        onBack={() => navigate(-1)}
-        className="bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 font-bold"
-        right={
-          canEdit && !isPublished && !isNotStarted ? (
-            <Button
-              size="mini"
-              fill="none"
-              loading={saving}
+    <div className="min-h-screen bg-gray-50 pb-[130px] text-gray-900 selection:bg-primary selection:text-black dark:bg-neutral-950 dark:text-white transition-colors duration-200">
+      {/* ── Navbar ── */}
+      <nav className="sticky top-0 z-50 flex items-center justify-between border-b border-gray-200 bg-white/80 px-4 py-4 backdrop-blur-md dark:border-white/10 dark:bg-neutral-950/80 sm:px-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 transition-all hover:border-gray-300 hover:bg-gray-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20 dark:hover:bg-white/[0.04]"
+        >
+          <ChevronLeft
+            size={20}
+            className="text-gray-600 transition-transform group-hover:-translate-x-0.5 dark:text-neutral-400"
+          />
+        </button>
+        <h1 className="text-sm font-black tracking-widest text-gray-900 dark:text-white">管理分组</h1>
+        <div className="flex h-10 min-w-[40px] shrink-0 items-center justify-end">
+          {canEdit && !isPublished && !isNotStarted ? (
+            <button
               onClick={handleSaveDraft}
-              className="text-gray-500 dark:text-neutral-400 text-xs"
+              disabled={saving}
+              className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-white/10"
             >
-              <Save size={15} className="mr-1 inline" />
-              保存草稿
-            </Button>
-          ) : null
-        }
-      >
-        管理分组
-      </NavBar>
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              保存
+            </button>
+          ) : (
+            <div className="w-10" />
+          )}
+        </div>
+      </nav>
+
+      {/* ── Main Content ── */}
+      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
 
       {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <SpinLoading color="primary" />
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Loader2 className="animate-spin text-primary" size={32} />
         </div>
       ) : isNotStarted ? (
-        <div className="mx-auto max-w-3xl px-6 py-16 flex flex-col items-center gap-8">
+        <div className="flex flex-col items-center gap-8 py-16">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-neutral-800 flex items-center justify-center">
-              <Users size={28} className="text-gray-500 dark:text-neutral-400" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-white/[0.02]">
+              <Users size={28} className="text-gray-400 dark:text-neutral-500" />
             </div>
             <p className="text-lg font-black text-gray-900 dark:text-white">尚未开始分配</p>
-            <p className="text-sm text-gray-500 dark:text-neutral-500">
+            <p className="text-sm font-medium text-gray-500 dark:text-neutral-400">
               共 {vo?.unassigned?.length ?? 0} 名球员，{numGroups} 支队伍
             </p>
           </div>
           <div className="w-full space-y-3">
-            <Button
-              block
-              color="primary"
-              size="large"
+            <button
               onClick={handleOpenAutoGroup}
-              className="h-13 rounded-2xl font-bold text-sm"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black tracking-widest text-black shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Wand2 size={16} className="mr-2 inline" />
+              <Wand2 size={18} />
               自动分配
-            </Button>
-            <Button
-              block
-              fill="outline"
-              size="large"
+            </button>
+            <button
               onClick={handleStartManual}
-              className="h-13 rounded-2xl font-bold text-sm border-gray-300 dark:border-neutral-700 text-gray-600 dark:text-neutral-300"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white py-4 text-sm font-black tracking-widest text-gray-900 transition-colors hover:bg-gray-50 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.03] dark:text-white dark:hover:bg-white/[0.06]"
             >
               手动分配（拖曳）
-            </Button>
+            </button>
           </div>
         </div>
       ) : (
@@ -406,8 +410,8 @@ const MatchGrouping: React.FC = () => {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="mx-auto max-w-3xl px-6 py-6 sm:px-8 lg:px-10 space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="space-y-4">
+            <div className="mb-6 flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500 dark:text-neutral-500 uppercase tracking-widest">
                   {isPublished ? '分组已发布' : '草稿模式（仅你可见）'}
@@ -418,15 +422,13 @@ const MatchGrouping: React.FC = () => {
                   </p>
                 )}
               </div>
-              <Button
-                size="small"
-                fill="outline"
+              <button
                 onClick={handleOpenAutoGroup}
-                className="border-gray-300 dark:border-neutral-700 text-gray-600 dark:text-neutral-300 rounded-xl text-xs"
+                className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-neutral-300 dark:hover:bg-white/[0.06]"
               >
-                <Wand2 size={13} className="mr-1 inline" />
+                <Wand2 size={14} />
                 自动分配
-              </Button>
+              </button>
             </div>
 
             {groupKeys.map(gIdx => (
@@ -477,12 +479,9 @@ const MatchGrouping: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <Tag
-                    fill="outline"
-                    className="text-xs rounded-full border-gray-300 dark:border-neutral-700 text-gray-500 dark:text-neutral-400 flex-shrink-0 ml-2"
-                  >
+                  <span className="shrink-0 ml-2 rounded-full border border-gray-200 bg-white/50 px-2 py-0.5 text-[10px] font-bold text-gray-500 dark:border-white/10 dark:bg-black/20 dark:text-neutral-400">
                     {vo?.groups[gIdx]?.length ?? 0} 人
-                  </Tag>
+                  </span>
                 </div>
                 <div className="space-y-1 min-h-[40px]">
                   {(vo?.groups[gIdx] ?? []).map(player => (
@@ -505,7 +504,7 @@ const MatchGrouping: React.FC = () => {
                 <div className="flex items-center gap-2 mb-3">
                   <UserRoundX size={14} className="text-amber-400" />
                   <span className="font-black text-amber-400 text-sm uppercase tracking-wider">
-                    未分配 {vo?.unassigned?.length ? `(${vo.unassigned.length})` : ''}
+                    未分配 {vo?.unassigned?.length ? `(${vo?.unassigned?.length})` : ''}
                   </span>
                 </div>
                 <div className="space-y-1 min-h-[40px]">
@@ -528,8 +527,8 @@ const MatchGrouping: React.FC = () => {
           <DragOverlay dropAnimation={null}>
             {activePlayer ? (
               <DraggablePlayerCard
-                player={activePlayer.player}
-                fromGroup={activePlayer.fromGroup}
+                player={activePlayer?.player!}
+                fromGroup={activePlayer?.fromGroup ?? -1}
                 canDrag={false}
                 overlay
               />
@@ -538,128 +537,130 @@ const MatchGrouping: React.FC = () => {
         </DndContext>
       )}
 
+      </main>
+
       {!isNotStarted && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-100 dark:from-black via-gray-100/95 dark:via-black/95 to-transparent space-y-2">
-          {canEdit && !isPublished && (
-            <Button
-              block
-              color="primary"
-              size="large"
-              disabled={!allAssigned}
-              onClick={handlePublish}
-              className="h-12 rounded-2xl font-black text-sm disabled:opacity-40"
-            >
-              <Globe size={16} className="mr-2 inline" />
-              发布分组（所有人可见）
-            </Button>
-          )}
-          {canStart && (
-            <Button
-              block
-              size="large"
-              onClick={handleStartMatch}
-              className="h-12 rounded-2xl font-black text-sm bg-primary text-black border-0"
-            >
-              <Play size={16} className="mr-2 inline" />
-              正式开赛
-            </Button>
-          )}
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/80 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-950/80 sm:px-6">
+          <div className="mx-auto flex max-w-3xl flex-col gap-3">
+            {canEdit && !isPublished && (
+              <button
+                disabled={!allAssigned}
+                onClick={handlePublish}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white py-4 text-sm font-black tracking-widest text-gray-900 shadow-sm transition-all hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-white dark:hover:bg-white/[0.06]"
+              >
+                <Globe size={18} />
+                发布分组（所有人可见）
+              </button>
+            )}
+            {canStart && (
+              <button
+                onClick={handleStartMatch}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black tracking-widest text-black shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Play size={18} fill="currentColor" />
+                正式开赛
+              </button>
+            )}
+          </div>
         </div>
       )}
 
-      <Popup
-        visible={autoGroupVisible}
-        onMaskClick={() => !autoGroupLoading && setAutoGroupVisible(false)}
-        bodyStyle={{
-          backgroundColor: 'var(--bg-surface-2)',
-          borderRadius: '16px 16px 0 0',
-          padding: '24px 20px 36px',
-        }}
-      >
-        <div className="space-y-5">
-          <div>
-            <p className="font-black text-base text-gray-900 dark:text-white">自动分配</p>
-            <p className="text-xs text-gray-500 dark:text-neutral-500 mt-0.5">选择分配策略并确认执行方式</p>
-          </div>
+      {autoGroupVisible && (
+        <div className="fixed inset-0 z-[100] flex flex-col justify-end sm:items-center sm:justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            onClick={() => !autoGroupLoading && setAutoGroupVisible(false)}
+          />
 
-          <div>
-            <p className="text-xs text-gray-500 dark:text-neutral-400 mb-2 uppercase tracking-wide font-semibold">分配策略</p>
-            <div className="space-y-2">
-              {strategies.map(s => (
-                <button
-                  key={s}
-                  onClick={() => setSelectedStrategy(s)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-colors ${
-                    selectedStrategy === s
-                      ? 'border-green-500 bg-green-500/10 text-green-400'
-                      : 'border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60 text-gray-700 dark:text-neutral-300'
-                  }`}
-                >
-                  <span className="font-medium">{STRATEGY_LABELS[s] ?? s}</span>
-                  {selectedStrategy === s && (
-                    <span className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-[9px] text-black font-bold">✓</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Drawer Content */}
+          <div className="relative w-full max-w-md transform overflow-hidden rounded-t-[2rem] bg-white px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3 shadow-2xl transition-all dark:bg-[#111111] dark:ring-1 dark:ring-white/10 sm:rounded-[2rem] sm:p-8 sm:pb-8">
+            <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-gray-200 dark:bg-neutral-800 sm:hidden" />
 
-          {hasAnyGrouped && (
-            <div>
-              <p className="text-xs text-gray-500 dark:text-neutral-400 mb-2 uppercase tracking-wide font-semibold">处理方式</p>
-              <div className="space-y-2">
-                {[
-                  { value: false, title: '重新开始', desc: '清空全部分配，对所有球员重新分组' },
-                  { value: true, title: '保留已分配', desc: '仅对未分配的球员自动分组' },
-                ].map(opt => (
-                  <button
-                    key={String(opt.value)}
-                    onClick={() => setKeepExisting(opt.value)}
-                    className={`w-full flex items-start gap-3 px-4 py-3 rounded-xl border text-sm transition-colors text-left ${
-                      keepExisting === opt.value
-                        ? 'border-green-500 bg-green-500/10'
-                        : 'border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/60'
-                    }`}
-                  >
-                    <span
-                      className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 transition-colors ${
-                        keepExisting === opt.value ? 'border-green-500 bg-green-500' : 'border-neutral-500 bg-transparent'
+            <div className="space-y-6">
+              <div>
+                <p className="font-black text-lg text-gray-900 dark:text-white">自动分配</p>
+                <p className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">选择分配策略并确认执行方式</p>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-[10px] font-black tracking-widest text-gray-400 dark:text-neutral-500 uppercase">分配策略</p>
+                <div className="space-y-2">
+                  {strategies.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setSelectedStrategy(s)}
+                      className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3.5 text-sm transition-all ${
+                        selectedStrategy === s
+                          ? 'border-primary bg-primary/10 text-primary dark:bg-primary/[0.08]'
+                          : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-white/10 dark:bg-white/[0.03] dark:text-neutral-300 dark:hover:bg-white/[0.06]'
                       }`}
-                    />
-                    <div>
-                      <p className={`font-semibold ${keepExisting === opt.value ? 'text-green-400' : 'text-gray-700 dark:text-neutral-300'}`}>
-                        {opt.title}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-neutral-500 mt-0.5">{opt.desc}</p>
-                    </div>
-                  </button>
-                ))}
+                    >
+                      <span className="font-bold">{STRATEGY_LABELS[s] ?? s}</span>
+                      {selectedStrategy === s && (
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-black text-black">
+                          ✓
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {hasAnyGrouped && (
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black tracking-widest text-gray-400 dark:text-neutral-500 uppercase">处理方式</p>
+                  <div className="space-y-2">
+                    {[
+                      { value: false, title: '重新开始', desc: '清空全部分配，对所有球员重新分组' },
+                      { value: true, title: '保留已分配', desc: '仅对未分配的球员自动分组' },
+                    ].map(opt => (
+                      <button
+                        key={String(opt.value)}
+                        onClick={() => setKeepExisting(opt.value)}
+                        className={`group flex w-full items-start gap-4 rounded-2xl border px-4 py-3.5 text-left text-sm transition-all hover:bg-gray-50 dark:hover:bg-white/[0.02] ${
+                          keepExisting === opt.value
+                            ? 'border-primary bg-primary/10 dark:bg-primary/[0.08]'
+                            : 'border-gray-200 bg-white dark:border-white/10 dark:bg-transparent'
+                        }`}
+                      >
+                        <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors relative">
+                          <div className={`absolute h-5 w-5 rounded-full border-2 transition-all ${keepExisting === opt.value ? 'border-primary' : 'border-gray-300 dark:border-neutral-600'}`} />
+                          <div className={`h-3 w-3 rounded-full transition-all ${keepExisting === opt.value ? 'scale-100 bg-primary' : 'scale-0'}`} />
+                        </div>
+                        <div>
+                          <p className={`font-bold transition-colors ${keepExisting === opt.value ? 'text-primary' : 'text-gray-900 dark:text-white group-hover:text-primary/80'}`}>
+                            {opt.title}
+                          </p>
+                          <p className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">{opt.desc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  disabled={autoGroupLoading}
+                  onClick={() => setAutoGroupVisible(false)}
+                  className="w-1/3 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-black text-gray-900 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-white dark:hover:bg-white/[0.06]"
+                >
+                  取消
+                </button>
+                <button
+                  disabled={autoGroupLoading}
+                  onClick={handleConfirmAutoGroup}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-black text-black shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  {autoGroupLoading && <Loader2 size={16} className="animate-spin" />}
+                  确认分配
+                </button>
               </div>
             </div>
-          )}
-
-          <div className="flex gap-3 pt-1">
-            <Button
-              fill="outline"
-              size="large"
-              disabled={autoGroupLoading}
-              onClick={() => setAutoGroupVisible(false)}
-              className="flex-1 rounded-2xl border-gray-300 dark:border-neutral-700 text-gray-600 dark:text-neutral-300"
-            >
-              取消
-            </Button>
-            <Button
-              color="primary"
-              size="large"
-              loading={autoGroupLoading}
-              onClick={handleConfirmAutoGroup}
-              className="flex-1 rounded-2xl font-bold"
-            >
-              开始分配
-            </Button>
           </div>
         </div>
-      </Popup>
+      )}
 
       {/* Confirm Dialog */}
       <DialogComponent />

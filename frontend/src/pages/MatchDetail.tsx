@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Toast, ActionSheet, Tabs } from 'antd-mobile';
+import { Toast, Tabs, CenterPopup } from 'antd-mobile';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import {
   ChevronLeft, Clock, MapPin, Users, CalendarClock,
-  UserPlus, LogOut, Shield, Loader2, Calculator, CheckCircle, MoreHorizontal
+  UserPlus, LogOut, Shield, Loader2, Calculator, CheckCircle,
+  XCircle, Play, LayoutList, Edit3, Trash2, ChevronRight, Swords, Share2, X
 } from 'lucide-react';
 import apiClient from '../api/client';
 import { matchApi } from '../api/match';
@@ -13,6 +14,8 @@ import dayjs from 'dayjs';
 import useAuthStore from '../store/useAuthStore';
 import html2canvas from 'html2canvas';
 import GameCard from '../components/GameCard';
+import RegistrationPoster from '../components/poster/RegistrationPoster';
+import ReportPoster from '../components/poster/ReportPoster';
 
 const matchStatusMeta: Record<string, { label: string; badgeClass: string; dotClass: string; accentClass: string }> = {
   PREPARING: {
@@ -97,10 +100,9 @@ const MatchDetail: React.FC = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
   const [groupsData, setGroupsData] = useState<GroupsVO | null>(null);
-  const posterRef = useRef<HTMLDivElement>(null);
-  const [showAddPlayer, setShowAddPlayer] = useState(false);
-  const [eligiblePlayers, setEligiblePlayers] = useState<any[]>([]);
-  const [playerFilter, setPlayerFilter] = useState('');
+  const registrationPosterRef = useRef<HTMLDivElement>(null);
+  const reportPosterRef = useRef<HTMLDivElement>(null);
+  const [generatedPosterUrl, setGeneratedPosterUrl] = useState<string | null>(null);
 
   // Post-match states
   const [standings, setStandings] = useState<StandingsVO | null>(null);
@@ -261,27 +263,20 @@ const MatchDetail: React.FC = () => {
   };
 
   /* ── Admin: add player ── */
-  const handleShowAddPlayer = async () => {
-    if (!showAddPlayer) {
-      try {
-        const players = await matchApi.getEligiblePlayers(id!);
-        setEligiblePlayers(players || []);
-        setPlayerFilter('');
-      } catch { /* handled by interceptor */ }
-    }
-    setShowAddPlayer(!showAddPlayer);
+  const handleShowAddPlayer = () => {
+    navigate(`${basePath}/${id}/add-players`);
   };
 
-  const handleAddPlayer = async (playerId: number, playerName: string) => {
+  /* ── Admin: close registration ── */
+  const handleCloseRegistration = async () => {
     const confirmed = await showConfirm({
-      title: '添加球员',
-      content: `确定要添加 ${playerName} 到报名列表吗？`,
+      title: '结束报名',
+      content: '确定要关闭报名吗？关闭后球员将无法继续报名，可进入分组阶段。',
     });
     if (!confirmed) return;
     try {
-      await matchApi.adminAddPlayer(id!, playerId);
-      Toast.show({ icon: 'success', content: '球员已添加' });
-      setShowAddPlayer(false);
+      await matchApi.closeRegistration(id!);
+      Toast.show({ icon: 'success', content: '报名已关闭' });
       fetchData();
     } catch { /* handled by interceptor */ }
   };
@@ -353,20 +348,18 @@ const MatchDetail: React.FC = () => {
 
   /* ── Poster generation ── */
   const handleGeneratePoster = async () => {
-    if (!posterRef.current) return;
+    const isReport = match.status === 'MATCH_FINISHED';
+    const targetRef = isReport ? reportPosterRef : registrationPosterRef;
+    if (!targetRef.current) return;
     Toast.show({ icon: 'loading', content: '生成海报中...', duration: 0 });
     try {
-      const canvas = await html2canvas(posterRef.current, {
+      const canvas = await html2canvas(targetRef.current, {
         useCORS: true,
         scale: 2,
         backgroundColor: '#0a0a0a',
       });
-      const link = document.createElement('a');
-      link.download = `海报_${match.title}_${dayjs().format('MMDD')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      setGeneratedPosterUrl(canvas.toDataURL('image/png'));
       Toast.clear();
-      Toast.show({ icon: 'success', content: '海报已生成，请保存分享' });
     } catch (err) {
       console.error(err);
       Toast.clear();
@@ -375,28 +368,6 @@ const MatchDetail: React.FC = () => {
   };
 
 
-  /* ── Admin Action Sheet ── */
-  const handleShowAdminActions = () => {
-    const actions: any[] = [];
-    if (match.status === 'PUBLISHED') actions.push({ text: '回退到筹备', key: 'rollback', onClick: handleRevertToPreparing });
-    if (match.status === 'PREPARING') actions.push({ text: '编辑赛事信息', key: 'edit', onClick: () => navigate(`${basePath}/${id}/edit`) });
-    if (['PUBLISHED', 'REGISTRATION_CLOSED'].includes(match.status)) actions.push({ text: '添加球员', key: 'add', onClick: handleShowAddPlayer });
-    if (['PUBLISHED', 'REGISTRATION_CLOSED'].includes(match.status)) actions.push({ text: '管理分组', key: 'groups', onClick: () => navigate(`${basePath}/${id}/grouping`) });
-    if (['REGISTRATION_CLOSED'].includes(match.status) && match.groupsPublished) actions.push({ text: '开赛', key: 'start', onClick: handleStartMatch });
-    if (match.status === 'ONGOING') {
-      actions.push({ text: '进入赛场', key: 'live', onClick: () => navigate(`${basePath}/${id}/live`) });
-      actions.push({ text: '回退状态', key: 'rollback_ongoing', onClick: handleRollbackStatus });
-      actions.push({ text: '结束比赛', key: 'finish', danger: true, onClick: handleFinishMatch });
-    }
-    if (match.status === 'MATCH_FINISHED') actions.push({ text: '管理结算信息', key: 'finance', onClick: () => navigate(`${basePath}/${id}/finance`) });
-    actions.push({ text: '生成朋友圈海报', key: 'poster', onClick: handleGeneratePoster });
-    actions.push({ text: '删除赛事', key: 'delete', danger: true, onClick: handleSoftDelete });
-
-    ActionSheet.show({
-      actions,
-      cancelText: '取消',
-    });
-  };
 
   /* ── Loading / Empty ── */
   if (pageLoading) {
@@ -418,22 +389,14 @@ const MatchDetail: React.FC = () => {
       <div className="pointer-events-none absolute right-[-6%] top-24 h-72 w-72 rounded-full bg-white/[0.04] blur-[160px]" />
 
       {/* ── Nav ── */}
-      <nav className="relative z-10 mb-10 flex items-center justify-between">
+      <nav className="relative z-10 mb-10 flex items-center">
         <button onClick={() => navigate(`${basePath}${location.search || ''}`)} className="group flex items-center text-gray-500 dark:text-neutral-500 font-bold hover:text-gray-900 dark:hover:text-white transition-colors">
           <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" /> 赛事中心
         </button>
-        {admin && (
-          <button
-            onClick={handleShowAdminActions}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] text-gray-500 dark:text-neutral-400 transition-all hover:border-gray-300 dark:hover:border-neutral-600 hover:text-gray-900 dark:hover:text-white active:scale-95"
-          >
-            <MoreHorizontal size={20} />
-          </button>
-        )}
       </nav>
 
       {/* ── Hero Header ── */}
-      <header className="relative z-10 mx-auto mb-10 max-w-5xl overflow-hidden rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_26%),linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] px-6 py-5 sm:px-7 sm:py-6">
+      <header className="relative z-10 mx-auto mb-8 max-w-5xl overflow-hidden rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_26%),linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] px-6 py-5 sm:px-7 sm:py-6">
         <div className={`absolute right-[-8%] top-6 h-40 w-40 rounded-full bg-gradient-to-br ${statusMeta.accentClass} opacity-25 blur-3xl`} />
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
 
@@ -458,6 +421,243 @@ const MatchDetail: React.FC = () => {
         </div>
       </header>
 
+      {/* ── Admin Action Block ── */}
+      {admin && (
+        <div className="relative z-10 mx-auto mb-8 max-w-5xl">
+          <div className="overflow-hidden rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-6">
+            {/* Section label */}
+            <div className="mb-5 flex items-center gap-2">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-primary/15">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              </span>
+              <span className="text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-500">管理员操作</span>
+            </div>
+
+            {/* Primary action */}
+            {match.status === 'PUBLISHED' && (
+              <button
+                onClick={handleCloseRegistration}
+                className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-black tracking-wide shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <XCircle size={16} /> 结束报名
+              </button>
+            )}
+            {match.status === 'REGISTRATION_CLOSED' && (
+              <button
+                onClick={handleStartMatch}
+                disabled={!match.groupsPublished}
+                title={!match.groupsPublished ? '请先在"球员与分组"选项卡中发布分组' : undefined}
+                className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-black tracking-wide shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
+              >
+                <Play size={16} /> 开始比赛
+                {!match.groupsPublished && <span className="text-[10px] font-semibold opacity-70">（需先发布分组）</span>}
+              </button>
+            )}
+            {match.status === 'ONGOING' && (
+              <button
+                onClick={() => navigate(`${basePath}/${id}/live`)}
+                className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-black tracking-wide shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Swords size={16} /> 进入赛场
+              </button>
+            )}
+            {match.status === 'MATCH_FINISHED' && (
+              <button
+                onClick={() => navigate(`${basePath}/${id}/finance`)}
+                className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-black tracking-wide shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Calculator size={16} /> 管理结算信息
+              </button>
+            )}
+
+            {/* Secondary actions */}
+            {['PUBLISHED', 'REGISTRATION_CLOSED', 'ONGOING', 'PREPARING'].includes(match.status) && (
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {match.status === 'PREPARING' && (
+                  <button
+                    onClick={() => navigate(`${basePath}/${id}/edit`)}
+                    className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03] py-3 text-xs font-bold text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-100 dark:hover:bg-white/[0.06] active:scale-95"
+                  >
+                    <Edit3 size={13} /> 编辑赛事信息
+                  </button>
+                )}
+                {match.status === 'PUBLISHED' && (
+                  <>
+                    <button
+                      onClick={handleRevertToPreparing}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03] py-3 text-xs font-bold text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-100 dark:hover:bg-white/[0.06] active:scale-95"
+                    >
+                      <ChevronLeft size={13} /> 回退筹备
+                    </button>
+                    <button
+                      onClick={handleShowAddPlayer}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03] py-3 text-xs font-bold text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-100 dark:hover:bg-white/[0.06] active:scale-95"
+                    >
+                      <UserPlus size={13} /> 添加球员
+                    </button>
+                    <button
+                      onClick={() => navigate(`${basePath}/${id}/grouping`)}
+                      className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03] py-3 text-xs font-bold text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-100 dark:hover:bg-white/[0.06] active:scale-95"
+                    >
+                      <LayoutList size={13} /> 管理分组
+                    </button>
+                  </>
+                )}
+                {match.status === 'REGISTRATION_CLOSED' && (
+                  <>
+                    <button
+                      onClick={handleShowAddPlayer}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03] py-3 text-xs font-bold text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-100 dark:hover:bg-white/[0.06] active:scale-95"
+                    >
+                      <UserPlus size={13} /> 添加球员
+                    </button>
+                    <button
+                      onClick={() => navigate(`${basePath}/${id}/grouping`)}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03] py-3 text-xs font-bold text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-100 dark:hover:bg-white/[0.06] active:scale-95"
+                    >
+                      <LayoutList size={13} /> 管理分组
+                    </button>
+                  </>
+                )}
+                {match.status === 'ONGOING' && (
+                  <>
+                    <button
+                      onClick={handleRollbackStatus}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03] py-3 text-xs font-bold text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-100 dark:hover:bg-white/[0.06] active:scale-95"
+                    >
+                      <ChevronLeft size={13} /> 回退状态
+                    </button>
+                    <button
+                      onClick={handleFinishMatch}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50/60 dark:bg-red-950/30 py-3 text-xs font-bold text-red-500 dark:text-red-400 transition-all hover:bg-red-100/60 dark:hover:bg-red-900/40 active:scale-95"
+                    >
+                      <XCircle size={13} /> 结束比赛
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Universal actions */}
+            <div className="flex items-center gap-4 border-t border-gray-100 dark:border-white/[0.06] pt-4">
+              <button
+                onClick={handleSoftDelete}
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 dark:text-neutral-500 transition-colors hover:text-red-400"
+              >
+                <Trash2 size={12} /> 删除赛事
+              </button>
+              <ChevronRight size={12} className="ml-auto text-gray-300 dark:text-neutral-700" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── User Action Block ── */}
+      <div className="relative z-10 mx-auto mb-8 max-w-5xl">
+        <div className="overflow-hidden rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-6">
+          <div className="mb-5 flex items-center gap-2">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-500/15">
+              <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+            </span>
+            <span className="text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-500">我的操作</span>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {match.settlementPublished && myReg && !myReg.isExempt && (
+              <div className="mb-4 rounded-2xl bg-amber-500/10 p-5 border border-amber-500/20">
+                <div className="flex justify-between items-end mb-3">
+                  <div className="text-xs font-bold text-amber-500">我的账单</div>
+                  <div className="text-2xl font-black text-amber-500 dark:text-amber-400 leading-none">¥{myReg.paymentAmount}</div>
+                </div>
+                {myReg.paymentStatus === 'PAID' ? (
+                  <div className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary/10 py-2.5 text-xs font-bold text-primary">
+                    <CheckCircle size={14} /> 已支付
+                  </div>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      const confirmed = await showConfirm({
+                        title: '确认支付',
+                        content: '确定已通过线下方式支付该费用吗？'
+                      });
+                      if (!confirmed) return;
+                      try {
+                        await apiClient.post(`/api/match/${id}/payment`, null, { params: { playerId: currentPlayerId, status: 'PAID' } });
+                        Toast.show({ icon: 'success', content: '支付成功' });
+                        fetchData();
+                      } catch (e) { }
+                    }}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-white shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
+                  >
+                    <CheckCircle size={14} /> 确认支付
+                  </button>
+                )}
+              </div>
+            )}
+
+            {canRegister && !isRegistered && !isPending && (
+              <button
+                onClick={handleRegister}
+                disabled={registering}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-black tracking-wide shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              >
+                {registering ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                {registering ? '报名中...' : '立即报名'}
+              </button>
+            )}
+            
+            {isRegistered && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 rounded-2xl border border-primary/20 bg-primary/8 py-3 text-xs font-bold text-primary">
+                  <Shield size={14} /> 您已成功报名
+                </div>
+                {canRegister && (
+                  <button
+                    onClick={handleCancelRegistration}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-gray-500 dark:text-neutral-500 transition-colors hover:text-red-400"
+                  >
+                    <LogOut size={14} /> 取消报名
+                  </button>
+                )}
+              </div>
+            )}
+            
+            {isPending && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/8 py-3 text-xs font-bold text-amber-400">
+                  <Clock size={14} /> 待管理员审批
+                </div>
+                <div className="text-center text-[10px] text-gray-400 dark:text-neutral-600">
+                  人数已满，您的报名申请需要管理员批准
+                </div>
+                <button
+                  onClick={handleCancelRegistration}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-gray-500 dark:text-neutral-500 transition-colors hover:text-red-400"
+                >
+                  <LogOut size={14} /> 取消申请
+                </button>
+              </div>
+            )}
+            
+            {!canRegister && !isRegistered && !isPending && (
+              <div className="flex items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-white/[0.03] py-4 text-xs font-bold text-gray-500 dark:text-neutral-500">
+                {match.status === 'PREPARING' ? '报名尚未开始' : '报名已截止'}
+              </div>
+            )}
+
+            {/* Poster Generator Button for normal users */}
+            {match.status !== 'PREPARING' && (
+              <button
+                onClick={handleGeneratePoster}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 py-4 text-sm font-black text-white tracking-wide shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Share2 size={16} />
+                {match.status === 'MATCH_FINISHED' ? '分享战报海报' : '分享报名海报'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* ── Main Content Tabs ── */}
       <div className="relative z-10 mx-auto max-w-5xl pb-32">
@@ -552,7 +752,7 @@ const MatchDetail: React.FC = () => {
                         <div key={reg.id} className="flex justify-between items-center rounded-xl bg-white dark:bg-neutral-900 border border-rose-100 dark:border-neutral-800 py-2 px-3">
                           <span className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[120px]">{p?.nickname || `球员 #${reg.playerId}`}</span>
                           <span className={`text-xs font-bold ${reg.paymentStatus === 'PAID' ? 'text-primary' : 'text-rose-400'}`}>
-                            {reg.paymentStatus === 'PAID' ? '已付' : (match.perPersonCost ? `¥${match.perPersonCost}` : '待结算')}
+                            {reg.paymentStatus === 'PAID' ? '已付' : (reg.paymentAmount != null && match.settlementPublished ? `¥${reg.paymentAmount}` : '待结算')}
                           </span>
                         </div>
                       );
@@ -641,52 +841,6 @@ const MatchDetail: React.FC = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Admin Add Player Panel */}
-                {admin && showAddPlayer && (
-                  <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-4">
-                    <input
-                      type="text"
-                      placeholder="搜索球员昵称..."
-                      value={playerFilter}
-                      onChange={(e) => setPlayerFilter(e.target.value)}
-                      className="mb-3 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/30 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder-neutral-500 focus:border-primary/50 focus:outline-none"
-                    />
-                    <div className="max-h-64 space-y-2 overflow-y-auto">
-                      {eligiblePlayers
-                        .filter(p => !playerFilter || p.nickname?.toLowerCase().includes(playerFilter.toLowerCase()))
-                        .map(player => {
-                          const pos = positionMeta[player.position] || {
-                            label: '球员',
-                            colorClass: 'bg-neutral-500/15 text-neutral-400 border-neutral-500/20',
-                          };
-                          return (
-                            <button
-                              key={player.id}
-                              onClick={() => handleAddPlayer(player.id, player.nickname)}
-                              className="flex w-full items-center gap-3 rounded-xl border border-gray-100 dark:border-white/6 bg-gray-50 dark:bg-white/[0.02] px-3 py-2 text-left transition-colors hover:border-primary/30 hover:bg-primary/5"
-                            >
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
-                                {(player.nickname || '?')[0]}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate text-sm font-bold text-gray-900 dark:text-white">{player.nickname}</div>
-                                <div className="text-[10px] text-gray-400 dark:text-neutral-500">评分: {player.rating?.toFixed(1) || 'N/A'}</div>
-                              </div>
-                              <span className={`shrink-0 rounded-lg border px-2 py-0.5 text-[10px] font-bold ${pos.colorClass}`}>
-                                {pos.label}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      {eligiblePlayers.filter(p => !playerFilter || p.nickname?.toLowerCase().includes(playerFilter.toLowerCase())).length === 0 && (
-                        <div className="py-8 text-center text-sm text-gray-400 dark:text-neutral-500">
-                          {playerFilter ? '未找到匹配球员' : '暂无可添加球员'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 {/* Progress bar */}
                 {totalCapacity > 0 && (
@@ -860,196 +1014,47 @@ const MatchDetail: React.FC = () => {
         </Tabs>
       </div>
 
-      {/* ── Sticky Bottom CTA Bar ── */}
-      <div className="fixed inset-x-0 bottom-0 z-50 px-6 py-4 pb-8 sm:pb-8 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/5 flex justify-center shadow-[0_-8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.5)]">
-        <div className="w-full max-w-3xl flex flex-col gap-3">
-          {admin && match.status === 'MATCH_FINISHED' && (
-            <button
-              onClick={() => navigate(`${basePath}/${id}/finance`)}
-              className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 py-3.5 text-sm font-black text-primary transition-all hover:bg-primary/20 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Calculator size={16} /> 管理结算信息
-            </button>
-          )}
-
-          {match.settlementPublished && myReg && !myReg.isExempt && (
-            <div className="mb-4 rounded-2xl bg-amber-500/10 p-5 border border-amber-500/20">
-              <div className="flex justify-between items-end mb-3">
-                <div className="text-xs font-bold text-amber-500">我的账单</div>
-                <div className="text-2xl font-black text-white leading-none">¥{myReg.paymentAmount}</div>
-              </div>
-              {myReg.paymentStatus === 'PAID' ? (
-                <div className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary/10 py-2.5 text-xs font-bold text-primary">
-                  <CheckCircle size={14} /> 已支付
-                </div>
-              ) : (
-                <button
-                  onClick={async () => {
-                    const confirmed = await showConfirm({
-                      title: '确认支付',
-                      content: '确定已通过线下方式支付该费用吗？'
-                    });
-                    if (!confirmed) return;
-                    try {
-                      await apiClient.post(`/api/match/${id}/payment`, null, { params: { playerId: currentPlayerId, status: 'PAID' } });
-                      Toast.show({ icon: 'success', content: '支付成功' });
-                      fetchData();
-                    } catch (e) { }
-                  }}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-black shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
-                >
-                  <CheckCircle size={14} /> 确认支付
-                </button>
-              )}
-            </div>
-          )}
-
-          {canRegister && !isRegistered && !isPending && (
-            <button
-              onClick={handleRegister}
-              disabled={registering}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-black uppercase tracking-widest shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-            >
-              {registering ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
-              {registering ? '报名中...' : '立即报名'}
-            </button>
-          )}
-          {isRegistered && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-center gap-2 rounded-2xl border border-primary/20 bg-primary/8 py-3 text-xs font-bold text-primary">
-                <Shield size={14} /> 您已成功报名
-              </div>
-              {canRegister && (
-                <button
-                  onClick={handleCancelRegistration}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-gray-500 dark:text-neutral-500 transition-colors hover:text-red-400"
-                >
-                  <LogOut size={14} /> 取消报名
-                </button>
-              )}
-            </div>
-          )}
-          {isPending && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/8 py-3 text-xs font-bold text-amber-400">
-                <Clock size={14} /> 待管理员审批
-              </div>
-              <div className="text-center text-[10px] text-gray-400 dark:text-neutral-600">
-                人数已满，您的报名申请需要管理员批准
-              </div>
-              <button
-                onClick={handleCancelRegistration}
-                className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-gray-500 dark:text-neutral-500 transition-colors hover:text-red-400"
-              >
-                <LogOut size={14} /> 取消申请
-              </button>
-            </div>
-          )}
-          {!canRegister && !isRegistered && !isPending && (
-            <div className="flex items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-neutral-900 py-4 text-xs font-bold text-gray-500 dark:text-neutral-500">
-              {match.status === 'PREPARING' ? '报名尚未开始' : '报名已截止'}
-            </div>
-          )}
-        </div>
-      </div>
 
 
-      {/* ── Hidden Poster Template (for html2canvas) ── */}
-      <div className="fixed -left-[9999px] top-0">
-        <div
-          ref={posterRef}
-          className="w-[375px] bg-neutral-950 text-white font-sans relative overflow-hidden"
-          style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(29,185,84,0.35) 0%, transparent 50%)' }}
-        >
-          {/* Decorative bg */}
-          <div className="absolute top-0 right-0 opacity-[0.06] text-[100px] font-black italic select-none pointer-events-none leading-none pr-4 pt-6">
-            OLDBOY
-          </div>
-          <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-neutral-950 to-transparent" />
-
-          <div className="relative z-10 p-8 pb-6">
-            {/* Header */}
-            <div className="mb-8">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[10px] font-bold tracking-[0.1em] text-primary uppercase mb-4">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                {match?.tournamentName || '默认周赛'}
-              </div>
-              <h1 className="text-[28px] font-black leading-tight tracking-tight mb-3">{match?.title}</h1>
-              <div className="h-px w-16 bg-gradient-to-r from-primary to-transparent mb-4" />
-              <div className="space-y-2 text-[13px] text-neutral-300">
-                <div className="flex items-center gap-2">
-                  <Clock size={13} className="text-primary shrink-0" />
-                  <span>{posterDate.full}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin size={13} className="text-primary shrink-0" />
-                  <span>{match?.location}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users size={13} className="text-primary shrink-0" />
-                  <span>{match?.numGroups}组 · 每组{match?.playersPerGroup}人 · {match?.plannedGameCount}场</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Stats row */}
-            <div className="grid grid-cols-3 gap-3 mb-8">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-center">
-                <div className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1">已报名</div>
-                <div className="text-xl font-black text-primary">{registeredCount}</div>
-                {totalCapacity > 0 && (
-                  <div className="text-[10px] font-medium text-neutral-600">/ {totalCapacity} 人</div>
-                )}
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-center">
-                <div className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1">预估人均</div>
-                <div className="text-xl font-black text-white">¥{estimatedCost || '--'}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-center">
-                <div className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1">比赛规模</div>
-                <div className="text-xl font-black text-white">{match?.plannedGameCount || '-'}</div>
-                <div className="text-[10px] font-medium text-neutral-600">场</div>
-              </div>
-            </div>
-
-            {/* Player list */}
-            {activeRegs.length > 0 && (
-              <div className="mb-8">
-                <div className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-3">报名球员</div>
-                <div className="flex flex-wrap gap-2">
-                  {activeRegs.map(reg => (
-                    <span
-                      key={reg.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.08] px-3 py-1.5 text-[11px] font-bold"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />
-                      {players[reg.playerId]?.nickname || `#${reg.playerId}`}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Footer branding */}
-            <div className="pt-5 border-t border-neutral-800 flex justify-between items-end">
-              <div>
-                <div className="text-[9px] text-neutral-600 font-bold mb-1 uppercase tracking-widest">Powered by</div>
-                <div className="text-lg font-black italic tracking-tighter">
-                  OLDBOY <span className="text-primary">CLUB</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="rounded-lg bg-primary/15 border border-primary/25 px-3 py-1.5 text-[10px] font-black text-primary tracking-wide">
-                  扫码报名
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* ── Hidden Poster Templates ── */}
+      <RegistrationPoster
+        posterRef={registrationPosterRef}
+        match={match}
+        posterDate={posterDate}
+        registeredCount={registeredCount}
+        totalCapacity={totalCapacity}
+      />
+      <ReportPoster
+        posterRef={reportPosterRef}
+        match={match}
+        posterDate={posterDate}
+        games={games}
+        teamNames={match.teamNames ?? groupsData?.teamNames ?? {}}
+        standings={standings}
+        stats={stats}
+        groupsData={groupsData}
+      />
 
       {/* Confirm Dialog */}
       <DialogComponent />
+
+      {/* Poster Preview Modal */}
+      <CenterPopup visible={!!generatedPosterUrl} onMaskClick={() => setGeneratedPosterUrl(null)}>
+        <div className="p-4 flex flex-col items-center">
+          {generatedPosterUrl && (
+            <img src={generatedPosterUrl} alt="Poster" className="max-h-[70vh] w-auto rounded-lg shadow-xl" />
+          )}
+          <div className="mt-4 text-white font-bold text-sm bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
+            长按图片保存或分享给好友
+          </div>
+          <button 
+            onClick={() => setGeneratedPosterUrl(null)}
+            className="mt-6 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition-transform active:scale-95"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      </CenterPopup>
     </div>
   );
 };

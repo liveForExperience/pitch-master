@@ -87,6 +87,9 @@ export const matchApi = {
   publishGroups: (matchId: string | number): Promise<void> =>
     apiClient.post(`/api/match/${matchId}/groups/publish`),
 
+  closeRegistration: (matchId: string | number): Promise<void> =>
+    apiClient.post(`/api/match/${matchId}/close-registration`),
+
   startMatch: (matchId: string | number, actualStartTime: string): Promise<void> =>
     apiClient.post(`/api/match/${matchId}/start`, { actualStartTime }),
 
