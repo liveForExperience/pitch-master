@@ -26,6 +26,7 @@ import com.bottomlord.service.MatchGameService;
 import com.bottomlord.service.MatchRegistrationService;
 import com.bottomlord.service.PlayerService;
 import com.bottomlord.service.TournamentService;
+import com.bottomlord.service.TournamentPlayerService;
 import com.bottomlord.strategy.GroupingStrategy;
 import com.bottomlord.strategy.GroupingStrategyFactory;
 import com.bottomlord.mapper.TournamentMapper;
@@ -84,6 +85,9 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
 
     @Autowired
     private TournamentService tournamentService;
+
+    @Autowired
+    private TournamentPlayerService tournamentPlayerService;
 
     @Override
     public Match getMatchDetail(Long matchId) {
@@ -879,9 +883,19 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         }
         assertMatchAdmin(match);
 
-        List<Player> allPlayers = playerService.list(new LambdaQueryWrapper<Player>()
-                .eq(Player::getTournamentId, match.getTournamentId())
-                .eq(Player::getStatus, 1));
+        // 获取该 Tournament 下的所有活跃球员 (从 tournament_player 表查询)
+        List<Long> tournamentPlayerIds = tournamentPlayerService.list(new LambdaQueryWrapper<com.bottomlord.entity.TournamentPlayer>()
+                .eq(com.bottomlord.entity.TournamentPlayer::getTournamentId, match.getTournamentId())
+                .eq(com.bottomlord.entity.TournamentPlayer::getStatus, 1))
+                .stream()
+                .map(com.bottomlord.entity.TournamentPlayer::getPlayerId)
+                .collect(Collectors.toList());
+
+        if (CollUtil.isEmpty(tournamentPlayerIds)) {
+            return new ArrayList<>();
+        }
+
+        List<Player> allPlayers = playerService.listByIds(tournamentPlayerIds);
 
         Set<Long> registeredPlayerIds = registrationService.list(new LambdaQueryWrapper<MatchRegistration>()
                 .eq(MatchRegistration::getMatchId, matchId)
@@ -891,7 +905,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
                 .collect(Collectors.toSet());
 
         return allPlayers.stream()
-                .filter(p -> !registeredPlayerIds.contains(p.getId()))
+                .filter(p -> p.getStatus() == 1 && !registeredPlayerIds.contains(p.getId()))
                 .collect(Collectors.toList());
     }
 

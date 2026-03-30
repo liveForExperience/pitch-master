@@ -61,6 +61,9 @@ public class RatingServiceImpl implements RatingService {
     private PlayerRatingProfileMapper profileMapper;
 
     @Autowired
+    private MatchMapper matchMapper;
+
+    @Autowired
     private MatchGameMapper gameMapper;
 
     @Autowired
@@ -78,91 +81,108 @@ public class RatingServiceImpl implements RatingService {
         MatchGame game = gameMapper.selectById(gameId);
         if (game == null) return;
 
+        Match match = matchMapper.selectById(game.getMatchId());
+        if (match == null) {
+            log.error("结算评分失败：未找到关联赛事. matchId={}", game.getMatchId());
+            return;
+        }
+
         List<GameParticipant> participants = participantMapper.selectList(
                 new LambdaQueryWrapper<GameParticipant>().eq(GameParticipant::getGameId, gameId));
 
-        log.info("开始结算 Game 评分流水线: gameId={}, 参与人数={}", gameId, participants.size());
+        log.info("开始结算 Game 评分流水线: gameId={}, matchId={}, tournamentId={}, 参与人数={}", 
+                gameId, game.getMatchId(), match.getTournamentId(), participants.size());
 
         LocalDateTime settledAt = LocalDateTime.now();
-
+        Long matchId = game.getMatchId();
+        Long tournamentId = match.getTournamentId();
+        
         for (GameParticipant p : participants) {
-            Long playerId = p.getPlayerId();
-            Player player = playerMapper.selectById(playerId);
-            if (player == null) continue;
+            try {
+                Long playerId = p.getPlayerId();
+                Player player = playerMapper.selectById(playerId);
+                if (player == null) continue;
 
-            // 1. 获取阵营与胜负状态
-            MatchRegistration reg = registrationMapper.selectOne(new LambdaQueryWrapper<MatchRegistration>()
-                    .eq(MatchRegistration::getMatchId, game.getMatchId())
-                    .eq(MatchRegistration::getPlayerId, playerId));
-            
-            if (reg == null || reg.getGroupIndex() == null) {
-                log.warn("球员未在报名表中找到分组信息: playerId={}, matchId={}", playerId, game.getMatchId());
-                continue;
+                // 1. 获取阵营与胜负状态
+                MatchRegistration reg = registrationMapper.selectOne(new LambdaQueryWrapper<MatchRegistration>()
+                        .eq(MatchRegistration::getMatchId, matchId)
+                        .eq(MatchRegistration::getPlayerId, playerId));
+                
+                if (reg == null || reg.getGroupIndex() == null) {
+                    log.warn("球员未在报名表中找到分组信息: playerId={}, matchId={}", playerId, matchId);
+                    continue;
+                }
+
+                boolean isTeamA = reg.getGroupIndex().equals(game.getTeamAIndex());
+                double actualScore = 0.5; // 默认平局
+                if (game.getScoreA() > game.getScoreB()) {
+                    actualScore = isTeamA ? 1.0 : 0.0;
+                } else if (game.getScoreA() < game.getScoreB()) {
+                    actualScore = isTeamA ? 0.0 : 1.0;
+                }
+
+                PlayerRatingProfile profile = ensureProfile(playerId, tournamentId);
+                BigDecimal oldSkill = defaultIfNull(profile.getSkillRating(), DEFAULT_RATING);
+                BigDecimal oldPerformance = defaultIfNull(profile.getPerformanceRating(), DEFAULT_RATING);
+                BigDecimal oldEngagement = defaultIfNull(profile.getEngagementRating(), DEFAULT_RATING);
+                
+                // 全局 Rating 仍然保留在 Player 表，但结算时优先参考 Profile
+                BigDecimal oldTotal = defaultIfNull(player.getRating(), calculateTotalRating(oldSkill, oldPerformance, oldEngagement));
+                LocalDateTime previousAttendanceTime = profile.getLastAttendanceTime() != null ? profile.getLastAttendanceTime() : player.getLastAttendanceTime();
+
+                int playedMatchesBefore = defaultIfNull(profile.getProvisionalMatches(), 0);
+                BigDecimal factor = playedMatchesBefore < 3 ? PROTECTION_FACTOR : BigDecimal.ONE;
+
+                BigDecimal newSkill = calculateSkillRating(oldSkill, p, factor);
+                BigDecimal newPerformance = calculatePerformanceRating(oldPerformance, p, actualScore, factor);
+
+                int newActiveStreakWeeks = calculateActiveStreakWeeks(profile.getLastAttendanceTime(), defaultIfNull(profile.getActiveStreakWeeks(), 0), settledAt);
+                BigDecimal settlementEngagement = calculateEngagementRating(oldEngagement, playerId, matchId, newActiveStreakWeeks);
+                BigDecimal settlementTotal = calculateTotalRating(newSkill, newPerformance, settlementEngagement);
+                boolean returningAfterInactivity = isReturningAfterInactivity(previousAttendanceTime, settledAt);
+                BigDecimal newEngagement = settlementEngagement;
+                BigDecimal newTotal = settlementTotal;
+                if (returningAfterInactivity) {
+                    newEngagement = clamp(settlementEngagement.add(ENGAGEMENT_RETURN_BONUS));
+                    newTotal = calculateTotalRating(newSkill, newPerformance, newEngagement);
+                }
+
+                profile.setSkillRating(newSkill);
+                profile.setPerformanceRating(newPerformance);
+                profile.setEngagementRating(newEngagement);
+                profile.setProvisionalMatches(Math.min(playedMatchesBefore + 1, 3));
+                profile.setAppearanceCount(defaultIfNull(profile.getAppearanceCount(), 0) + 1);
+                profile.setActiveStreakWeeks(newActiveStreakWeeks);
+                profile.setLastAttendanceTime(settledAt);
+                profile.setLastDecayTime(null);
+                profile.setRatingVersion(2);
+                profileMapper.updateById(profile);
+
+                insertHistory(playerId, matchId, tournamentId, "SKILL", "MATCH_SETTLEMENT", oldSkill, newSkill, "MATCH_SKILL", "game:" + gameId);
+                insertHistory(playerId, matchId, tournamentId, "PERFORMANCE", "MATCH_SETTLEMENT", oldPerformance, newPerformance, "MATCH_PERFORMANCE", "game:" + gameId);
+                insertHistory(playerId, matchId, tournamentId, "ENGAGEMENT", "MATCH_SETTLEMENT", oldEngagement, settlementEngagement, "MATCH_ENGAGEMENT", "game:" + gameId);
+                insertHistory(playerId, matchId, tournamentId, "TOTAL", "MATCH_SETTLEMENT", oldTotal, settlementTotal, "MATCH_TOTAL", "game:" + gameId);
+                if (returningAfterInactivity) {
+                    insertHistory(playerId, matchId, tournamentId, "ENGAGEMENT", "RETURN_BONUS", settlementEngagement, newEngagement, "RETURN_BONUS", "game:" + gameId);
+                    insertHistory(playerId, matchId, tournamentId, "TOTAL", "RETURN_BONUS", settlementTotal, newTotal, "RETURN_BONUS", "game:" + gameId);
+                }
+
+                // 更新 Player 表中的全局 Rating (作为该球员在最近一个 Tournament 的表现映射)
+                player.setRating(newTotal);
+                player.setRatingVersion(2);
+                player.setLastMatchTime(settledAt);
+                player.setLastAttendanceTime(settledAt);
+                playerMapper.updateById(player);
+
+                // 3. FM 属性微调 (1-20 区间)
+                updatePlayerAttributes(playerId, p, actualScore);
+
+                // 4. 战绩统计更新
+                updatePlayerStats(playerId, p, actualScore);
+            } catch (Exception e) {
+                log.error("结算球员评分失败: playerId={}, gameId={}, error={}", p.getPlayerId(), gameId, e.getMessage(), e);
+                throw new RuntimeException("结算球员评分失败: " + p.getPlayerId(), e);
             }
-
-            boolean isTeamA = reg.getGroupIndex().equals(game.getTeamAIndex());
-            double actualScore = 0.5; // 默认平局
-            if (game.getScoreA() > game.getScoreB()) {
-                actualScore = isTeamA ? 1.0 : 0.0;
-            } else if (game.getScoreA() < game.getScoreB()) {
-                actualScore = isTeamA ? 0.0 : 1.0;
-            }
-
-            PlayerRatingProfile profile = ensureProfile(playerId);
-            BigDecimal oldSkill = defaultIfNull(profile.getSkillRating(), DEFAULT_RATING);
-            BigDecimal oldPerformance = defaultIfNull(profile.getPerformanceRating(), DEFAULT_RATING);
-            BigDecimal oldEngagement = defaultIfNull(profile.getEngagementRating(), DEFAULT_RATING);
-            BigDecimal oldTotal = defaultIfNull(player.getRating(), calculateTotalRating(oldSkill, oldPerformance, oldEngagement));
-            LocalDateTime previousAttendanceTime = profile.getLastAttendanceTime() != null ? profile.getLastAttendanceTime() : player.getLastAttendanceTime();
-
-            int playedMatchesBefore = defaultIfNull(profile.getProvisionalMatches(), 0);
-            BigDecimal factor = playedMatchesBefore < 3 ? PROTECTION_FACTOR : BigDecimal.ONE;
-
-            BigDecimal newSkill = calculateSkillRating(oldSkill, p, factor);
-            BigDecimal newPerformance = calculatePerformanceRating(oldPerformance, p, actualScore, factor);
-
-            int newActiveStreakWeeks = calculateActiveStreakWeeks(profile.getLastAttendanceTime(), defaultIfNull(profile.getActiveStreakWeeks(), 0), settledAt);
-            BigDecimal settlementEngagement = calculateEngagementRating(oldEngagement, playerId, game.getMatchId(), newActiveStreakWeeks);
-            BigDecimal settlementTotal = calculateTotalRating(newSkill, newPerformance, settlementEngagement);
-            boolean returningAfterInactivity = isReturningAfterInactivity(previousAttendanceTime, settledAt);
-            BigDecimal newEngagement = settlementEngagement;
-            BigDecimal newTotal = settlementTotal;
-            if (returningAfterInactivity) {
-                newEngagement = clamp(settlementEngagement.add(ENGAGEMENT_RETURN_BONUS));
-                newTotal = calculateTotalRating(newSkill, newPerformance, newEngagement);
-            }
-
-            profile.setSkillRating(newSkill);
-            profile.setPerformanceRating(newPerformance);
-            profile.setEngagementRating(newEngagement);
-            profile.setProvisionalMatches(Math.min(playedMatchesBefore + 1, 3));
-            profile.setAppearanceCount(defaultIfNull(profile.getAppearanceCount(), 0) + 1);
-            profile.setActiveStreakWeeks(newActiveStreakWeeks);
-            profile.setLastAttendanceTime(settledAt);
-            profile.setLastDecayTime(null);
-            profile.setRatingVersion(2);
-            profileMapper.updateById(profile);
-
-            insertHistory(playerId, game.getMatchId(), "SKILL", "MATCH_SETTLEMENT", oldSkill, newSkill, "MATCH_SKILL", "game:" + gameId);
-            insertHistory(playerId, game.getMatchId(), "PERFORMANCE", "MATCH_SETTLEMENT", oldPerformance, newPerformance, "MATCH_PERFORMANCE", "game:" + gameId);
-            insertHistory(playerId, game.getMatchId(), "ENGAGEMENT", "MATCH_SETTLEMENT", oldEngagement, settlementEngagement, "MATCH_ENGAGEMENT", "game:" + gameId);
-            insertHistory(playerId, game.getMatchId(), "TOTAL", "MATCH_SETTLEMENT", oldTotal, settlementTotal, "MATCH_TOTAL", "game:" + gameId);
-            if (returningAfterInactivity) {
-                insertHistory(playerId, game.getMatchId(), "ENGAGEMENT", "RETURN_BONUS", settlementEngagement, newEngagement, "RETURN_BONUS", "game:" + gameId);
-                insertHistory(playerId, game.getMatchId(), "TOTAL", "RETURN_BONUS", settlementTotal, newTotal, "RETURN_BONUS", "game:" + gameId);
-            }
-
-            player.setRating(newTotal);
-            player.setRatingVersion(2);
-            player.setLastMatchTime(settledAt);
-            player.setLastAttendanceTime(settledAt);
-            playerMapper.updateById(player);
-
-            // 3. FM 属性微调 (1-20 区间)
-            updatePlayerAttributes(playerId, p, actualScore);
-
-            // 4. 战绩统计更新
-            updatePlayerStats(playerId, p, actualScore);
         }
     }
 
@@ -262,24 +282,26 @@ public class RatingServiceImpl implements RatingService {
             player.setRatingVersion(2);
             playerMapper.updateById(player);
 
-            insertHistory(player.getId(), null, "DECAY", "INACTIVITY_DECAY", oldEngagement, newEngagement,
+            insertHistory(player.getId(), null, profile.getTournamentId(), "DECAY", "INACTIVITY_DECAY", oldEngagement, newEngagement,
                     "INACTIVITY_DECAY", "at:" + atTime);
-            insertHistory(player.getId(), null, "TOTAL", "INACTIVITY_DECAY", oldTotal, newTotal,
+            insertHistory(player.getId(), null, profile.getTournamentId(), "TOTAL", "INACTIVITY_DECAY", oldTotal, newTotal,
                     "INACTIVITY_DECAY", "at:" + atTime);
             processedCount++;
         }
         log.info("[逻辑时间: {}] 完成不活跃衰减，处理 {} 名球员。", atTime, processedCount);
     }
 
-    private PlayerRatingProfile ensureProfile(Long playerId) {
+    private PlayerRatingProfile ensureProfile(Long playerId, Long tournamentId) {
         PlayerRatingProfile profile = profileMapper.selectOne(new LambdaQueryWrapper<PlayerRatingProfile>()
-                .eq(PlayerRatingProfile::getPlayerId, playerId));
+                .eq(PlayerRatingProfile::getPlayerId, playerId)
+                .eq(PlayerRatingProfile::getTournamentId, tournamentId));
         if (profile != null) {
             return profile;
         }
 
         PlayerRatingProfile newProfile = new PlayerRatingProfile();
         newProfile.setPlayerId(playerId);
+        newProfile.setTournamentId(tournamentId);
         newProfile.setSkillRating(DEFAULT_RATING);
         newProfile.setPerformanceRating(DEFAULT_RATING);
         newProfile.setEngagementRating(DEFAULT_RATING);
@@ -395,11 +417,12 @@ public class RatingServiceImpl implements RatingService {
         return Duration.between(profile.getLastDecayTime(), atTime).toDays() >= 7;
     }
 
-    private void insertHistory(Long playerId, Long matchId, String dimension, String sourceType,
+    private void insertHistory(Long playerId, Long matchId, Long tournamentId, String dimension, String sourceType,
                                BigDecimal oldValue, BigDecimal newValue, String reasonCode, String reasonDetail) {
         PlayerRatingHistory history = new PlayerRatingHistory();
         history.setPlayerId(playerId);
         history.setMatchId(matchId);
+        history.setTournamentId(tournamentId);
         history.setDimension(dimension);
         history.setSourceType(sourceType);
         history.setOldRating(oldValue);
