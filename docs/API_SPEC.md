@@ -46,7 +46,7 @@
 | `/{matchId}/groups/publish` | POST | 发布分组（对所有人可见） | 需 ADMIN，要求全员已分配 |
 | `/{matchId}/teams/{groupIndex}/name` | PUT | 更新队伍自定义名称 | 需 ADMIN，Body: `{"name": "雄鹰队"}`；名称为空则重置 |
 | `/{matchId}/start` | POST | 确认分组并正式开赛 | 需 ADMIN，要求 `groups_published=true`，Body: `{"actualStartTime": "2026-03-22T19:00:00"}`；执行开赛前置检测 |
-| `/{matchId}/rollback` | POST | 回退赛事状态 | 需 ADMIN，仅允许从 ONGOING 回退，Query: `targetStatus`（REGISTRATION_CLOSED / GROUPING_DRAFT） |
+| `/{matchId}/rollback` | POST | 回退赛事状态 | 需 ADMIN，仅允许从 ONGOING 回退，Query: `targetStatus`（REGISTRATION_CLOSED） |
 | `/{matchId}/actual-start-time` | PUT | 修改实际开赛时间 | 需 ADMIN，仅在 ONGOING 状态，Body: `{"actualStartTime": "2026-03-22T20:00:00"}` |
 | `/{matchId}/finish` | POST | 完成赛事 | 将赛事置为 `MATCH_FINISHED` |
 | `/{matchId}/settlement` | POST | 保存并发布结算信息 | 需 ADMIN，Body: `SettlementRequest` |
@@ -80,10 +80,10 @@
 
 | 接口 | 方法 | 说明 | 备注 |
 | :--- | :--- | :--- | :--- |
-| `/player/{id}` | GET | 获取球员档案 | 基本信息、统计数据等 |
-| `/player/{id}/rating` | GET | 获取球员评分档案 | 返回总分与三维评分 (Skill/Performance/Engagement) |
-| `/admin/player/{playerId}/rating/total` | POST | 管理员修正总评分 | Query: `newRating` (1.00-20.00), `reason`, 需 ADMIN 角色 |
-| `/admin/player/{playerId}/rating/dimension` | POST | 管理员修正三维评分 | Query: `dimension` (SKILL/PERFORMANCE/ENGAGEMENT), `newValue` (1.00-20.00), `reason`, 需 ADMIN 角色 |
+| `/player/{id}` | GET | 获取球员档案 | 基本信息 |
+| `/player/{id}/rating` | GET | 获取球员在指定赛事的评分档案 | Query: `tournamentId`（必填）；总分实时计算，返回三维评分 + 统计信息 |
+| `/player/profile` | POST | 更新个人基础资料 | Body: `ProfileUpdateRequest` |
+| `/admin/player/{playerId}/rating/dimension` | POST | 管理员修正三维评分 | Query: `tournamentId`, `dimension` (SKILL/PERFORMANCE/ENGAGEMENT), `newValue` (1.00-20.00), `reason`；需 ADMIN 角色 |
 | `/rating/submit` | POST | 提交球员互评/打分 | Body: `PlayerMutualRating`, Optional Query: `quickTotalScore` |
 | `/rating/mvp-votes/{matchId}` | GET | 获取 MVP 票数统计 | 返回 Map<PlayerId, VoteCount> |
 | `/rating/finalize-mvp/{matchId}` | POST | 最终确定本场 MVP | 需 ADMIN 角色，Optional Query: `manualPlayerId` |
@@ -137,7 +137,6 @@
 - `status`: 
     - `PREPARING`: 草稿/准备中 (对应 `/publish` 创建后)
     - `PUBLISHED`: 已发布/报名中 (对应 `/{id}/publish` 调用后)
-    - `GROUPING_DRAFT`: 已出分组草案
     - `REGISTRATION_CLOSED`: 报名截止
     - `ONGOING`: 比赛进行中
     - `MATCH_FINISHED`: 所有场次结束

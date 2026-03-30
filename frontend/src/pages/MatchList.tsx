@@ -2,50 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { PullToRefresh, FloatingBubble, Toast } from 'antd-mobile';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Plus, Calendar, MapPin, Users, ChevronRight, Trash2, Megaphone } from 'lucide-react';
+import { Plus, Calendar, MapPin, Users, ChevronRight, ChevronLeft, Trash2, Megaphone, Swords, Trophy } from 'lucide-react';
 import apiClient from '../api/client';
 import { matchApi } from '../api/match';
 import useAuthStore from '../store/useAuthStore';
 import dayjs from 'dayjs';
-
-const matchStatusMeta: Record<string, { label: string; badgeClass: string; dotClass: string; accentClass: string }> = {
-  PREPARING: {
-    label: '筹备中',
-    badgeClass: 'border-neutral-500/20 bg-neutral-500/10 text-neutral-400',
-    dotClass: 'bg-neutral-400',
-    accentClass: 'from-neutral-400/80 to-neutral-400/10',
-  },
-  PUBLISHED: {
-    label: '报名中',
-    badgeClass: 'border-primary/20 bg-primary/10 text-primary',
-    dotClass: 'bg-primary',
-    accentClass: 'from-primary/80 to-primary/10',
-  },
-  REGISTRATION_CLOSED: {
-    label: '报名已截止',
-    badgeClass: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
-    dotClass: 'bg-sky-400',
-    accentClass: 'from-sky-400/80 to-sky-400/10',
-  },
-  ONGOING: {
-    label: '比赛中',
-    badgeClass: 'border-orange-500/20 bg-orange-500/10 text-orange-400',
-    dotClass: 'bg-orange-400',
-    accentClass: 'from-orange-400/80 to-orange-400/10',
-  },
-  MATCH_FINISHED: {
-    label: '比赛结束',
-    badgeClass: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
-    dotClass: 'bg-amber-400',
-    accentClass: 'from-amber-400/80 to-amber-400/10',
-  },
-  CANCELLED: {
-    label: '已取消',
-    badgeClass: 'border-red-500/20 bg-red-500/10 text-red-400',
-    dotClass: 'bg-red-400',
-    accentClass: 'from-red-400/70 to-red-400/5',
-  },
-};
+import { getMatchStatusMeta } from '../constants/match';
+import { cn } from '../lib/utils';
 
 const formatPosterDate = (value: string | number | Date) => {
   const parsed = dayjs(value);
@@ -112,15 +75,6 @@ const MatchList: React.FC = () => {
       setSearchParams(next, { replace: true });
     }
   }, [activeFilter, searchParams, setSearchParams]);
-
-  const getStatusMeta = (status: string) => {
-    return matchStatusMeta[status] || {
-      label: '状态待定',
-      badgeClass: 'border-neutral-700 bg-neutral-800/80 text-neutral-300',
-      dotClass: 'bg-neutral-400',
-      accentClass: 'from-neutral-300/70 to-neutral-300/5',
-    };
-  };
 
   const handleDeleteMatch = async (e: React.MouseEvent, matchId: number) => {
     e.stopPropagation();
@@ -204,6 +158,14 @@ const MatchList: React.FC = () => {
     <div className="relative mx-auto max-w-6xl px-6 py-10 sm:px-8 lg:px-10 lg:py-16">
       <div className="pointer-events-none absolute left-[-8%] top-14 h-64 w-64 rounded-full bg-primary/8 blur-[140px]"></div>
       <div className="pointer-events-none absolute right-[-6%] top-28 h-72 w-72 rounded-full bg-white/[0.04] blur-[160px]"></div>
+
+      {/* ── Back Nav ── */}
+      <nav className="relative z-10 mb-8 flex items-center">
+        <button onClick={() => navigate('/tournaments')} className="group flex items-center text-gray-500 dark:text-neutral-500 font-bold hover:text-gray-900 dark:hover:text-white transition-colors">
+          <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" /> 绿茵场
+        </button>
+      </nav>
+
       <header className="mx-auto mb-12 flex max-w-5xl flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl relative z-10">
           <div className="mb-4 inline-flex items-center rounded-full border border-gray-200 dark:border-white/8 bg-gray-100 dark:bg-white/[0.03] px-4 py-2 text-[10px] font-black tracking-[0.28em] text-primary">
@@ -233,10 +195,18 @@ const MatchList: React.FC = () => {
       </header>
 
       <section className="relative z-10 mx-auto mb-8 max-w-5xl">
-        <div className="rounded-[1.75rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-white/[0.03] px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:border-gray-300 dark:hover:border-neutral-600">
-          <div className="mb-2 text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-600">赛事总览</div>
-          <div className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{matches.length}</div>
-          <div className="mt-1 text-xs font-medium text-gray-500 dark:text-neutral-500">当前可见赛事总数</div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: '报名中', value: statusSummary.published, icon: <Users size={14} className="text-primary" />, accent: 'border-primary/20 dark:border-primary/15', valueClass: 'text-primary' },
+            { label: '比赛中', value: statusSummary.ongoing, icon: <Swords size={14} className="text-orange-400" />, accent: 'border-orange-500/20 dark:border-orange-500/15', valueClass: 'text-orange-400' },
+            { label: '已结束', value: statusSummary.finished, icon: <Trophy size={14} className="text-amber-400" />, accent: 'border-amber-500/20 dark:border-amber-500/15', valueClass: 'text-amber-400' },
+            { label: '赛事总数', value: matches.length, icon: <Calendar size={14} className="text-gray-400 dark:text-neutral-600" />, accent: 'border-gray-200 dark:border-white/8', valueClass: 'text-gray-900 dark:text-white' },
+          ].map((s) => (
+            <div key={s.label} className={cn('rounded-[1.75rem] border bg-white dark:bg-white/[0.02] px-5 py-4 transition-all hover:-translate-y-0.5 hover:shadow-sm', s.accent)}>
+              <div className="mb-2 flex items-center gap-1.5">{s.icon}<span className="text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-600">{s.label}</span></div>
+              <div className={cn('text-3xl font-black tracking-tight', s.valueClass)}>{s.value}</div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -265,7 +235,7 @@ const MatchList: React.FC = () => {
       <PullToRefresh onRefresh={fetchMatches}>
         <div className="mx-auto grid max-w-5xl grid-cols-1 gap-7 lg:grid-cols-2 xl:gap-8">
           {filteredMatches.map(match => {
-            const statusMeta = getStatusMeta(match.status);
+            const statusMeta = getMatchStatusMeta(match.status);
             const posterDate = formatPosterDate(match.startTime);
             const isPreparing = match.status === 'PREPARING';
             return (
@@ -365,10 +335,13 @@ const MatchList: React.FC = () => {
           })}
 
           {filteredMatches.length === 0 && (
-            <div className="col-span-full rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-white/[0.03] px-6 py-12 text-center">
+            <div className="col-span-full rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-white/[0.02] px-6 py-16 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-gray-200 dark:border-white/6 bg-gray-50 dark:bg-white/[0.03]">
+                <Calendar size={28} className="text-gray-300 dark:text-neutral-700" />
+              </div>
               <div className="text-sm font-bold text-gray-900 dark:text-white">当前筛选下暂无赛事</div>
               <p className="mt-2 text-xs font-medium text-gray-500 dark:text-neutral-500">
-                可切换到“全部”查看完整列表，或下拉刷新获取最新赛事状态。
+                切换到「全部」查看完整列表，或下拉刷新。
               </p>
             </div>
           )}

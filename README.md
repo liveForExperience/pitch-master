@@ -78,10 +78,9 @@ Frontend runs at `http://localhost:5173`
 ```
 .
 ├── docs/                    # Architecture & API documentation
-│   ├── README.md           # Documentation index
-│   ├── ARCHITECTURE.md     # System design & multi-tenancy
+│   ├── ARCHITECTURE.md     # System design, tech stack, class structure
 │   ├── API_SPEC.md         # RESTful API reference
-│   ├── DATA_MODEL.md       # Database schema & ER diagram
+│   ├── DATA_MODEL.md       # Domain model, DB schema & ER diagram
 │   ├── RATING_SYSTEM.md    # FM-style rating mechanics
 │   └── WORKFLOW.md         # Business workflows & SOP
 ├── frontend/               # React + TypeScript frontend
@@ -107,16 +106,17 @@ Frontend runs at `http://localhost:5173`
 
 ### Multi-Tenancy Model
 
-- **Tournament** (赛事): Top-level tenant isolation
-- **Club** (俱乐部): Organization-level grouping
-- **Player** (球员): Individual profiles with ratings
+- **Tournament** (赛事): Top-level tenant isolation (`tournament_id` is the root isolation key)
+- **Club** (俱乐部): Organization-level grouping within a Tournament
+- **Player** (球员): Global profile — tournament-specific rating, stats, and membership managed via `TournamentPlayer` + `PlayerRatingProfile`
 
 ### Match Lifecycle
 
 ```
-PREPARING → PUBLISHED → REGISTRATION_CLOSED → GROUPING_DRAFT
-    → ONGOING → MATCH_FINISHED
+PREPARING → PUBLISHED → REGISTRATION_CLOSED → ONGOING → MATCH_FINISHED
 ```
+
+Groups are managed as a draft (unpublished) then published — this is tracked via `groups_published` flag, not a separate status.
 
 ### Rating System (FM Style 1-20)
 
@@ -349,6 +349,5 @@ MIT License
 ## Support
 
 For issues and questions:
-- Review [documentation](./docs/README.md)
 - Check [API specification](./docs/API_SPEC.md)
 - See [workflow guide](./docs/WORKFLOW.md) for development process

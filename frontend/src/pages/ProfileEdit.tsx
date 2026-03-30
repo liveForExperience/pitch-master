@@ -1,21 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Toast, Button, Input, Form, Selector, NavBar } from 'antd-mobile';
+import { Toast, Selector } from 'antd-mobile';
 import { updatePlayerProfile, type ProfileUpdateData } from '../api/player';
 import useAuthStore from '../store/useAuthStore';
-import { UserCircle, Ruler, Activity } from 'lucide-react';
+import { UserCircle, Ruler, Activity, ChevronLeft, Loader2 } from 'lucide-react';
 
-const gridStyle = {
-  backgroundImage:
-    'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
-  backgroundSize: '32px 32px',
-};
+const cn = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
+
+const Field: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className }) => (
+  <div className={cn('space-y-2', className)}>
+    <label className="inline-block ml-1 text-[11px] font-black tracking-[0.2em] text-gray-500 dark:text-neutral-500 uppercase">{label}</label>
+    {children}
+  </div>
+);
+
+const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({ className, ...props }) => (
+  <div className="group flex h-14 items-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-black/40 px-5 transition-all duration-300 focus-within:border-primary/40 focus-within:bg-white dark:focus-within:bg-neutral-950">
+    <input
+      {...props}
+      className={cn(
+        'h-full w-full bg-transparent text-base font-bold text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-neutral-600 outline-none',
+        className,
+      )}
+    />
+  </div>
+);
 
 const ProfileEdit: React.FC = () => {
   const navigate = useNavigate();
   const { me, loading, fetched, fetchMe } = useAuthStore();
   const [submitting, setSubmitting] = useState(false);
-  const [form] = Form.useForm();
+
+  const [nickname, setNickname] = useState('');
+  const [realName, setRealName] = useState('');
+  const [age, setAge] = useState('');
+  const [height, setHeight] = useState('');
+  const [preferredFoot, setPreferredFoot] = useState<string[]>([]);
+  const [position, setPosition] = useState<string[]>([]);
 
   useEffect(() => {
     if (!fetched) {
@@ -25,32 +46,34 @@ const ProfileEdit: React.FC = () => {
 
   useEffect(() => {
     if (me?.player || me?.user) {
-      form.setFieldsValue({
-        nickname: me.player?.nickname || '',
-        realName: me.user?.realName || '',
-        position: me.player?.position ? [me.player.position] : [],
-        preferredFoot: me.player?.preferredFoot ? [me.player.preferredFoot] : [],
-        age: me.player?.age || undefined,
-        height: me.player?.height || undefined,
-      });
+      setNickname(me.player?.nickname || '');
+      setRealName(me.user?.realName || '');
+      setAge(me.player?.age ? String(me.player.age) : '');
+      setHeight(me.player?.height ? String(me.player.height) : '');
+      setPreferredFoot(me.player?.preferredFoot ? [me.player.preferredFoot] : []);
+      setPosition(me.player?.position ? [me.player.position] : []);
     }
-  }, [me, form]);
+  }, [me]);
 
-  const onFinish = async (values: any) => {
+  const handleSubmit = async () => {
+    if (!nickname.trim()) {
+      Toast.show({ icon: 'fail', content: '请填写球场展示名' });
+      return;
+    }
     const data: ProfileUpdateData = {
-      nickname: values.nickname,
-      realName: values.realName,
-      position: values.position?.[0], // Selector returns array
-      preferredFoot: values.preferredFoot?.[0], // Selector returns array
-      age: values.age ? parseInt(values.age, 10) : undefined,
-      height: values.height ? parseInt(values.height, 10) : undefined,
+      nickname: nickname.trim(),
+      realName: realName.trim() || undefined,
+      position: position[0],
+      preferredFoot: preferredFoot[0],
+      age: age ? parseInt(age, 10) : undefined,
+      height: height ? parseInt(height, 10) : undefined,
     };
 
     setSubmitting(true);
     try {
       await updatePlayerProfile(data);
       Toast.show({ icon: 'success', content: '更新成功' });
-      await fetchMe(); // refresh user state
+      await fetchMe();
       navigate(-1);
     } catch (error) {
     } finally {
@@ -60,146 +83,139 @@ const ProfileEdit: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center dark:bg-neutral-950">
-        <div className="text-gray-400">加载中...</div>
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-neutral-950">
+        <Loader2 className="animate-spin text-primary" size={32} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans dark:bg-neutral-950">
-      {/* ─── Hero Header ─── */}
-      <div className="relative overflow-hidden pb-4 pt-safe flex-none">
-        <div className="pointer-events-none absolute right-[-10%] top-0 h-64 w-64 rounded-full bg-gradient-to-br from-primary/60 to-primary/0 opacity-20 blur-3xl dark:opacity-10" />
-        <div className="pointer-events-none absolute inset-0 opacity-[0.035] dark:opacity-[0.015]" style={gridStyle} />
-        
-        <NavBar
-          onBack={() => navigate(-1)}
-          className="relative z-10 px-4 pt-2 [&_.adm-nav-bar-title]:font-black [&_.adm-nav-bar-title]:text-[17px] [&_.adm-nav-bar-title]:text-gray-900 dark:[&_.adm-nav-bar-title]:text-white [&_.adm-nav-bar-back-arrow]:text-gray-600 dark:[&_.adm-nav-bar-back-arrow]:text-neutral-400"
+    <div className="min-h-screen bg-gray-50 pb-[100px] text-gray-900 selection:bg-primary selection:text-black dark:bg-neutral-950 dark:text-white transition-colors duration-200">
+      {/* ── Navbar ── */}
+      <nav className="sticky top-0 z-50 flex items-center justify-between border-b border-gray-200 bg-white/80 px-4 py-4 backdrop-blur-md dark:border-white/10 dark:bg-black/80 sm:px-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="group flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-gray-50 transition-all hover:border-gray-300 hover:bg-gray-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20 dark:hover:bg-white/[0.04]"
         >
-          个人信息设置
-        </NavBar>
+          <ChevronLeft
+            size={20}
+            className="text-gray-600 transition-transform group-hover:-translate-x-0.5 dark:text-neutral-400"
+          />
+        </button>
+        <h1 className="text-sm font-black tracking-widest text-gray-900 dark:text-white">个人信息设置</h1>
+        <div className="h-10 w-10" />
+      </nav>
 
-        <div className="relative z-10 px-6 mt-4">
-           {/* Section Header */}
-           <div className="mb-2 text-[11px] font-black tracking-[0.2em] text-primary/80 uppercase">
-             Profile Update
-           </div>
-           <h1 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white leading-tight">
-             完善您的档案<br />
-             <span className="text-gray-400 dark:text-neutral-500 font-bold italic text-lg opacity-80">Make it Yours.</span>
-           </h1>
+      {/* ── Main Content ── */}
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+        <div className="rounded-[1.25rem] border border-gray-200 bg-white px-6 pt-6 pb-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 space-y-5">
+          {/* Identity */}
+          <div className="flex items-center gap-2">
+            <UserCircle size={15} className="text-blue-500" />
+            <span className="text-xs font-bold tracking-widest text-gray-400 dark:text-neutral-500 uppercase">身份信息</span>
+          </div>
+          <Field label="球场展示名 *">
+            <TextInput
+              value={nickname}
+              onChange={e => setNickname(e.target.value)}
+              placeholder="输入昵称 (e.g., 梅老板)"
+            />
+          </Field>
+          <Field label="真实姓名">
+            <TextInput
+              value={realName}
+              onChange={e => setRealName(e.target.value)}
+              placeholder="仅用于内部管理，可选"
+            />
+          </Field>
+
+          {/* Divider */}
+          <div className="border-t border-gray-100 dark:border-neutral-800" />
+
+          {/* Body Stats */}
+          <div className="flex items-center gap-2">
+            <Ruler size={15} className="text-orange-500" />
+            <span className="text-xs font-bold tracking-widest text-gray-400 dark:text-neutral-500 uppercase">身体与经验</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="年龄">
+              <TextInput
+                type="number"
+                value={age}
+                onChange={e => setAge(e.target.value)}
+                placeholder="岁"
+              />
+            </Field>
+            <Field label="身高 (cm)">
+              <TextInput
+                type="number"
+                value={height}
+                onChange={e => setHeight(e.target.value)}
+                placeholder="cm"
+              />
+            </Field>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-100 dark:border-neutral-800" />
+
+          {/* Technical Specs */}
+          <div className="flex items-center gap-2">
+            <Activity size={15} className="text-primary" />
+            <span className="text-xs font-bold tracking-widest text-gray-400 dark:text-neutral-500 uppercase">技术偏好</span>
+          </div>
+          <Field label="惯用脚">
+            <Selector
+              columns={3}
+              value={preferredFoot}
+              onChange={setPreferredFoot}
+              options={[
+                { label: '左脚', value: 'LEFT' },
+                { label: '右脚', value: 'RIGHT' },
+                { label: '双足', value: 'BOTH' },
+              ]}
+              className="profile-selector [&_.adm-selector-item]:rounded-xl [&_.adm-selector-item]:font-semibold"
+            />
+          </Field>
+          <Field label="擅长位置">
+            <Selector
+              columns={4}
+              value={position}
+              onChange={setPosition}
+              options={[
+                { label: 'FW 前锋', value: 'FW' },
+                { label: 'MF 中场', value: 'MF' },
+                { label: 'DF 后卫', value: 'DF' },
+                { label: 'GK 门将', value: 'GK' },
+              ]}
+              className="profile-selector [&_.adm-selector-item]:rounded-xl [&_.adm-selector-item]:font-semibold text-[13px]"
+            />
+          </Field>
         </div>
-      </div>
+      </main>
 
-      {/* ─── Form Container ─── */}
-      <div className="flex-1 w-full max-w-lg mx-auto px-4 pb-24 space-y-5">
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={onFinish}
-          className="space-y-4"
-          footer={
-            <Button 
-                block 
-                type="submit" 
-                color="primary" 
-                size="large" 
-                loading={submitting}
-                className="rounded-2xl h-14 font-bold text-[16px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all bg-primary"
-            >
-              保存更改
-            </Button>
-          }
-        >
-          {/* Group 1: Identity */}
-          <div className="rounded-[1.75rem] bg-white border border-gray-100 p-5 shadow-sm dark:bg-[#111] dark:border-neutral-800">
-             <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                   <UserCircle size={16} />
-                </div>
-                <div className="font-bold text-gray-900 dark:text-white">身份信息</div>
-             </div>
-             <Form.Item
-               name="nickname"
-               label="球场展示名"
-               rules={[{ required: true, message: '请填写展示名' }]}
-               className="[&_.adm-form-item-label]:font-bold [&_.adm-form-item-label]:text-gray-500 dark:[&_.adm-form-item-label]:text-neutral-400"
-             >
-               <Input placeholder="输入昵称 (e.g., 梅老板)" className="pt-2 text-[15px] font-semibold dark:text-white" />
-             </Form.Item>
-             <Form.Item
-               name="realName"
-               label="真实姓名"
-               className="[&_.adm-form-item-label]:font-bold [&_.adm-form-item-label]:text-gray-500 dark:[&_.adm-form-item-label]:text-neutral-400 border-none"
-             >
-               <Input placeholder="仅用于内部管理，可选" className="pt-2 text-[15px] font-semibold dark:text-white" />
-             </Form.Item>
+      {/* ── Sticky Bottom Action Bar ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/80 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-950/80 sm:px-6">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-gray-500 dark:text-neutral-400">完善档案</span>
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">更新您的信息</span>
           </div>
-
-          {/* Group 2: Body Stats */}
-          <div className="rounded-[1.75rem] bg-white border border-gray-100 p-5 shadow-sm dark:bg-[#111] dark:border-neutral-800">
-             <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
-                   <Ruler size={16} />
-                </div>
-                <div className="font-bold text-gray-900 dark:text-white">身体与经验</div>
-             </div>
-             
-             <div className="grid grid-cols-2 gap-4">
-                <Form.Item
-                  name="age"
-                  label="年龄"
-                  className="[&_.adm-form-item-label]:font-bold [&_.adm-form-item-label]:text-gray-500 dark:[&_.adm-form-item-label]:text-neutral-400"
-                >
-                  <Input type="number" placeholder="岁" className="pt-2 text-[15px] font-semibold dark:text-white" />
-                </Form.Item>
-
-                <Form.Item
-                  name="height"
-                  label="身高 (cm)"
-                  className="[&_.adm-form-item-label]:font-bold [&_.adm-form-item-label]:text-gray-500 dark:[&_.adm-form-item-label]:text-neutral-400"
-                >
-                  <Input type="number" placeholder="cm" className="pt-2 text-[15px] font-semibold dark:text-white" />
-                </Form.Item>
-             </div>
-          </div>
-
-          {/* Group 3: Technical Specs */}
-          <div className="rounded-[1.75rem] bg-white border border-gray-100 p-5 shadow-sm dark:bg-[#111] dark:border-neutral-800">
-             <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                   <Activity size={16} />
-                </div>
-                <div className="font-bold text-gray-900 dark:text-white">技术偏好</div>
-             </div>
-
-             <Form.Item name="preferredFoot" label="惯用脚" className="[&_.adm-form-item-label]:font-bold [&_.adm-form-item-label]:text-gray-500 dark:[&_.adm-form-item-label]:text-neutral-400">
-                <Selector
-                  columns={3}
-                  options={[
-                    { label: '左脚', value: 'LEFT' },
-                    { label: '右脚', value: 'RIGHT' },
-                    { label: '双足', value: 'BOTH' },
-                  ]}
-                  className="[&_.adm-selector-item]:rounded-xl [&_.adm-selector-item]:font-semibold [&_.adm-selector-item-active]:font-bold [&_.adm-selector-item-active]:bg-primary/10 [&_.adm-selector-item-active]:border-primary"
-                />
-             </Form.Item>
-
-             <Form.Item name="position" label="擅长位置" className="[&_.adm-form-item-label]:font-bold [&_.adm-form-item-label]:text-gray-500 dark:[&_.adm-form-item-label]:text-neutral-400 border-none">
-                <Selector
-                  columns={4}
-                  options={[
-                    { label: 'FW 前锋', value: 'FW' },
-                    { label: 'MF 中场', value: 'MF' },
-                    { label: 'DF 后卫', value: 'DF' },
-                    { label: 'GK 门将', value: 'GK' },
-                  ]}
-                  className="[&_.adm-selector-item]:rounded-xl [&_.adm-selector-item]:font-semibold [&_.adm-selector-item-active]:font-bold [&_.adm-selector-item-active]:bg-primary/10 [&_.adm-selector-item-active]:border-primary text-[13px]"
-                />
-             </Form.Item>
-          </div>
-        </Form>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black tracking-widest text-black shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+          >
+            {submitting ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                保存中...
+              </>
+            ) : (
+              '保存更改'
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

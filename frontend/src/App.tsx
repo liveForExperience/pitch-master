@@ -31,7 +31,7 @@ const ThemeApplier = () => {
 // 导航包装组件：处理全局导航的显示逻辑
 const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const hideNavPaths = ['/login', '/register', '/tournaments'];
+  const hideNavPaths = ['/login', '/register'];
   const shouldShowNav = !hideNavPaths.includes(location.pathname);
 
   return (

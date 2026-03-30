@@ -18,7 +18,7 @@ const PlayerRatingDemo: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getPlayerRating(playerId);
+      const data = await getPlayerRating(playerId, 0);
       setRatingData(data);
     } catch (err: any) {
       setError(err.message || '加载失败');

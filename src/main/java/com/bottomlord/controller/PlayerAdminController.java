@@ -21,31 +21,16 @@ public class PlayerAdminController {
     private PlayerService playerService;
 
     /**
-     * 管理员修正球员总评分
+     * 管理员修正球员三维评分（总分由三维加权计算，不支持直接修正总分）
      * @param playerId 球员ID
-     * @param newRating 新评分（1.00-20.00）
-     * @param reason 修正原因（用于审计）
-     */
-    @PostMapping("/{playerId}/rating/total")
-    public Result<Void> updateTotalRating(@PathVariable Long playerId,
-                                          @RequestParam BigDecimal newRating,
-                                          @RequestParam String reason) {
-        if (newRating.compareTo(new BigDecimal("1.00")) < 0 || newRating.compareTo(new BigDecimal("20.00")) > 0) {
-            return Result.error(400, "评分必须在1.00-20.00之间");
-        }
-        playerService.updateRatingManually(playerId, newRating, reason);
-        return Result.success(null);
-    }
-
-    /**
-     * 管理员修正球员三维评分
-     * @param playerId 球员ID
+     * @param tournamentId 赛事ID（评分档案按赛事隔离）
      * @param dimension 评分维度（SKILL/PERFORMANCE/ENGAGEMENT）
      * @param newValue 新评分值（1.00-20.00）
      * @param reason 修正原因（用于审计）
      */
     @PostMapping("/{playerId}/rating/dimension")
     public Result<Void> updateDimensionRating(@PathVariable Long playerId,
+                                               @RequestParam Long tournamentId,
                                                @RequestParam String dimension,
                                                @RequestParam BigDecimal newValue,
                                                @RequestParam String reason) {
@@ -55,7 +40,7 @@ public class PlayerAdminController {
         if (!dimension.matches("(?i)(SKILL|PERFORMANCE|ENGAGEMENT)")) {
             return Result.error(400, "无效的评分维度，必须是SKILL、PERFORMANCE或ENGAGEMENT");
         }
-        playerService.updateRatingDimensionManually(playerId, dimension, newValue, reason);
+        playerService.updateRatingDimensionManually(playerId, tournamentId, dimension, newValue, reason);
         return Result.success(null);
     }
 }

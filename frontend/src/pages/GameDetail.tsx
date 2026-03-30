@@ -1,7 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Toast } from 'antd-mobile';
+import { ChevronLeft, Target, Zap, Clock, Flag, Trophy, User } from 'lucide-react';
 import { gameApi } from '../api/game';
 import type { GameDetailVO, ParticipantInfo, RecordGoalRequest } from '../api/game';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '../components/ui/dialog';
+import { Button } from '../components/ui/button';
+import { cn } from '../lib/utils';
 
 type GoalStep = 'idle' | 'select_type' | 'select_scorer' | 'select_assistant';
 
@@ -87,7 +94,7 @@ export default function GameDetail() {
       setShowStartModal(false);
       await fetchGame();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : '操作失败');
+      Toast.show({ icon: 'fail', content: e instanceof Error ? e.message : '操作失败' });
     } finally {
       setActionLoading(false);
     }
@@ -102,7 +109,7 @@ export default function GameDetail() {
       setShowFinishModal(false);
       await fetchGame();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : '操作失败');
+      Toast.show({ icon: 'fail', content: e instanceof Error ? e.message : '操作失败' });
     } finally {
       setActionLoading(false);
     }
@@ -111,7 +118,7 @@ export default function GameDetail() {
   const handleAddOvertime = async () => {
     if (!gameId || actionLoading) return;
     const mins = parseInt(overtimeInput, 10);
-    if (isNaN(mins) || mins <= 0) { alert('请输入有效的加时分钟数'); return; }
+    if (isNaN(mins) || mins <= 0) { Toast.show({ icon: 'fail', content: '请输入有效的分钟数' }); return; }
     setActionLoading(true);
     try {
       await gameApi.addOvertime(gameId, mins);
@@ -119,7 +126,7 @@ export default function GameDetail() {
       setShowOvertimeInput(false);
       await fetchGame();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : '操作失败');
+      Toast.show({ icon: 'fail', content: e instanceof Error ? e.message : '操作失败' });
     } finally {
       setActionLoading(false);
     }
@@ -169,7 +176,7 @@ export default function GameDetail() {
       setGoalStep('idle');
       await fetchGame();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : '录入失败');
+      Toast.show({ icon: 'fail', content: e instanceof Error ? e.message : '录入失败' });
       setGoalStep('idle');
     } finally {
       setActionLoading(false);
@@ -182,339 +189,453 @@ export default function GameDetail() {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-transparent">
-      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    <div className="flex h-[60vh] items-center justify-center">
+      <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
     </div>
   );
 
   if (error || !game) return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50 dark:bg-transparent">
-      <p className="text-red-400">{error || '场次不存在'}</p>
-      <button onClick={() => navigate(-1)} className="text-primary underline">返回</button>
+    <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
+      <p className="text-sm text-red-400">{error || '场次不存在'}</p>
+      <button onClick={() => navigate(-1)} className="text-sm font-semibold text-primary underline">返回</button>
     </div>
   );
 
   const sched = scheduledStart();
 
-  return (
-    <div className="min-h-screen pb-24 px-4 pt-4 max-w-lg mx-auto bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="text-gray-400 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white text-xl">←</button>
-        <div>
-          <h1 className="text-lg font-bold">
-            {teamName(game.teamAIndex)} <span className="text-gray-500 dark:text-neutral-500">vs</span> {teamName(game.teamBIndex)}
-          </h1>
-          <p className="text-xs text-gray-500 dark:text-neutral-500">第 {(game.gameIndex ?? 0) + 1} 场</p>
-        </div>
-        <StatusBadge status={game.status} />
-      </div>
+  const nameA = teamName(game.teamAIndex);
+  const nameB = teamName(game.teamBIndex);
+  const scoreA = game.scoreA ?? 0;
+  const scoreB = game.scoreB ?? 0;
 
-      {/* ===== READY STATE ===== */}
+  /* ── PLAYING derived values ── */
+  let elapsedMins = 0, elapsedSecs = 0;
+  if (game.status === 'PLAYING' && game.startTime) {
+    const diff = Math.max(0, Math.floor((now.getTime() - new Date(game.startTime).getTime()) / 1000));
+    elapsedMins = Math.floor(diff / 60);
+    elapsedSecs = diff % 60;
+  }
+  const isOvertime = !!(game.durationPerGame && elapsedMins >= game.durationPerGame);
+  const timerDisplay = `${elapsedMins.toString().padStart(2, '0')}:${elapsedSecs.toString().padStart(2, '0')}`;
+
+  /* ── Goal dialog state ── */
+  const goalDialogOpen = goalStep !== 'idle';
+
+  return (
+    <div className="relative mx-auto max-w-lg pb-28 px-4 pt-4 sm:px-6">
+      {/* Ambient glows */}
+      <div className="pointer-events-none fixed left-0 top-0 h-64 w-64 rounded-full bg-primary/5 blur-[120px]" />
+      <div className="pointer-events-none fixed right-0 top-20 h-56 w-56 rounded-full bg-orange-500/5 blur-[120px]" />
+
+      {/* ── Navigation ── */}
+      <nav className="relative z-10 mb-6 flex items-center gap-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="group flex items-center gap-1 text-gray-500 dark:text-neutral-500 font-bold hover:text-gray-900 dark:hover:text-white transition-colors"
+        >
+          <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+          返回
+        </button>
+        <span className="text-gray-300 dark:text-neutral-800">/</span>
+        <span className="text-sm font-semibold text-gray-500 dark:text-neutral-400">
+          第 {(game.gameIndex ?? 0) + 1} 场
+        </span>
+        <GameStatusBadge status={game.status} />
+      </nav>
+
+      {/* ── READY STATE ── */}
       {game.status === 'READY' && (
         <div className="space-y-4">
-          {sched && (
-            <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-4 text-center">
-              <p className="text-xs text-gray-500 dark:text-neutral-400 mb-1">预计开始时间</p>
-              <p className="text-3xl font-bold text-primary">{formatTime(sched.toISOString())}</p>
+          {/* Upcoming match hero */}
+          <div className="overflow-hidden rounded-[2rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-[linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] px-6 py-7">
+            <div className="text-center text-[10px] font-black tracking-[0.2em] text-gray-400 dark:text-neutral-600 mb-5">待开赛</div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 text-center">
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 border border-sky-500/20">
+                  <span className="text-xs font-black text-sky-400">{nameA.charAt(0)}</span>
+                </div>
+                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{nameA}</p>
+              </div>
+              <div className="flex flex-col items-center gap-1 shrink-0">
+                <span className="text-2xl font-black text-gray-300 dark:text-neutral-700">VS</span>
+                {sched && (
+                  <span className="text-[10px] font-semibold text-gray-400 dark:text-neutral-600">
+                    {formatTime(sched.toISOString())}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 text-center">
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10 border border-orange-500/20">
+                  <span className="text-xs font-black text-orange-400">{nameB.charAt(0)}</span>
+                </div>
+                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{nameB}</p>
+              </div>
             </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <TeamRoster title={teamName(game.teamAIndex)} participants={game.teamAParticipants} accent="text-blue-400" />
-            <TeamRoster title={teamName(game.teamBIndex)} participants={game.teamBParticipants} accent="text-orange-400" />
           </div>
 
-          <button
-            onClick={() => {
-              setTimeInput(toLocalIsoString(new Date()));
-              setShowStartModal(true);
-            }}
-            disabled={actionLoading}
-            className="w-full bg-primary text-black font-bold py-3 rounded-xl hover:opacity-90 disabled:opacity-40"
-          >
-            设置并开始比赛
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <TeamRoster title={nameA} accentColor="sky" participants={game.teamAParticipants} />
+            <TeamRoster title={nameB} accentColor="orange" participants={game.teamBParticipants} />
+          </div>
 
-          {showStartModal && (
-            <GoalModal title="确认开赛时间" onCancel={() => setShowStartModal(false)}>
-              <div className="flex flex-col gap-3">
-                <input
-                  type="datetime-local"
-                  value={timeInput}
-                  onChange={e => setTimeInput(e.target.value)}
-                  className="bg-gray-200 dark:bg-neutral-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white outline-none w-full"
-                />
-                <button
-                  onClick={confirmStart}
-                  disabled={actionLoading}
-                  className="w-full bg-primary text-black font-bold py-3 rounded-xl mt-2 disabled:opacity-40"
-                >
-                  确认开始
-                </button>
-              </div>
-            </GoalModal>
-          )}
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full"
+            onClick={() => { setTimeInput(toLocalIsoString(new Date())); setShowStartModal(true); }}
+            disabled={actionLoading}
+          >
+            <Flag size={16} />
+            设置并开始比赛
+          </Button>
         </div>
       )}
 
-      {/* ===== PLAYING STATE ===== */}
-      {game.status === 'PLAYING' && (() => {
-        let elapsedMins = 0; let elapsedSecs = 0;
-        if (game.startTime) {
-          const diff = Math.max(0, Math.floor((now.getTime() - new Date(game.startTime).getTime()) / 1000));
-          elapsedMins = Math.floor(diff / 60);
-          elapsedSecs = diff % 60;
-        }
-        const isOvertime = game.durationPerGame && elapsedMins >= game.durationPerGame;
-        const timerDisplay = `${elapsedMins.toString().padStart(2, '0')}:${elapsedSecs.toString().padStart(2, '0')}`;
-
-        return (
-          <div className="space-y-4">
-            {/* Scoreboard */}
-            <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 text-center">
-                  <p className="text-xs text-gray-500 dark:text-neutral-400 mb-1 truncate">{teamName(game.teamAIndex)}</p>
-                  <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreA ?? 0}</p>
+      {/* ── PLAYING STATE ── */}
+      {game.status === 'PLAYING' && (
+        <div className="space-y-4">
+          {/* ── Hero Scoreboard ── */}
+          <div className="relative overflow-hidden rounded-[2rem] border border-orange-500/25 bg-[linear-gradient(160deg,rgba(234,88,12,0.12)_0%,rgba(249,250,251,1)_60%)] dark:bg-[linear-gradient(160deg,rgba(234,88,12,0.10)_0%,rgba(10,10,10,1)_55%)] px-5 py-6">
+            <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+            <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full border border-orange-400/30 bg-orange-500/10 px-2.5 py-1 text-[10px] font-black text-orange-500 dark:text-orange-400">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
+              LIVE
+            </div>
+            <div className="relative z-10 flex items-center">
+              {/* Team A */}
+              <div className="flex flex-1 flex-col items-center gap-2">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-sky-500/25 bg-sky-500/10">
+                  <span className="text-base font-black text-sky-500">{nameA.charAt(0)}</span>
                 </div>
-                <div className="text-center px-4 flex flex-col items-center">
-                  <div className={`text-2xl font-mono font-black mb-1 ${isOvertime ? 'text-red-500 animate-pulse' : 'text-primary'}`}>
-                    {timerDisplay}
-                  </div>
-                  <p className="text-gray-500 dark:text-neutral-500 text-[10px] font-mono whitespace-nowrap">
-                    {formatTime(game.startTime)} ~ {formatTime(game.endTime)}
-                  </p>
+                <p className="max-w-[80px] text-center text-[11px] font-bold text-gray-600 dark:text-neutral-400 truncate">{nameA}</p>
+                <p className={cn(
+                  'text-6xl font-black leading-none tracking-tighter',
+                  scoreA > scoreB ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-neutral-600'
+                )}>{scoreA}</p>
+              </div>
+              {/* Center */}
+              <div className="flex flex-col items-center gap-2 px-3 shrink-0">
+                <div className={cn(
+                  'rounded-xl px-3 py-1.5 text-xl font-mono font-black tabular-nums',
+                  isOvertime
+                    ? 'bg-red-500/15 text-red-500 dark:text-red-400 animate-pulse'
+                    : 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                )}>
+                  {timerDisplay}
                 </div>
-                <div className="flex-1 text-center">
-                  <p className="text-xs text-gray-500 dark:text-neutral-400 mb-1 truncate">{teamName(game.teamBIndex)}</p>
-                  <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreB ?? 0}</p>
+                {isOvertime && (
+                  <span className="text-[9px] font-black tracking-widest text-red-400">加时</span>
+                )}
+                <span className="text-[10px] font-mono text-gray-400 dark:text-neutral-600 whitespace-nowrap">
+                  {formatTime(game.startTime)}~{formatTime(game.endTime)}
+                </span>
+              </div>
+              {/* Team B */}
+              <div className="flex flex-1 flex-col items-center gap-2">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-orange-500/25 bg-orange-500/10">
+                  <span className="text-base font-black text-orange-500">{nameB.charAt(0)}</span>
                 </div>
+                <p className="max-w-[80px] text-center text-[11px] font-bold text-gray-600 dark:text-neutral-400 truncate">{nameB}</p>
+                <p className={cn(
+                  'text-6xl font-black leading-none tracking-tighter',
+                  scoreB > scoreA ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-neutral-600'
+                )}>{scoreB}</p>
               </div>
             </div>
+          </div>
 
-          {/* Goal recording flow */}
+          {/* Goal buttons */}
           {goalStep === 'idle' && (
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => beginGoalFlow(game.teamAIndex)}
                 disabled={actionLoading}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl disabled:opacity-40"
+                className="group relative overflow-hidden rounded-2xl border border-sky-500/25 bg-sky-500/[0.08] py-4 text-sm font-black text-sky-600 dark:text-sky-400 transition-all hover:border-sky-500/40 hover:bg-sky-500/[0.14] active:scale-[0.97] disabled:opacity-40"
               >
-                {teamName(game.teamAIndex)} 进球
+                <div className="flex items-center justify-center gap-2">
+                  <Target size={15} />
+                  {nameA} 进球
+                </div>
               </button>
               <button
                 onClick={() => beginGoalFlow(game.teamBIndex)}
                 disabled={actionLoading}
-                className="bg-orange-600 hover:bg-orange-500 text-white font-bold py-4 rounded-xl disabled:opacity-40"
+                className="group relative overflow-hidden rounded-2xl border border-orange-500/25 bg-orange-500/[0.08] py-4 text-sm font-black text-orange-600 dark:text-orange-400 transition-all hover:border-orange-500/40 hover:bg-orange-500/[0.14] active:scale-[0.97] disabled:opacity-40"
               >
-                {teamName(game.teamBIndex)} 进球
+                <div className="flex items-center justify-center gap-2">
+                  <Target size={15} />
+                  {nameB} 进球
+                </div>
               </button>
             </div>
           )}
 
-          {goalStep === 'select_type' && (
-            <GoalModal title={`${teamName(goalDraft.teamIndex)} — 进球类型`} onCancel={cancelGoalFlow}>
-              <button
-                onClick={() => selectType('NORMAL')}
-                className="w-full bg-primary text-black font-bold py-3 rounded-xl"
-              >
-                ⚽ 正常进球
-              </button>
-              <button
-                onClick={() => selectType('OWN_GOAL')}
-                className="w-full bg-red-700 text-white font-bold py-3 rounded-xl"
-              >
-                🙈 乌龙球
-              </button>
-            </GoalModal>
-          )}
-
-          {goalStep === 'select_scorer' && (
-            <GoalModal
-              title={goalDraft.type === 'OWN_GOAL'
-                ? `选择乌龙球员（${teamName(goalDraft.teamIndex === game.teamAIndex ? game.teamBIndex : game.teamAIndex)} 球员）`
-                : `选择进球球员（${teamName(goalDraft.teamIndex)}）`}
-              onCancel={cancelGoalFlow}
-            >
-              <ScorerList
-                participants={goalDraft.type === 'OWN_GOAL'
-                  ? (goalDraft.teamIndex === game.teamAIndex ? game.teamBParticipants : game.teamAParticipants)
-                  : (goalDraft.teamIndex === game.teamAIndex ? game.teamAParticipants : game.teamBParticipants)}
-                onSelect={selectScorer}
-              />
-            </GoalModal>
-          )}
-
-          {goalStep === 'select_assistant' && (
-            <GoalModal
-              title={`选择助攻球员（${teamName(goalDraft.teamIndex)}，可跳过）`}
-              onCancel={cancelGoalFlow}
-            >
-              <button
-                onClick={() => selectAssistant(null)}
-                className="w-full bg-gray-300 dark:bg-neutral-600 text-gray-800 dark:text-white font-bold py-3 rounded-xl mb-2"
-              >
-                无助攻
-              </button>
-              <ScorerList
-                participants={(goalDraft.teamIndex === game.teamAIndex ? game.teamAParticipants : game.teamBParticipants)
-                  .filter(p => p.playerId !== goalDraft.scorer?.playerId)}
-                onSelect={selectAssistant}
-              />
-            </GoalModal>
-          )}
-
-          {/* Goals log */}
+          {/* Goal log */}
           <GoalLog goals={game.goals} game={game} />
 
           {/* Overtime */}
-          <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-500 dark:text-neutral-400">加时</span>
-              <button onClick={() => setShowOvertimeInput(v => !v)} className="text-xs text-primary">
-                {showOvertimeInput ? '取消' : '添加加时'}
+          <div className="rounded-2xl border border-gray-200 dark:border-white/6 bg-white dark:bg-white/[0.02] px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock size={14} className="text-amber-400" />
+                <span className="text-xs font-semibold text-gray-600 dark:text-neutral-400">补时</span>
+                {(game.overtimeMinutes ?? 0) > 0 && (
+                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-500">+{game.overtimeMinutes}'</span>
+                )}
+              </div>
+              <button
+                onClick={() => setShowOvertimeInput(v => !v)}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                {showOvertimeInput ? '取消' : '添加补时'}
               </button>
             </div>
             {showOvertimeInput && (
-              <div className="flex gap-2">
+              <div className="mt-3 flex gap-2">
                 <input
                   type="number"
                   min="1"
                   value={overtimeInput}
                   onChange={e => setOvertimeInput(e.target.value)}
                   placeholder="分钟数"
-                  className="flex-1 bg-gray-200 dark:bg-neutral-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 outline-none"
+                  className="flex-1 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-600 outline-none focus:border-primary/50"
                 />
-                <button
-                  onClick={handleAddOvertime}
-                  disabled={actionLoading}
-                  className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-40"
-                >
-                  确认
-                </button>
+                <Button variant="amber" size="sm" onClick={handleAddOvertime} disabled={actionLoading}>确认</Button>
               </div>
             )}
           </div>
 
-          {/* Finish */}
-          <button
-            onClick={() => {
-              setTimeInput(toLocalIsoString(new Date()));
-              setShowFinishModal(true);
-            }}
+          {/* End game */}
+          <Button
+            variant="secondary"
+            size="lg"
+            className="w-full border-red-200 dark:border-red-900/30 bg-red-50/60 dark:bg-red-950/20 text-red-500 dark:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-900/30 hover:border-red-300 dark:hover:border-red-800/50"
+            onClick={() => { setTimeInput(toLocalIsoString(new Date())); setShowFinishModal(true); }}
             disabled={actionLoading}
-            className="w-full bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 text-gray-800 dark:text-white font-bold py-3 rounded-xl disabled:opacity-40 transition-colors"
           >
-            设置并结束比赛
-          </button>
-
-          {showFinishModal && (
-            <GoalModal title="确认结束并结算时间" onCancel={() => setShowFinishModal(false)}>
-              <div className="flex flex-col gap-3">
-                <input
-                  type="datetime-local"
-                  value={timeInput}
-                  onChange={e => setTimeInput(e.target.value)}
-                  className="bg-gray-200 dark:bg-neutral-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white outline-none w-full"
-                />
-                <p className="text-xs text-gray-500">将基于此时间和原定时长，自动计算本场比赛的补时。</p>
-                <button
-                  onClick={confirmFinish}
-                  disabled={actionLoading}
-                  className="w-full bg-red-600 text-white font-bold py-3 rounded-xl mt-2 disabled:opacity-40"
-                >
-                  确认结束
-                </button>
-              </div>
-            </GoalModal>
-          )}
-
+            结束本场比赛
+          </Button>
         </div>
-        );
-      })()}
+      )}
 
-      {/* ===== FINISHED STATE ===== */}
+      {/* ── FINISHED STATE ── */}
       {game.status === 'FINISHED' && (
         <div className="space-y-4">
-          {/* Final score */}
-          <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-4">
-            <p className="text-xs text-gray-500 dark:text-neutral-400 text-center mb-3">最终比分</p>
-            <div className="flex items-center justify-between">
+          {/* Final score card */}
+          <div className="relative overflow-hidden rounded-[2rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-[linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] px-5 py-7">
+            <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+            <div className="relative z-10 text-center text-[10px] font-black tracking-[0.2em] text-gray-400 dark:text-neutral-600 mb-5">
+              最终比分 · FT
+            </div>
+            <div className="relative z-10 flex items-center justify-between">
               <div className="flex-1 text-center">
-                <p className="text-sm text-gray-600 dark:text-neutral-300 mb-1 truncate">{teamName(game.teamAIndex)}</p>
-                <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreA ?? 0}</p>
+                <div className={cn('mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border', scoreA > scoreB ? 'border-primary/30 bg-primary/10' : 'border-gray-200 dark:border-white/6 bg-gray-100 dark:bg-white/[0.04]')}>
+                  <span className={cn('text-base font-black', scoreA > scoreB ? 'text-primary' : 'text-gray-500 dark:text-neutral-500')}>{nameA.charAt(0)}</span>
+                </div>
+                <p className="text-xs font-semibold text-gray-500 dark:text-neutral-500 truncate mb-2">{nameA}</p>
+                <p className={cn('text-6xl font-black leading-none tracking-tighter', scoreA > scoreB ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-neutral-700')}>{scoreA}</p>
               </div>
-              <p className="text-2xl text-gray-400 dark:text-neutral-500 px-3">—</p>
+              <div className="shrink-0 flex flex-col items-center gap-1 px-2">
+                <span className="text-2xl font-black text-gray-300 dark:text-neutral-700">:</span>
+                <span className="text-[9px] font-mono text-gray-400 dark:text-neutral-600 whitespace-nowrap">
+                  {formatTime(game.startTime)} — {formatTime(game.endTime)}
+                  {(game.overtimeMinutes ?? 0) > 0 && ` +${game.overtimeMinutes}'`}
+                </span>
+              </div>
               <div className="flex-1 text-center">
-                <p className="text-sm text-gray-600 dark:text-neutral-300 mb-1 truncate">{teamName(game.teamBIndex)}</p>
-                <p className="text-5xl font-black text-gray-900 dark:text-white">{game.scoreB ?? 0}</p>
+                <div className={cn('mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border', scoreB > scoreA ? 'border-primary/30 bg-primary/10' : 'border-gray-200 dark:border-white/6 bg-gray-100 dark:bg-white/[0.04]')}>
+                  <span className={cn('text-base font-black', scoreB > scoreA ? 'text-primary' : 'text-gray-500 dark:text-neutral-500')}>{nameB.charAt(0)}</span>
+                </div>
+                <p className="text-xs font-semibold text-gray-500 dark:text-neutral-500 truncate mb-2">{nameB}</p>
+                <p className={cn('text-6xl font-black leading-none tracking-tighter', scoreB > scoreA ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-neutral-700')}>{scoreB}</p>
               </div>
             </div>
-            <p className="text-center text-xs text-gray-500 dark:text-neutral-500 mt-3">
-              {formatTime(game.startTime)} — {formatTime(game.endTime)}
-              {(game.overtimeMinutes ?? 0) > 0 && ` (+${game.overtimeMinutes}')`}
-            </p>
           </div>
 
-          {/* Goal log */}
           <GoalLog goals={game.goals} game={game} />
 
-          {/* Stats */}
           <div className="grid grid-cols-2 gap-3">
-            <ParticipantStats title={teamName(game.teamAIndex)} participants={game.teamAParticipants} />
-            <ParticipantStats title={teamName(game.teamBIndex)} participants={game.teamBParticipants} />
+            <ParticipantStats title={nameA} participants={game.teamAParticipants} />
+            <ParticipantStats title={nameB} participants={game.teamBParticipants} />
           </div>
         </div>
       )}
+
+      {/* ── Goal Flow Dialog ── */}
+      <Dialog open={goalDialogOpen} onOpenChange={(open) => { if (!open) cancelGoalFlow(); }}>
+        <DialogContent className="max-w-sm">
+          {goalStep === 'select_type' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>进球类型</DialogTitle>
+                <p className="text-sm text-gray-500 dark:text-neutral-400">{teamName(goalDraft.teamIndex)}</p>
+              </DialogHeader>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => selectType('NORMAL')}
+                  className="flex items-center gap-3 rounded-2xl border border-primary/25 bg-primary/[0.08] px-5 py-4 text-left transition-all hover:border-primary/40 hover:bg-primary/[0.14] active:scale-[0.97]"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-xl">⚽</span>
+                  <div>
+                    <p className="font-bold text-gray-900 dark:text-white">正常进球</p>
+                    <p className="text-xs text-gray-500 dark:text-neutral-500">射门得分</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => selectType('OWN_GOAL')}
+                  className="flex items-center gap-3 rounded-2xl border border-red-500/25 bg-red-500/[0.06] px-5 py-4 text-left transition-all hover:border-red-500/40 hover:bg-red-500/[0.12] active:scale-[0.97]"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/15 text-xl">🙈</span>
+                  <div>
+                    <p className="font-bold text-red-500 dark:text-red-400">乌龙球</p>
+                    <p className="text-xs text-gray-500 dark:text-neutral-500">计入对方进球</p>
+                  </div>
+                </button>
+              </div>
+            </>
+          )}
+
+          {goalStep === 'select_scorer' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {goalDraft.type === 'OWN_GOAL' ? '选择乌龙球员' : '选择进球球员'}
+                </DialogTitle>
+                <p className="text-sm text-gray-500 dark:text-neutral-400">
+                  {goalDraft.type === 'OWN_GOAL'
+                    ? teamName(goalDraft.teamIndex === game.teamAIndex ? game.teamBIndex : game.teamAIndex)
+                    : teamName(goalDraft.teamIndex)}
+                </p>
+              </DialogHeader>
+              <ScorerList
+                participants={goalDraft.type === 'OWN_GOAL'
+                  ? (goalDraft.teamIndex === game.teamAIndex ? game.teamBParticipants : game.teamAParticipants)
+                  : (goalDraft.teamIndex === game.teamAIndex ? game.teamAParticipants : game.teamBParticipants)}
+                onSelect={selectScorer}
+              />
+            </>
+          )}
+
+          {goalStep === 'select_assistant' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>选择助攻球员</DialogTitle>
+                <p className="text-sm text-gray-500 dark:text-neutral-400">{teamName(goalDraft.teamIndex)} · 可跳过</p>
+              </DialogHeader>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => selectAssistant(null)}
+                  className="flex items-center gap-3 rounded-xl border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] px-4 py-3 text-sm font-bold text-gray-500 dark:text-neutral-400 transition-all hover:border-gray-300 dark:hover:border-white/15 hover:text-gray-900 dark:hover:text-white"
+                >
+                  无助攻，直接确认
+                </button>
+                <div className="my-1 text-[10px] font-black tracking-widest text-gray-400 dark:text-neutral-600">或选择助攻者</div>
+                <ScorerList
+                  participants={(goalDraft.teamIndex === game.teamAIndex ? game.teamAParticipants : game.teamBParticipants)
+                    .filter(p => p.playerId !== goalDraft.scorer?.playerId)}
+                  onSelect={selectAssistant}
+                />
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Start / Finish Time Dialogs ── */}
+      <Dialog open={showStartModal} onOpenChange={setShowStartModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>确认开赛时间</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <input
+              type="datetime-local"
+              value={timeInput}
+              onChange={e => setTimeInput(e.target.value)}
+              className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary/50 w-full"
+            />
+            <Button variant="primary" size="lg" className="w-full" onClick={confirmStart} disabled={actionLoading}>
+              <Flag size={15} /> 确认开始
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showFinishModal} onOpenChange={setShowFinishModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>确认结束时间</DialogTitle>
+            <p className="text-sm text-gray-500 dark:text-neutral-400">将基于此时间和原定时长自动计算补时。</p>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <input
+              type="datetime-local"
+              value={timeInput}
+              onChange={e => setTimeInput(e.target.value)}
+              className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary/50 w-full"
+            />
+            <Button
+              variant="secondary"
+              size="lg"
+              className="w-full border-red-200 dark:border-red-900/30 bg-red-50/60 dark:bg-red-950/20 text-red-500 hover:bg-red-100/60 dark:hover:bg-red-900/30"
+              onClick={confirmFinish}
+              disabled={actionLoading}
+            >
+              确认结束比赛
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 /* ─── Helper Components ──────────────────────────────────────────── */
 
-function StatusBadge({ status }: { status: string }) {
+function GameStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    READY: { label: '未开始', cls: 'bg-gray-200 dark:bg-neutral-700 text-gray-600 dark:text-neutral-300' },
-    PLAYING: { label: '进行中', cls: 'bg-green-700 text-green-200 animate-pulse' },
-    FINISHED: { label: '已结束', cls: 'bg-gray-200 dark:bg-neutral-600 text-gray-500 dark:text-neutral-400' },
+    READY:    { label: '待开始', cls: 'border-gray-200 dark:border-white/8 bg-gray-100 dark:bg-white/[0.04] text-gray-500 dark:text-neutral-400' },
+    PLAYING:  { label: '进行中', cls: 'border-orange-500/25 bg-orange-500/10 text-orange-500 dark:text-orange-400' },
+    FINISHED: { label: '已结束', cls: 'border-gray-200 dark:border-white/6 bg-gray-100 dark:bg-white/[0.03] text-gray-400 dark:text-neutral-600' },
   };
-  const s = map[status] ?? { label: status, cls: 'bg-gray-200 dark:bg-neutral-700 text-gray-600 dark:text-neutral-300' };
+  const s = map[status] ?? { label: status, cls: 'border-gray-200 dark:border-white/8 bg-gray-100 dark:bg-white/[0.03] text-gray-500 dark:text-neutral-500' };
   return (
-    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${s.cls}`}>{s.label}</span>
+    <span className={cn('ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold', s.cls)}>
+      {status === 'PLAYING' && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />}
+      {s.label}
+    </span>
   );
 }
 
-function TeamRoster({ title, participants, accent }: {
+function TeamRoster({ title, accentColor, participants }: {
   title: string;
+  accentColor: 'sky' | 'orange';
   participants: ParticipantInfo[];
-  accent: string;
 }) {
+  const colors = {
+    sky:    { header: 'text-sky-500 dark:text-sky-400',    dot: 'bg-sky-500/20 border-sky-500/20',    icon: 'text-sky-400' },
+    orange: { header: 'text-orange-500 dark:text-orange-400', dot: 'bg-orange-500/20 border-orange-500/20', icon: 'text-orange-400' },
+  };
+  const c = colors[accentColor];
   return (
-    <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-3">
-      <p className={`text-sm font-bold mb-2 ${accent}`}>{title}</p>
-      {participants.length === 0
-        ? <p className="text-xs text-gray-500 dark:text-neutral-500">暂无名单</p>
-        : participants.map(p => (
-          <div key={p.playerId} className="text-sm text-gray-700 dark:text-neutral-300 py-0.5">{p.playerName}</div>
-        ))
-      }
-    </div>
-  );
-}
-
-function GoalModal({ title, children, onCancel }: {
-  title: string;
-  children: React.ReactNode;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-gray-900 dark:text-white">{title}</p>
-        <button onClick={onCancel} className="text-gray-500 dark:text-neutral-500 hover:text-gray-900 dark:hover:text-white text-sm">取消</button>
+    <div className="rounded-2xl border border-gray-200 dark:border-white/6 bg-white dark:bg-white/[0.02] p-4">
+      <div className={cn('mb-3 flex items-center gap-1.5 text-xs font-bold', c.header)}>
+        <User size={12} />
+        {title}
       </div>
-      {children}
+      {participants.length === 0 ? (
+        <p className="text-xs text-gray-400 dark:text-neutral-600">暂无名单</p>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {participants.map(p => (
+            <div key={p.playerId} className="flex items-center gap-2">
+              <span className={cn('h-1.5 w-1.5 rounded-full border', c.dot)} />
+              <span className="text-xs text-gray-700 dark:text-neutral-300">{p.playerName}</span>
+              {p.isMvp && <Trophy size={10} className="text-amber-400 ml-auto" />}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -524,23 +645,21 @@ function ScorerList({ participants, onSelect }: {
   onSelect: (p: ParticipantInfo) => void;
 }) {
   if (participants.length === 0) {
-    return <p className="text-sm text-gray-500 dark:text-neutral-500 text-center py-2">暂无球员</p>;
+    return <p className="py-4 text-center text-sm text-gray-400 dark:text-neutral-600">暂无球员</p>;
   }
   return (
-    <div className="space-y-2 max-h-60 overflow-y-auto">
+    <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
       {participants.map(p => (
         <button
           key={p.playerId}
           onClick={() => onSelect(p)}
-          className="w-full flex items-center gap-3 bg-gray-200 dark:bg-neutral-700 hover:bg-gray-300 dark:hover:bg-neutral-600 rounded-lg px-3 py-2 text-left"
+          className="flex items-center gap-3 rounded-xl border border-gray-200 dark:border-white/6 bg-gray-50 dark:bg-white/[0.03] px-4 py-3 text-left transition-all hover:border-gray-300 dark:hover:border-white/15 hover:bg-gray-100 dark:hover:bg-white/[0.06] active:scale-[0.98]"
         >
-          <span className="w-7 h-7 rounded-full bg-gray-300 dark:bg-neutral-600 flex items-center justify-center text-xs font-bold text-primary">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-black text-primary">
             {p.playerName.charAt(0)}
           </span>
-          <span className="text-sm text-gray-900 dark:text-white">{p.playerName}</span>
-          <span className="ml-auto text-xs text-gray-500 dark:text-neutral-500">
-            {p.goals}球 {p.assists}助
-          </span>
+          <span className="flex-1 text-sm font-semibold text-gray-900 dark:text-white">{p.playerName}</span>
+          <span className="text-xs text-gray-400 dark:text-neutral-600">{p.goals}球 {p.assists}助</span>
         </button>
       ))}
     </div>
@@ -549,31 +668,53 @@ function ScorerList({ participants, onSelect }: {
 
 function GoalLog({ goals, game }: { goals: GameDetailVO['goals']; game: GameDetailVO }) {
   if (!goals || goals.length === 0) return null;
-
-  const teamName = (idx: number) => game.teamNames?.[idx] ?? `第${idx + 1}队`;
+  const tName = (idx: number) => game.teamNames?.[idx] ?? `第${idx + 1}队`;
 
   return (
-    <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-3">
-      <p className="text-sm font-bold text-gray-700 dark:text-neutral-300 mb-2">进球记录</p>
-      <div className="space-y-2">
-        {goals.map(g => (
-          <div key={g.goalId} className="flex items-center gap-2 text-sm">
-            <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${
-              g.type === 'OWN_GOAL' ? 'bg-red-800 text-red-200' : 'bg-gray-200 dark:bg-neutral-700 text-gray-700 dark:text-neutral-200'
-            }`}>
-              {g.type === 'OWN_GOAL' ? '乌龙' : teamName(g.teamIndex)}
-            </span>
-            <span className="text-gray-900 dark:text-white">{g.scorerName ?? '未知'}</span>
-            {g.assistantName && (
-              <span className="text-gray-500 dark:text-neutral-400 text-xs">助攻: {g.assistantName}</span>
-            )}
-            {g.occurredAt && (
-              <span className="ml-auto text-xs text-gray-500 dark:text-neutral-500">
-                {new Date(g.occurredAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            )}
-          </div>
-        ))}
+    <div className="rounded-2xl border border-gray-200 dark:border-white/6 bg-white dark:bg-white/[0.02] px-5 py-4">
+      <div className="mb-4 flex items-center gap-2">
+        <Zap size={13} className="text-primary" />
+        <span className="text-[10px] font-black tracking-[0.18em] text-gray-400 dark:text-neutral-600">进球记录</span>
+      </div>
+      <div className="relative flex flex-col gap-0">
+        {/* Timeline line */}
+        <div className="absolute left-[7px] top-2 bottom-2 w-px bg-gray-200 dark:bg-white/[0.06]" />
+        {goals.map((g, i) => {
+          const isOG = g.type === 'OWN_GOAL';
+          return (
+            <div key={g.goalId} className={cn('relative flex items-start gap-4 pb-4', i === goals.length - 1 && 'pb-0')}>
+              <div className={cn(
+                'relative z-10 mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-black',
+                isOG
+                  ? 'bg-red-500/20 border border-red-500/30 text-red-400'
+                  : 'bg-primary/20 border border-primary/30 text-primary'
+              )}>
+                {i + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={cn(
+                    'rounded-md border px-1.5 py-0.5 text-[10px] font-bold',
+                    isOG
+                      ? 'border-red-500/20 bg-red-500/10 text-red-400'
+                      : 'border-primary/20 bg-primary/10 text-primary'
+                  )}>
+                    {isOG ? '乌龙' : tName(g.teamIndex)}
+                  </span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">{g.scorerName ?? '未知'}</span>
+                  {g.assistantName && (
+                    <span className="text-xs text-gray-400 dark:text-neutral-600">↪ {g.assistantName}</span>
+                  )}
+                  {g.occurredAt && (
+                    <span className="ml-auto text-[10px] font-mono text-gray-400 dark:text-neutral-600">
+                      {new Date(g.occurredAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -582,19 +723,18 @@ function GoalLog({ goals, game }: { goals: GameDetailVO['goals']; game: GameDeta
 function ParticipantStats({ title, participants }: { title: string; participants: ParticipantInfo[] }) {
   const sorted = [...participants].sort((a, b) => (b.goals + b.assists) - (a.goals + a.assists));
   return (
-    <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl p-3">
-      <p className="text-sm font-bold text-gray-700 dark:text-neutral-300 mb-2">{title}</p>
-      {sorted.length === 0
-        ? <p className="text-xs text-gray-500 dark:text-neutral-500">暂无数据</p>
-        : sorted.map(p => (
-          <div key={p.playerId} className="flex items-center justify-between py-0.5 text-xs">
-            <span className={`text-gray-700 dark:text-neutral-300 ${p.isMvp ? 'text-yellow-400 font-bold' : ''}`}>
-              {p.isMvp ? '★ ' : ''}{p.playerName}
-            </span>
-            <span className="text-gray-500 dark:text-neutral-500">{p.goals}球 {p.assists}助</span>
-          </div>
-        ))
-      }
+    <div className="rounded-2xl border border-gray-200 dark:border-white/6 bg-white dark:bg-white/[0.02] p-4">
+      <div className="mb-3 text-xs font-bold text-gray-600 dark:text-neutral-400 truncate">{title}</div>
+      {sorted.length === 0 ? (
+        <p className="text-xs text-gray-400 dark:text-neutral-600">暂无数据</p>
+      ) : sorted.map(p => (
+        <div key={p.playerId} className="flex items-center justify-between py-1 text-xs">
+          <span className={cn('truncate', p.isMvp ? 'font-bold text-amber-400' : 'text-gray-700 dark:text-neutral-300')}>
+            {p.isMvp && '★ '}{p.playerName}
+          </span>
+          <span className="ml-2 shrink-0 text-gray-400 dark:text-neutral-600">{p.goals}球 {p.assists}助</span>
+        </div>
+      ))}
     </div>
   );
 }

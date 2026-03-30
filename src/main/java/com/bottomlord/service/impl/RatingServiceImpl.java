@@ -1,8 +1,24 @@
 package com.bottomlord.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bottomlord.entity.*;
-import com.bottomlord.mapper.*;
+import com.bottomlord.entity.GameParticipant;
+import com.bottomlord.entity.Match;
+import com.bottomlord.entity.MatchGame;
+import com.bottomlord.entity.MatchRegistration;
+import com.bottomlord.entity.Player;
+import com.bottomlord.entity.PlayerMutualRating;
+import com.bottomlord.entity.PlayerRatingHistory;
+import com.bottomlord.entity.PlayerRatingProfile;
+import com.bottomlord.entity.PlayerStat;
+import com.bottomlord.mapper.GameParticipantMapper;
+import com.bottomlord.mapper.MatchGameMapper;
+import com.bottomlord.mapper.MatchMapper;
+import com.bottomlord.mapper.MatchRegistrationMapper;
+import com.bottomlord.mapper.PlayerMapper;
+import com.bottomlord.mapper.PlayerMutualRatingMapper;
+import com.bottomlord.mapper.PlayerRatingHistoryMapper;
+import com.bottomlord.mapper.PlayerRatingProfileMapper;
+import com.bottomlord.mapper.PlayerStatMapper;
 import com.bottomlord.service.RatingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,9 +63,6 @@ public class RatingServiceImpl implements RatingService {
 
     @Autowired
     private PlayerMapper playerMapper;
-
-    @Autowired
-    private PlayerAttributeMapper attributeMapper;
 
     @Autowired
     private PlayerStatMapper statMapper;
@@ -125,10 +138,9 @@ public class RatingServiceImpl implements RatingService {
                 BigDecimal oldSkill = defaultIfNull(profile.getSkillRating(), DEFAULT_RATING);
                 BigDecimal oldPerformance = defaultIfNull(profile.getPerformanceRating(), DEFAULT_RATING);
                 BigDecimal oldEngagement = defaultIfNull(profile.getEngagementRating(), DEFAULT_RATING);
-                
-                // 全局 Rating 仍然保留在 Player 表，但结算时优先参考 Profile
-                BigDecimal oldTotal = defaultIfNull(player.getRating(), calculateTotalRating(oldSkill, oldPerformance, oldEngagement));
-                LocalDateTime previousAttendanceTime = profile.getLastAttendanceTime() != null ? profile.getLastAttendanceTime() : player.getLastAttendanceTime();
+
+                BigDecimal oldTotal = calculateTotalRating(oldSkill, oldPerformance, oldEngagement);
+                LocalDateTime previousAttendanceTime = profile.getLastAttendanceTime();
 
                 int playedMatchesBefore = defaultIfNull(profile.getProvisionalMatches(), 0);
                 BigDecimal factor = playedMatchesBefore < 3 ? PROTECTION_FACTOR : BigDecimal.ONE;
@@ -167,52 +179,13 @@ public class RatingServiceImpl implements RatingService {
                     insertHistory(playerId, matchId, tournamentId, "TOTAL", "RETURN_BONUS", settlementTotal, newTotal, "RETURN_BONUS", "game:" + gameId);
                 }
 
-                // 更新 Player 表中的全局 Rating (作为该球员在最近一个 Tournament 的表现映射)
-                player.setRating(newTotal);
-                player.setRatingVersion(2);
-                player.setLastMatchTime(settledAt);
-                player.setLastAttendanceTime(settledAt);
-                playerMapper.updateById(player);
-
-                // 3. FM 属性微调 (1-20 区间)
-                updatePlayerAttributes(playerId, p, actualScore);
-
-                // 4. 战绩统计更新
+                // 战绩统计更新
                 updatePlayerStats(playerId, tournamentId, p, actualScore);
             } catch (Exception e) {
                 log.error("结算球员评分失败: playerId={}, gameId={}, error={}", p.getPlayerId(), gameId, e.getMessage(), e);
                 throw new RuntimeException("结算球员评分失败: " + p.getPlayerId(), e);
             }
         }
-    }
-
-    private void updatePlayerAttributes(Long playerId, GameParticipant p, double actualScore) {
-        PlayerAttribute attr = attributeMapper.selectOne(new LambdaQueryWrapper<PlayerAttribute>()
-                .eq(PlayerAttribute::getPlayerId, playerId));
-        if (attr == null) return;
-
-        // FM 风格微调逻辑 (1-20)
-        // 进球 -> 提升射门
-        if (p.getGoals() != null && p.getGoals() > 0) {
-            attr.setShooting(Math.min(20, attr.getShooting() + 1));
-        }
-        // 助攻 -> 提升传球
-        if (p.getAssists() != null && p.getAssists() > 0) {
-            attr.setPassing(Math.min(20, attr.getPassing() + 1));
-        }
-        // 胜利 -> 微调体能与速度
-        if (actualScore == 1.0) {
-            attr.setPace(Math.min(20, attr.getPace() + 1));
-            attr.setPhysical(Math.min(20, attr.getPhysical() + 1));
-        }
-
-        // 重新计算身价 (CPI * 1000 + 属性加权)
-        BigDecimal currentRating = playerMapper.selectById(playerId).getRating();
-        BigDecimal attrBonus = new BigDecimal((attr.getPace() + attr.getShooting() + attr.getPassing() + 
-                                               attr.getDribbling() + attr.getDefending() + attr.getPhysical()) * 50);
-        attr.setMarketValue(currentRating.multiply(new BigDecimal("1000")).add(attrBonus));
-
-        attributeMapper.updateById(attr);
     }
 
     private void updatePlayerStats(Long playerId, Long tournamentId, GameParticipant p, double actualScore) {
@@ -259,10 +232,10 @@ public class RatingServiceImpl implements RatingService {
             }
 
             BigDecimal oldEngagement = defaultIfNull(profile.getEngagementRating(), DEFAULT_RATING);
-            BigDecimal oldTotal = defaultIfNull(player.getRating(),
-                    calculateTotalRating(defaultIfNull(profile.getSkillRating(), DEFAULT_RATING),
-                            defaultIfNull(profile.getPerformanceRating(), DEFAULT_RATING),
-                            oldEngagement));
+            BigDecimal oldTotal = calculateTotalRating(
+                    defaultIfNull(profile.getSkillRating(), DEFAULT_RATING),
+                    defaultIfNull(profile.getPerformanceRating(), DEFAULT_RATING),
+                    oldEngagement);
             BigDecimal newEngagement = clamp(oldEngagement.subtract(ENGAGEMENT_DECAY_STEP));
             profile.setLastDecayTime(atTime);
 
@@ -278,10 +251,6 @@ public class RatingServiceImpl implements RatingService {
 
             profile.setEngagementRating(newEngagement);
             profileMapper.updateById(profile);
-
-            player.setRating(newTotal);
-            player.setRatingVersion(2);
-            playerMapper.updateById(player);
 
             insertHistory(player.getId(), null, profile.getTournamentId(), "DECAY", "INACTIVITY_DECAY", oldEngagement, newEngagement,
                     "INACTIVITY_DECAY", "at:" + atTime);

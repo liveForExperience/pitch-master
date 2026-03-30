@@ -4,19 +4,15 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.bottomlord.entity.MatchRegistration;
-import com.bottomlord.entity.Player;
 import com.bottomlord.entity.PlayerMutualRating;
 import com.bottomlord.mapper.PlayerMutualRatingMapper;
 import com.bottomlord.service.MatchRegistrationService;
 import com.bottomlord.service.PlayerMutualRatingService;
-import com.bottomlord.service.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -26,11 +22,6 @@ public class PlayerMutualRatingServiceImpl extends ServiceImpl<PlayerMutualRatin
 
     @Autowired
     private MatchRegistrationService registrationService;
-
-    @Autowired
-    private PlayerService playerService;
-
-    private static final BigDecimal MVP_BONUS = new BigDecimal("0.10");
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -91,29 +82,16 @@ public class PlayerMutualRatingServiceImpl extends ServiceImpl<PlayerMutualRatin
         }
 
         if (finalMvpId != null) {
-            // 2. 先重置该场比赛的所有 MVP 标记 (防止重复)
+            // 先重置该场比赛的所有 MVP 标记 (防止重复)
             registrationService.update(new LambdaUpdateWrapper<MatchRegistration>()
                     .eq(MatchRegistration::getMatchId, matchId)
                     .set(MatchRegistration::getIsMvp, false));
 
-            // 3. 设置新的 MVP
+            // 设置新的 MVP（评分奖励在 RatingServiceImpl.settleGameRating() 中处理）
             registrationService.update(new LambdaUpdateWrapper<MatchRegistration>()
                     .eq(MatchRegistration::getMatchId, matchId)
                     .eq(MatchRegistration::getPlayerId, finalMvpId)
                     .set(MatchRegistration::getIsMvp, true));
-
-            // 4. 授予荣誉奖励分 (+0.10)
-            Player player = playerService.getById(finalMvpId);
-            if (player != null) {
-                BigDecimal currentRating = player.getRating() != null ? player.getRating() : new BigDecimal("5.0");
-                BigDecimal newRating = currentRating.add(MVP_BONUS).setScale(2, RoundingMode.HALF_UP);
-                
-                // 限制最高 10.0
-                if (newRating.compareTo(new BigDecimal("10.0")) > 0) newRating = new BigDecimal("10.00");
-                
-                player.setRating(newRating);
-                playerService.updateById(player);
-            }
         }
     }
 }

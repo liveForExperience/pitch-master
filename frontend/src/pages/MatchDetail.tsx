@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Toast, Tabs, CenterPopup } from 'antd-mobile';
+import { Toast, CenterPopup } from 'antd-mobile';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import {
   ChevronLeft, Clock, MapPin, Users, CalendarClock,
@@ -16,52 +16,8 @@ import html2canvas from 'html2canvas';
 import GameCard from '../components/GameCard';
 import RegistrationPoster from '../components/poster/RegistrationPoster';
 import ReportPoster from '../components/poster/ReportPoster';
-
-const matchStatusMeta: Record<string, { label: string; badgeClass: string; dotClass: string; accentClass: string }> = {
-  PREPARING: {
-    label: '筹备中',
-    badgeClass: 'border-neutral-500/20 bg-neutral-500/10 text-neutral-400',
-    dotClass: 'bg-neutral-400',
-    accentClass: 'from-neutral-400/80 to-neutral-400/10',
-  },
-  PUBLISHED: {
-    label: '报名中',
-    badgeClass: 'border-primary/20 bg-primary/10 text-primary',
-    dotClass: 'bg-primary',
-    accentClass: 'from-primary/80 to-primary/10',
-  },
-  REGISTRATION_CLOSED: {
-    label: '报名已截止',
-    badgeClass: 'border-sky-500/20 bg-sky-500/10 text-sky-400',
-    dotClass: 'bg-sky-400',
-    accentClass: 'from-sky-400/80 to-sky-400/10',
-  },
-  ONGOING: {
-    label: '比赛中',
-    badgeClass: 'border-orange-500/20 bg-orange-500/10 text-orange-400',
-    dotClass: 'bg-orange-400',
-    accentClass: 'from-orange-400/80 to-orange-400/10',
-  },
-  MATCH_FINISHED: {
-    label: '比赛结束',
-    badgeClass: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
-    dotClass: 'bg-amber-400',
-    accentClass: 'from-amber-400/80 to-amber-400/10',
-  },
-  CANCELLED: {
-    label: '已取消',
-    badgeClass: 'border-red-500/20 bg-red-500/10 text-red-400',
-    dotClass: 'bg-red-400',
-    accentClass: 'from-red-400/70 to-red-400/5',
-  },
-};
-
-const positionMeta: Record<string, { label: string; colorClass: string }> = {
-  GK: { label: '门将', colorClass: 'bg-amber-500/15 text-amber-400 border-amber-500/20' },
-  DF: { label: '后卫', colorClass: 'bg-sky-500/15 text-sky-400 border-sky-500/20' },
-  MF: { label: '中场', colorClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
-  FW: { label: '前锋', colorClass: 'bg-rose-500/15 text-rose-400 border-rose-500/20' },
-};
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
+import { positionMeta, getMatchStatusMeta } from '../constants/match';
 
 const formatPosterDate = (value: string | number | Date) => {
   const parsed = dayjs(value);
@@ -71,15 +27,6 @@ const formatPosterDate = (value: string | number | Date) => {
     weekday: parsed.format('dddd'),
     full: parsed.format('YYYY年MM月DD日 HH:mm'),
     short: parsed.format('MM.DD HH:mm'),
-  };
-};
-
-const getMatchStatusMeta = (status?: string) => {
-  return matchStatusMeta[status || ''] || {
-    label: '状态待定',
-    badgeClass: 'border-neutral-700 bg-neutral-800/80 text-neutral-300',
-    dotClass: 'bg-neutral-400',
-    accentClass: 'from-neutral-300/70 to-neutral-300/5',
   };
 };
 
@@ -669,35 +616,33 @@ const MatchDetail: React.FC = () => {
 
       {/* ── Main Content Tabs ── */}
       <div className="relative z-10 mx-auto max-w-5xl pb-32">
-        <Tabs
-          style={{
-            '--content-padding': '0px',
-            '--title-font-size': '15px',
-            '--active-title-color': '#1DB954',
-            '--active-line-color': '#1DB954',
-            '--active-line-height': '3px',
-            '--active-line-border-radius': '3px',
-          }}
-          className="mb-8"
-        >
-          <Tabs.Tab title="概览与费用" key="overview">
+        <Tabs defaultValue="overview" className="mb-8">
+          <TabsList className="mb-6 w-full">
+            <TabsTrigger value="overview">概览与费用</TabsTrigger>
+            <TabsTrigger value="players">球员与分组</TabsTrigger>
+            {['ONGOING', 'MATCH_FINISHED'].includes(match.status) && (
+              <TabsTrigger value="live">赛况与数据</TabsTrigger>
+            )}
+          </TabsList>
+
+          <TabsContent value="overview">
             <div className="space-y-6 pt-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-[1.6rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-white/[0.03] px-5 py-4">
+                <div className="rounded-[1.6rem] border border-gray-200 dark:border-neutral-700/60 bg-white dark:bg-neutral-900 px-5 py-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Clock size={14} className="text-primary" />
                     <span className="text-[10px] font-black tracking-[0.16em] text-gray-400 dark:text-neutral-600">开赛时间</span>
                   </div>
                   <div className="text-sm font-semibold text-gray-900 dark:text-white">{posterDate.full}</div>
                 </div>
-                <div className="rounded-[1.6rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-white/[0.03] px-5 py-4">
+                <div className="rounded-[1.6rem] border border-gray-200 dark:border-neutral-700/60 bg-white dark:bg-neutral-900 px-5 py-4">
                   <div className="mb-3 flex items-center gap-2">
                     <MapPin size={14} className="text-primary" />
                     <span className="text-[10px] font-black tracking-[0.16em] text-gray-400 dark:text-neutral-600">比赛地点</span>
                   </div>
                   <div className="text-sm font-semibold text-gray-900 dark:text-white">{match.location}</div>
                 </div>
-                <div className="rounded-[1.6rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-white/[0.03] px-5 py-4">
+                <div className="rounded-[1.6rem] border border-gray-200 dark:border-neutral-700/60 bg-white dark:bg-neutral-900 px-5 py-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Users size={14} className="text-primary" />
                     <span className="text-[10px] font-black tracking-[0.16em] text-gray-400 dark:text-neutral-600">比赛规模</span>
@@ -706,7 +651,7 @@ const MatchDetail: React.FC = () => {
                     {match.numGroups}组 · 每组{match.playersPerGroup}人 · {match.plannedGameCount}场
                   </div>
                 </div>
-                <div className="rounded-[1.6rem] border border-gray-200 dark:border-white/8 bg-white dark:bg-white/[0.03] px-5 py-4">
+                <div className="rounded-[1.6rem] border border-gray-200 dark:border-neutral-700/60 bg-white dark:bg-neutral-900 px-5 py-4">
                   <div className="mb-3 flex items-center gap-2">
                     <CalendarClock size={14} className="text-primary" />
                     <span className="text-[10px] font-black tracking-[0.16em] text-gray-400 dark:text-neutral-600">报名截止</span>
@@ -748,7 +693,7 @@ const MatchDetail: React.FC = () => {
                 </div>
               </div>
               {admin && match.status === 'MATCH_FINISHED' && (
-                <div className="rounded-[2rem] border border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-neutral-950 p-6 sm:p-8">
+                <div className="rounded-[2rem] border border-rose-200 dark:border-rose-800/60 bg-rose-50/60 dark:bg-neutral-900 p-6 sm:p-8">
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-xs font-black tracking-[0.2em] text-rose-500 dark:text-rose-400">应付费明细</h3>
                     <span className="text-xs font-medium text-gray-500 dark:text-neutral-500">{activeRegs.filter(r => !r.isExempt && r.status !== 'CANCELLED').length} 人</span>
@@ -757,7 +702,7 @@ const MatchDetail: React.FC = () => {
                     {registrations.filter(r => !r.isExempt && r.status !== 'CANCELLED').map((reg) => {
                       const p = players[reg.playerId];
                       return (
-                        <div key={reg.id} className="flex justify-between items-center rounded-xl bg-white dark:bg-neutral-900 border border-rose-100 dark:border-neutral-800 py-2 px-3">
+                        <div key={reg.id} className="flex justify-between items-center rounded-xl bg-white dark:bg-neutral-800 border border-rose-100 dark:border-neutral-700/60 py-2 px-3">
                           <span className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[120px]">{p?.nickname || `球员 #${reg.playerId}`}</span>
                           <span className={`text-xs font-bold ${reg.paymentStatus === 'PAID' ? 'text-primary' : 'text-rose-400'}`}>
                             {reg.paymentStatus === 'PAID' ? '已付' : (reg.paymentAmount != null && match.settlementPublished ? `¥${reg.paymentAmount}` : '待结算')}
@@ -769,7 +714,7 @@ const MatchDetail: React.FC = () => {
                   {match.settlementPublished && (
                     <button
                       onClick={() => navigate(`${basePath}/${id}/finance`)}
-                      className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-900 bg-rose-950 py-3 text-xs font-bold text-rose-100 transition-all hover:bg-rose-900 hover:border-rose-800 active:scale-[0.98]"
+                      className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-100 py-3 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-100 transition-all hover:bg-rose-200 dark:hover:bg-rose-900 hover:border-rose-400 dark:hover:border-rose-800 active:scale-[0.98]"
                     >
                       前往对账统计
                     </button>
@@ -777,9 +722,9 @@ const MatchDetail: React.FC = () => {
                 </div>
               )}
             </div>
-          </Tabs.Tab>
+          </TabsContent>
 
-          <Tabs.Tab title="球员与分组" key="players">
+          <TabsContent value="players">
             <div className="space-y-6 pt-4">
               {admin && pendingRegistrations.length > 0 && (
                 <div className="rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-8">
@@ -877,7 +822,7 @@ const MatchDetail: React.FC = () => {
                       return (
                         <div
                           key={reg.id}
-                          className="flex items-center gap-3 rounded-2xl border border-gray-100 dark:border-white/6 bg-gray-50 dark:bg-white/[0.02] px-4 py-3 transition-colors hover:border-gray-200 dark:hover:border-white/10 hover:bg-gray-100 dark:hover:bg-white/[0.04]"
+                          className="flex items-center gap-3 rounded-2xl border border-gray-100 dark:border-neutral-700/60 bg-gray-50 dark:bg-neutral-800/50 px-4 py-3 transition-colors hover:border-gray-200 dark:hover:border-neutral-600 hover:bg-gray-100 dark:hover:bg-neutral-700/50"
                         >
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-black text-primary">
                             {initial}
@@ -917,7 +862,7 @@ const MatchDetail: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     {Object.entries(groupsData.groups).sort(([a], [b]) => Number(a) - Number(b)).map(([groupIdx, players]) => (
-                      <div key={groupIdx} className="rounded-2xl border border-gray-100 dark:border-white/6 bg-gray-50 dark:bg-white/[0.02] p-4">
+                      <div key={groupIdx} className="rounded-2xl border border-gray-100 dark:border-neutral-700/60 bg-gray-50 dark:bg-neutral-800/40 p-4">
                         <div className="mb-3 text-[10px] font-black tracking-widest text-gray-400 dark:text-neutral-500">
                           TEAM {String.fromCharCode(65 + parseInt(groupIdx))}
                         </div>
@@ -938,10 +883,9 @@ const MatchDetail: React.FC = () => {
                 </div>
               )}
             </div>
-          </Tabs.Tab>
+          </TabsContent>
 
-          {['ONGOING', 'MATCH_FINISHED'].includes(match.status) && (
-            <Tabs.Tab title="赛况与数据" key="live">
+          <TabsContent value="live">
               <div className="space-y-6 pt-4">
                 {match.status === 'MATCH_FINISHED' && standings && stats && (
                   <div className="space-y-6">
@@ -964,7 +908,7 @@ const MatchDetail: React.FC = () => {
                       <div className="mb-6 flex items-center justify-between">
                         <h3 className="text-xs font-black tracking-[0.2em] text-amber-600 dark:text-amber-400">积分榜</h3>
                       </div>
-                      <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-white/6 bg-gray-50 dark:bg-white/[0.02]">
+                      <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-neutral-700/50 bg-gray-50 dark:bg-neutral-800/40">
                         <div className="grid grid-cols-[2rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem] items-center gap-1 border-b border-gray-100 dark:border-white/5 px-4 py-2.5 text-[10px] font-black tracking-widest text-gray-400 dark:text-neutral-600">
                           <span>#</span>
                           <span>队伍</span>
@@ -977,7 +921,7 @@ const MatchDetail: React.FC = () => {
                           <span className="text-center text-amber-400/70">分</span>
                         </div>
                         {standings.standings.map((row: any, idx: number) => (
-                          <div key={row.teamIndex} className={`grid grid-cols-[2rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem] items-center gap-1 px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-white/[0.02] ${idx < standings.standings.length - 1 ? 'border-b border-gray-100 dark:border-white/[0.04]' : ''}`}>
+                          <div key={row.teamIndex} className={`grid grid-cols-[2rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem] items-center gap-1 px-4 py-3 text-sm hover:bg-gray-100/80 dark:hover:bg-white/[0.05] ${idx < standings.standings.length - 1 ? 'border-b border-gray-100 dark:border-white/[0.04]' : ''}`}>
                             <span className={`text-xs font-black ${row.rank === 1 ? 'text-amber-400' : 'text-gray-400 dark:text-neutral-600'}`}>{row.rank}</span>
                             <span className="font-semibold text-gray-900 dark:text-white truncate">{row.teamName}</span>
                             <span className="text-center text-xs text-gray-400 dark:text-neutral-500">{row.played}</span>
@@ -997,13 +941,13 @@ const MatchDetail: React.FC = () => {
                       <div className="mb-6 flex items-center justify-between">
                         <h3 className="text-xs font-black tracking-[0.2em] text-sky-600 dark:text-sky-400">射手榜</h3>
                       </div>
-                      <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-white/6 bg-gray-50 dark:bg-white/[0.02]">
+                      <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-neutral-700/50 bg-gray-50 dark:bg-neutral-800/40">
                         {stats.topScorers.length === 0 ? (
                           <div className="py-6 text-center text-sm text-gray-400 dark:text-neutral-600">暂无数据</div>
                         ) : (
                           stats.topScorers.slice(0, 5).map((p: any, idx: number) => (
-                            <div key={p.playerId} className={`flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-white/[0.02] ${idx < Math.min(stats.topScorers.length, 5) - 1 ? 'border-b border-gray-100 dark:border-white/[0.04]' : ''}`}>
-                              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${idx === 0 ? 'bg-amber-400/15 text-amber-400' : idx === 1 ? 'bg-neutral-400/15 text-neutral-400' : idx === 2 ? 'bg-amber-700/15 text-amber-700' : 'bg-white/5 text-neutral-600'}`}>{idx + 1}</div>
+                            <div key={p.playerId} className={`flex items-center gap-3 px-5 py-3.5 hover:bg-gray-100/80 dark:hover:bg-white/[0.05] ${idx < Math.min(stats.topScorers.length, 5) - 1 ? 'border-b border-gray-100 dark:border-white/[0.04]' : ''}`}>
+                              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${idx === 0 ? 'bg-amber-400/15 text-amber-400' : idx === 1 ? 'bg-neutral-400/15 text-neutral-400' : idx === 2 ? 'bg-amber-700/15 text-amber-700' : 'bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-neutral-400'}`}>{idx + 1}</div>
                               <div className="flex-1 min-w-0">
                                 <div className="truncate text-sm font-bold text-gray-900 dark:text-white">{p.playerName}</div>
                               </div>
@@ -1017,8 +961,7 @@ const MatchDetail: React.FC = () => {
                   </div>
                 )}
               </div>
-            </Tabs.Tab>
-          )}
+          </TabsContent>
         </Tabs>
       </div>
 

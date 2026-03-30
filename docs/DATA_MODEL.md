@@ -1,105 +1,144 @@
-# 数据模型 (Data Model)
+# PitchMaster 数据模型与领域结构
 
-本系统采用关系型数据库 (MySQL) 进行数据持久化，通过 Flyway 进行版本管理。
+本系统采用关系型数据库 (MySQL) 进行数据持久化，通过 Flyway 进行版本管理（当前最新：V18）。
 
-## 1. 实体关系图 (ER Diagram)
+---
+
+## 1. 领域层次结构
+
+```
+Platform（平台）
+└── Tournament（赛事，顶层租户隔离单元）
+    ├── Club（俱乐部，Tournament 内的组织单元）
+    ├── TournamentPlayer（球员在本 Tournament 的身份与时间信息）
+    ├── Match（赛事活动）
+    │   ├── MatchRegistration（球员报名）
+    │   ├── MatchGame（单场比赛）
+    │   │   ├── GameParticipant（单场数据：进球/助攻/MVP）
+    │   │   └── MatchGoal（进球记录）
+    │   └── MatchScoreLog（比分变动审计）
+    ├── PlayerRatingProfile（三维评分档案，按 Tournament 隔离）
+    ├── PlayerStat（战绩统计，按 Tournament 隔离）
+    └── PlayerRatingHistory（评分变动审计，按 Tournament 隔离）
+
+Player（全局球员档案，不绑定 Tournament）
+└── PlayerMutualRating（赛后互评，记录荣誉与 MVP 投票）
+```
+
+**球员数据分层设计：**
+
+| 层级 | 表 | 说明 |
+|------|-----|------|
+| 全局档案 | `player` | 昵称、位置、身高等不变属性 |
+| Tournament 身份 | `tournament_player` | 加入状态、时间记录 |
+| Tournament 评分 | `player_rating_profile` | 三维评分 + 总分（计算值，不存储） |
+| Tournament 战绩 | `player_stat` | 胜平负、进球、助攻、MVP 数 |
+| 审计 | `player_rating_history` | 每次评分维度变动的完整记录 |
+
+**角色体系：**
+
+| 角色 | 职责 |
+|------|------|
+| `platform_admin` | 管理全局平台，创建/管理 Tournament |
+| `admin`（Tournament Admin） | 管理指定 Tournament 内的比赛、球员、评分 |
+| `player` | 报名参赛、提交互评 |
+
+---
+
+## 2. 实体关系图
 
 ```mermaid
 erDiagram
     TOURNAMENT ||--o{ CLUB : "contains"
-    TOURNAMENT ||--o{ PLAYER : "contains"
-    TOURNAMENT ||--o{ MATCH_EVENT : "contains"
-    
-    CLUB ||--o{ PLAYER : "manages"
+    TOURNAMENT ||--o{ TOURNAMENT_PLAYER : "has"
+    TOURNAMENT ||--o{ MATCH_EVENT : "hosts"
 
     USER ||--o| PLAYER : "has profile"
+    PLAYER ||--o{ TOURNAMENT_PLAYER : "joins"
+    PLAYER ||--o{ MATCH_REGISTRATION : "registers"
+    PLAYER ||--o{ GAME_PARTICIPANT : "plays"
+    PLAYER ||--o{ PLAYER_MUTUAL_RATING : "rates/is rated"
+
+    TOURNAMENT_PLAYER ||--o{ PLAYER_RATING_PROFILE : "has"
+    TOURNAMENT_PLAYER ||--o{ PLAYER_STAT : "accumulates"
+
     USER {
         bigint id PK
         string username
-        string password
-        string salt
         string real_name
         string role "admin, player"
-        tinyint status "1:Active, 0:Disabled"
-        datetime created_at
-        datetime updated_at
+        tinyint status
     }
 
-    PLAYER ||--o{ MATCH_REGISTRATION : registers
-    PLAYER ||--o{ GAME_PARTICIPANT : "plays in"
-    PLAYER ||--o{ PLAYER_MUTUAL_RATING : "rates/is rated"
-    PLAYER ||--o| PLAYER_RATING_PROFILE : "has profile"
     PLAYER {
         bigint id PK
         bigint user_id FK
-        bigint tournament_id FK
-        bigint real_club_id FK
         string nickname
         string position "GK, DF, MF, FW"
-        decimal rating "1.0-20.0 FM-style total rating"
-        int rating_version "Rating system version"
         int age
         string preferred_foot "LEFT, RIGHT, BOTH"
+        string gender "MALE, FEMALE"
+        int height "cm"
         tinyint status "1:Active, 0:Inactive"
-        datetime last_match_time "Used for rating decay"
-        datetime last_attendance_time "Last attendance time"
     }
 
-    MATCH_EVENT ||--o{ MATCH_REGISTRATION : contains
-    MATCH_EVENT ||--o{ MATCH_GAME : generates
+    TOURNAMENT_PLAYER {
+        bigint id PK
+        bigint tournament_id FK
+        bigint player_id FK
+        bigint club_id FK
+        string join_status "PENDING, ACTIVE, LEFT"
+        tinyint status
+        datetime last_match_time
+        datetime last_attendance_time
+    }
+
+    MATCH_EVENT ||--o{ MATCH_REGISTRATION : "has"
+    MATCH_EVENT ||--o{ MATCH_GAME : "contains"
     MATCH_EVENT {
         bigint id PK
         bigint tournament_id FK
         string title
         datetime start_time
-        datetime actual_start_time "实际开赛时间（管理员触发时设置）"
-        datetime end_time
+        datetime actual_start_time
         datetime registration_deadline
         datetime cancel_deadline
-        string location
-        string registration_type "PLAYER, CLUB"
+        string status "PREPARING,PUBLISHED,REGISTRATION_CLOSED,ONGOING,MATCH_FINISHED,CANCELLED"
         int num_groups
-        int players_per_group
         int planned_game_count
         decimal total_cost
         decimal per_person_cost
-        string status "PREPARING, PUBLISHED, GROUPING_DRAFT, REGISTRATION_CLOSED, ONGOING, MATCH_FINISHED, CANCELLED"
-        tinyint groups_published "0=draft, 1=published"
-        json team_names "Custom team names map {0: 'Eagles', 1: 'Lions'}"
-        string game_format "赛制: LEAGUE=联赛积分制（默认，预留扩展）"
-        int duration_per_game "单场预计时长（分钟），用于计算各场次预计开始时间"
-        datetime deleted_at "软删除时间"
-        bigint deleted_by FK "删除操作人用户ID"
+        tinyint groups_published
+        tinyint settlement_published
+        json team_names
+        datetime deleted_at
     }
 
     MATCH_REGISTRATION {
         bigint id PK
         bigint match_id FK
         bigint player_id FK
-        int group_index "0 to N"
-        string status "REGISTERED, CANCELLED, NO_SHOW"
+        int group_index
+        string status "REGISTERED, PENDING, CANCELLED, NO_SHOW"
         string payment_status "UNPAID, PAID"
-        boolean is_exempt "Exempt from fees"
-        tinyint is_mvp "Final Match MVP flag (Global per activity)"
+        boolean is_exempt
+        decimal payment_amount
+        tinyint is_mvp
     }
 
-    MATCH_GAME ||--o{ MATCH_GOAL : contains
-    MATCH_GAME ||--o{ GAME_PARTICIPANT : "recorded stats"
+    MATCH_GAME ||--o{ MATCH_GOAL : "has"
+    MATCH_GAME ||--o{ GAME_PARTICIPANT : "tracks"
+    MATCH_GAME ||--o{ MATCH_SCORE_LOG : "logs"
     MATCH_GAME {
         bigint id PK
         bigint match_id FK
         int team_a_index
         int team_b_index
-        datetime start_time
-        datetime end_time
-        int overtime_minutes
         int score_a
         int score_b
-        int game_index "场次序号（从0开始），scheduledStartTime = matchStartTime + durationPerGame × gameIndex"
+        int game_index
         string status "READY, PLAYING, FINISHED"
-        bigint updated_by FK
         bigint lock_user_id FK
-        datetime lock_time
     }
 
     GAME_PARTICIPANT {
@@ -108,20 +147,18 @@ erDiagram
         bigint player_id FK
         int goals
         int assists
-        tinyint is_mvp "Game performance MVP (Local per single game)"
-        decimal rating "Performance rating"
+        tinyint is_mvp
+        decimal rating "单场人工评分"
     }
 
     MATCH_GOAL {
         bigint id PK
         bigint game_id FK
         int team_index
-        bigint scorer_id FK "Nullable"
-        bigint assistant_id FK "Nullable"
+        bigint scorer_id FK
+        bigint assistant_id FK
         string type "NORMAL, OWN_GOAL"
         datetime occurred_at
-        bigint created_by FK
-        bigint updated_by FK
     }
 
     PLAYER_MUTUAL_RATING {
@@ -140,41 +177,46 @@ erDiagram
     PLAYER_RATING_PROFILE {
         bigint id PK
         bigint player_id FK
-        decimal skill_rating "Skill dimension 1.0-20.0"
-        decimal performance_rating "Performance dimension 1.0-20.0"
-        decimal engagement_rating "Engagement dimension 1.0-20.0"
-        int provisional_matches "Games played (for protection)"
-        int appearance_count "Total appearances"
-        int active_streak_weeks "Continuous active weeks"
+        bigint tournament_id FK
+        decimal skill_rating "1.0-20.0"
+        decimal performance_rating "1.0-20.0"
+        decimal engagement_rating "1.0-20.0"
+        int provisional_matches "已出场场次(保护期)"
+        int appearance_count "总出场次数"
+        int active_streak_weeks "连续活跃周数"
         datetime last_attendance_time
         datetime last_decay_time
         int rating_version
     }
 
+    PLAYER_STAT {
+        bigint id PK
+        bigint player_id FK
+        bigint tournament_id FK
+        int total_matches
+        int wins
+        int draws
+        int losses
+        int total_goals
+        int total_assists
+        int total_mvps
+        int clean_sheets
+    }
+
     PLAYER_RATING_HISTORY {
         bigint id PK
         bigint player_id FK
+        bigint tournament_id FK
         bigint match_id FK
         string dimension "SKILL/PERFORMANCE/ENGAGEMENT/TOTAL/DECAY"
-        string source_type "MATCH_SETTLEMENT/INACTIVITY_DECAY/ADMIN_CORRECTION"
-        decimal old_rating
-        decimal new_rating
+        string source_type "MATCH_SETTLEMENT/INACTIVITY_DECAY/ADMIN_CORRECTION/INITIALIZATION"
         decimal old_value
         decimal new_value
         decimal delta
-        string change_reason
         string reason_code
         string reason_detail
         bigint operator_user_id FK
         datetime create_time
-    }
-
-    PLAYER_RELATIONSHIP {
-        bigint id PK
-        bigint from_player_id FK
-        bigint to_player_id FK
-        int willingness "Willingness to play together"
-        int chemistry "Historical common games count"
     }
 
     MATCH_SCORE_LOG {
@@ -182,38 +224,19 @@ erDiagram
         bigint game_id FK
         int score_a
         int score_b
-        bigint operator_id FK
-        string type "GOAL, MANUAL, CORRECTION"
+        string type "GOAL, MANUAL"
         datetime created_at
-    }
-
-    SYSTEM_STATUS {
-        string config_key PK
-        string config_value
-        string description
-        datetime updated_at
     }
 ```
 
-## 2. 关键设计说明
-* **多租户体系**：
-    - `TOURNAMENT` (赛事)：最高级隔离，如“老男孩俱乐部公开赛”。
-    - `CLUB` (俱乐部)：逻辑组织层，属于某个 `TOURNAMENT`。
-* **状态机流转**：
-    - `MATCH_EVENT`：`PREPARING` -> `PUBLISHED` (开放报名) -> `REGISTRATION_CLOSED` -> `ONGOING` -> `MATCH_FINISHED`。
-* **费用分摊与豁免**：
-    - `is_exempt`：标记特定人员（如特殊嘉宾或伤退者）不参与分摊。
-    - `NO_SHOW`：报名后未准时参加且未提前取消，需参与费用平摊。
-* **数据审计与锁定**：
-    - `MATCH_SCORE_LOG`：专门用于追踪单场比赛比分的每一次跳动，记录操作轨迹。
-    - `lock_user_id`：管理员在编辑场次数据时会进行乐观锁定，防止并发修改。
-* **球员成长与衰减**：
-    - `last_attendance_time`：用于追踪球员活跃度，超过30天不活跃触发衰减。
-    - `PLAYER_RATING_PROFILE`：存储三维评分档案（Skill/Performance/Engagement），支持 FM 风格 1-20 分制。
-    - `PLAYER_RATING_HISTORY`：记录所有评分变动的审计日志，包括维度、来源、操作人等详细信息。
-    - `PLAYER_MUTUAL_RATING`：提供多维度的球员反馈，作为动态评分策略的输入。
-* **评分系统 (FM Style 1-20)**：
-    - 总评分 = Skill × 0.4 + Performance × 0.4 + Engagement × 0.2
-    - 新球员前3场享受保护期，变动幅度减小
-    - 超过30天不活跃触发衰减，每周 Engagement -0.1
-    - 所有评分下限为 1.00，上限为 20.00
+---
+
+## 3. 关键设计说明
+
+- **多租户隔离**：`tournament_id` 是核心隔离键。`player_rating_profile`、`player_stat`、`player_rating_history` 均按 `(player_id, tournament_id)` 唯一隔离。
+- **总评分不存储**：总评 = Skill × 0.4 + Performance × 0.4 + Engagement × 0.2，在查询时实时计算。
+- **`player` 表职责**：仅存储全局不变属性（昵称、身高等），与 Tournament 无关。Tournament 内身份由 `tournament_player` 管理。
+- **互评定位**：`player_mutual_rating` 记录赛后荣誉投票，不直接驱动 CPI 三维评分。
+- **费用分摊**：`cancel_deadline` 后取消报名视为 `NO_SHOW`，`is_exempt=true` 豁免分摊，剩余费用向上取整平摊。
+- **比分审计**：`match_score_log` 记录每次比分变动，触发 SSE 推送。
+- **软删除**：`match` 表通过 `deleted_at` 实现软删除。

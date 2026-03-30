@@ -20,8 +20,8 @@ export interface PlayerRatingData {
 /**
  * 查询球员评分档案
  */
-export const getPlayerRating = async (playerId: number): Promise<PlayerRatingData> => {
-  const response = await axios.get(`${API_BASE}/api/player/${playerId}/rating`);
+export const getPlayerRating = async (playerId: number, tournamentId: number): Promise<PlayerRatingData> => {
+  const response = await axios.get(`${API_BASE}/api/player/${playerId}/rating`, { params: { tournamentId } });
   return response.data.data;
 };
 

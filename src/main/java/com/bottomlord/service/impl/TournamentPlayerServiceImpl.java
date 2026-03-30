@@ -76,8 +76,6 @@ public class TournamentPlayerServiceImpl extends ServiceImpl<TournamentPlayerMap
         TournamentPlayer tp = new TournamentPlayer();
         tp.setTournamentId(tournamentId);
         tp.setPlayerId(playerId);
-        tp.setRating(new BigDecimal("5.00"));
-        tp.setRatingVersion(2);
         tp.setStatus(1);
         tp.setJoinStatus("APPROVAL".equals(tournament.getJoinMode()) ? "PENDING" : "ACTIVE");
         this.save(tp);
@@ -148,8 +146,6 @@ public class TournamentPlayerServiceImpl extends ServiceImpl<TournamentPlayerMap
         TournamentPlayer tp = new TournamentPlayer();
         tp.setTournamentId(tournamentId);
         tp.setPlayerId(playerId);
-        tp.setRating(new BigDecimal("5.00"));
-        tp.setRatingVersion(2);
         tp.setStatus(1);
         tp.setJoinStatus("ACTIVE");
         this.save(tp);
@@ -218,7 +214,6 @@ public class TournamentPlayerServiceImpl extends ServiceImpl<TournamentPlayerMap
             stat.setTotalAssists(0);
             stat.setTotalMvps(0);
             stat.setCleanSheets(0);
-            stat.setRecentForm("");
             playerStatMapper.insert(stat);
         }
 

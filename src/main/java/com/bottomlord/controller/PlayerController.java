@@ -10,7 +10,6 @@ import com.bottomlord.service.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/player")
@@ -28,27 +27,38 @@ public class PlayerController {
     }
 
     /**
-     * 查询球员评分档案（含三维评分）
+     * 查询球员在指定赛事的评分档案（含三维评分和计算后总分）
+     * @param tournamentId 赛事ID（必填，评分档案按赛事隔离）
      */
     @GetMapping("/{id}/rating")
-    public Result<PlayerRatingDTO> getPlayerRating(@PathVariable Long id) {
+    public Result<PlayerRatingDTO> getPlayerRating(@PathVariable Long id,
+                                                    @RequestParam Long tournamentId) {
         Player player = playerService.getById(id);
         if (player == null) {
             return Result.error(404, "球员不存在");
         }
 
         PlayerRatingProfile profile = playerRatingProfileMapper.selectOne(
-                new LambdaQueryWrapper<PlayerRatingProfile>().eq(PlayerRatingProfile::getPlayerId, id));
+                new LambdaQueryWrapper<PlayerRatingProfile>()
+                        .eq(PlayerRatingProfile::getPlayerId, id)
+                        .eq(PlayerRatingProfile::getTournamentId, tournamentId));
 
         PlayerRatingDTO dto = new PlayerRatingDTO();
         dto.setPlayerId(id);
         dto.setPlayerName(player.getNickname());
-        dto.setTotalRating(player.getRating());
-        
+
         if (profile != null) {
-            dto.setSkillRating(profile.getSkillRating());
-            dto.setPerformanceRating(profile.getPerformanceRating());
-            dto.setEngagementRating(profile.getEngagementRating());
+            BigDecimal skill = profile.getSkillRating() != null ? profile.getSkillRating() : new BigDecimal("5.00");
+            BigDecimal performance = profile.getPerformanceRating() != null ? profile.getPerformanceRating() : new BigDecimal("5.00");
+            BigDecimal engagement = profile.getEngagementRating() != null ? profile.getEngagementRating() : new BigDecimal("5.00");
+            BigDecimal total = skill.multiply(new BigDecimal("0.40"))
+                    .add(performance.multiply(new BigDecimal("0.40")))
+                    .add(engagement.multiply(new BigDecimal("0.20")))
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
+            dto.setTotalRating(total);
+            dto.setSkillRating(skill);
+            dto.setPerformanceRating(performance);
+            dto.setEngagementRating(engagement);
             dto.setProvisionalMatches(profile.getProvisionalMatches());
             dto.setAppearanceCount(profile.getAppearanceCount());
             dto.setActiveStreakWeeks(profile.getActiveStreakWeeks());
@@ -58,18 +68,6 @@ public class PlayerController {
         }
 
         return Result.success(dto);
-    }
-
-    /**
-     * 管理员手动修正球员评分
-     */
-    @PostMapping("/{id}/rating")
-    public Result<Void> updateRating(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        BigDecimal newRating = new BigDecimal(body.get("newRating").toString());
-        String reason = body.getOrDefault("reason", "管理员手动修正").toString();
-        
-        playerService.updateRatingManually(id, newRating, reason);
-        return Result.success(null);
     }
 
     /**

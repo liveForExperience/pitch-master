@@ -68,7 +68,15 @@ reason_detail VARCHAR(255)          -- 变动详情
 operator_user_id BIGINT             -- 操作人（管理员修正时）
 ```
 
-## 4. 管理员功能
-- 手动修正总评分: `/api/admin/player/{id}/rating/total`
-- 手动修正三维评分: `/api/admin/player/{id}/rating/dimension`
-- 所有修正操作记录完整审计日志
+## 4. 重要约束
+
+- **总评分不存储**：总分由三维实时计算（Skill×0.4 + Performance×0.4 + Engagement×0.2），不单独持久化。
+- **互评不影响主评分**：`player_mutual_rating` 仅用于 MVP 投票和荣誉展示，不直接更新三维评分。
+- **评分按 Tournament 隔离**：同一球员在不同 Tournament 有独立的 `player_rating_profile`。
+
+## 5. 管理员功能
+
+- 手动修正三维评分: `POST /api/admin/player/{id}/rating/dimension?tournamentId=&dimension=&newValue=&reason=`
+  - 支持维度：`SKILL` / `PERFORMANCE` / `ENGAGEMENT`
+  - 取值范围：1.00 ~ 20.00
+  - 所有修正操作记录完整审计日志（含操作人、前后值）

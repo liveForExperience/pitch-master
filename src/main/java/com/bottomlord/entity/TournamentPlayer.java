@@ -8,7 +8,6 @@ import com.bottomlord.common.base.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -27,13 +26,6 @@ public class TournamentPlayer extends BaseEntity {
     private Long playerId;
 
     private Long clubId;
-
-    /**
-     * Tournament 维度综合评分 (1.0-20.0)
-     */
-    private BigDecimal rating;
-
-    private Integer ratingVersion;
 
     private LocalDateTime lastMatchTime;
 

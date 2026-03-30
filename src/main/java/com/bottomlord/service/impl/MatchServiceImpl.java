@@ -89,6 +89,9 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Autowired
     private TournamentPlayerService tournamentPlayerService;
 
+    @Autowired
+    private com.bottomlord.mapper.PlayerRatingProfileMapper playerRatingProfileMapper;
+
     @Override
     public Match getMatchDetail(Long matchId) {
         return this.getById(matchId);
@@ -357,7 +360,9 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
                 ? strategyFactory.getStrategy(strategyName)
                 : strategyFactory.getDefaultStrategy();
 
-        Map<Integer, List<Long>> allocation = strategy.allocate(playerIdsToAssign, match.getNumGroups(), new HashMap<>());
+        Map<String, Object> constraints = new HashMap<>();
+        constraints.put("tournamentId", match.getTournamentId());
+        Map<Integer, List<Long>> allocation = strategy.allocate(playerIdsToAssign, match.getNumGroups(), constraints);
 
         if (request.isKeepExisting()) {
             persistGroupAssignmentsPartial(matchId, allocation);
@@ -450,14 +455,6 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
             }
         }
 
-        List<Long> allParticipantIds = allRegs.stream().map(MatchRegistration::getPlayerId).collect(Collectors.toList());
-
-        if (CollUtil.isNotEmpty(allParticipantIds)) {
-            playerService.update(new LambdaUpdateWrapper<Player>()
-                    .in(Player::getId, allParticipantIds)
-                    .set(Player::getLastMatchTime, LocalDateTime.now()));
-        }
-
         generateRoundRobinGames(match);
         match.setStatus(Match.STATUS_ONGOING);
         match.setActualStartTime(actualStartTime);
@@ -501,6 +498,25 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
                 ? new HashMap<>()
                 : playerService.listByIds(allPlayerIds).stream().collect(Collectors.toMap(Player::getId, p -> p));
 
+        // 从 player_rating_profile 获取本 tournament 下各球员总分（三维加权计算）
+        Long tournamentId = match != null ? match.getTournamentId() : null;
+        Map<Long, BigDecimal> ratingMap = new HashMap<>();
+        if (tournamentId != null && CollUtil.isNotEmpty(allPlayerIds)) {
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.bottomlord.entity.PlayerRatingProfile> profileWrapper =
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.bottomlord.entity.PlayerRatingProfile>()
+                            .in(com.bottomlord.entity.PlayerRatingProfile::getPlayerId, allPlayerIds)
+                            .eq(com.bottomlord.entity.PlayerRatingProfile::getTournamentId, tournamentId);
+            playerRatingProfileMapper.selectList(profileWrapper).forEach(p -> {
+                BigDecimal skill = p.getSkillRating() != null ? p.getSkillRating() : new BigDecimal("5.00");
+                BigDecimal perf = p.getPerformanceRating() != null ? p.getPerformanceRating() : new BigDecimal("5.00");
+                BigDecimal eng = p.getEngagementRating() != null ? p.getEngagementRating() : new BigDecimal("5.00");
+                ratingMap.put(p.getPlayerId(), skill.multiply(new BigDecimal("0.40"))
+                        .add(perf.multiply(new BigDecimal("0.40")))
+                        .add(eng.multiply(new BigDecimal("0.20")))
+                        .setScale(2, java.math.RoundingMode.HALF_UP));
+            });
+        }
+
         Map<Integer, List<GroupsVO.PlayerItem>> groups = new HashMap<>();
         List<GroupsVO.PlayerItem> unassigned = new ArrayList<>();
 
@@ -509,7 +525,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
             GroupsVO.PlayerItem item = new GroupsVO.PlayerItem();
             item.setId(reg.getPlayerId());
             item.setName(player != null ? player.getNickname() : "球员#" + reg.getPlayerId());
-            item.setRating(player != null ? player.getRating() : new BigDecimal("5.0"));
+            item.setRating(ratingMap.getOrDefault(reg.getPlayerId(), new BigDecimal("5.0")));
 
             if (reg.getGroupIndex() != null) {
                 groups.computeIfAbsent(reg.getGroupIndex(), k -> new ArrayList<>()).add(item);

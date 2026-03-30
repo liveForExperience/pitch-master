@@ -36,8 +36,5 @@ public class PlayerStat {
 
     private Integer cleanSheets;
 
-    /** 最近5场走势 (W,W,D,L,W) */
-    private String recentForm;
-
     private LocalDateTime updateTime;
 }

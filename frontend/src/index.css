@@ -166,3 +166,108 @@ body {
 .dark .auth-selector .adm-selector-item-check-mark-wrapper {
   color: #1db954;
 }
+
+/* ProfileEdit Form Inputs - Dark Mode */
+.dark .adm-input-element {
+  background: transparent !important;
+  color: #ffffff !important;
+}
+
+.dark .adm-input {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.dark .adm-input::placeholder {
+  color: #6b7280 !important;
+}
+
+/* ProfileEdit Selector - Dark Mode */
+.profile-selector .adm-selector-item {
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.profile-selector .adm-selector-item-active {
+  border-color: #1db954;
+  background: rgba(29, 185, 84, 0.18);
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.dark .profile-selector .adm-selector-item {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #a3a3a3;
+}
+
+.dark .profile-selector .adm-selector-item-active {
+  border-color: rgba(29, 185, 84, 0.35);
+  background: rgba(29, 185, 84, 0.14);
+  color: #ffffff;
+}
+
+.dark .profile-selector .adm-selector-item-check-mark-wrapper {
+  color: #1db954;
+}
+
+/* ── ProfileEdit: Ant Design Mobile form overrides (both themes) ── */
+/* Transparent backgrounds — prevents white-box artifact in both light and dark */
+.profile-form .adm-form,
+.profile-form .adm-list,
+.profile-form .adm-list-item,
+.profile-form .adm-list-body,
+.profile-form .adm-list-body-inner,
+.profile-form .adm-form-item-label,
+.profile-form .adm-form-item-child-inner {
+  background-color: transparent !important;
+}
+
+/* Remove adm-list outer top/bottom borders inside custom cards */
+.profile-form .adm-list {
+  --border-top: none !important;
+  --border-bottom: none !important;
+}
+
+/* Dark mode: inner divider color */
+.dark .profile-form .adm-form-item,
+.dark .profile-form .adm-list-item {
+  --border-inner: #27272a !important;
+}
+
+.dark .profile-form .adm-form .adm-list-item-content {
+  border-color: #27272a !important;
+}
+
+/* ── Radix / shadcn-ui animation helpers ── */
+@keyframes overlayShow {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes overlayHide {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes contentShow {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes contentHide {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to   { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+}
+
+[data-state="open"].dialog-overlay  { animation: overlayShow 0.15s ease-out; }
+[data-state="closed"].dialog-overlay { animation: overlayHide 0.12s ease-in; }
+[data-state="open"].dialog-content  { animation: contentShow 0.18s cubic-bezier(0.16,1,0.3,1); }
+[data-state="closed"].dialog-content { animation: contentHide 0.12s ease-in; }
+
+/* Tailwind animate-in / animate-out for Radix data-state */
+.data-\[state\=open\]\:animate-in[data-state="open"]   { animation: contentShow 0.2s cubic-bezier(0.16,1,0.3,1); }
+.data-\[state\=closed\]\:animate-out[data-state="closed"] { animation: contentHide 0.15s ease-in; }
+.data-\[state\=open\]\:fade-in-0[data-state="open"]   { animation: overlayShow 0.15s ease-out; }
+.data-\[state\=closed\]\:fade-out-0[data-state="closed"] { animation: overlayHide 0.12s ease-in; }

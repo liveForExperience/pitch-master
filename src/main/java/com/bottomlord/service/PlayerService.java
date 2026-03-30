@@ -20,21 +20,14 @@ public interface PlayerService extends IService<Player> {
     Player getByUserId(Long userId);
 
     /**
-     * 管理员手动修正球员总评分
+     * 管理员手动修正球员三维评分（总分由三维加权计算，不单独存储）
      * @param playerId 球员ID
-     * @param newRating 新评分
-     * @param reason 修正原因（用于审计）
-     */
-    void updateRatingManually(Long playerId, BigDecimal newRating, String reason);
-
-    /**
-     * 管理员手动修正球员三维评分
-     * @param playerId 球员ID
+     * @param tournamentId 赛事ID（评分档案按赛事隔离）
      * @param dimension 评分维度（SKILL/PERFORMANCE/ENGAGEMENT）
      * @param newValue 新评分值
      * @param reason 修正原因（用于审计）
      */
-    void updateRatingDimensionManually(Long playerId, String dimension, BigDecimal newValue, String reason);
+    void updateRatingDimensionManually(Long playerId, Long tournamentId, String dimension, BigDecimal newValue, String reason);
 
     /**
      * 更新球员及其关联用户的基本信息

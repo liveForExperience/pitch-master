@@ -1,51 +1,94 @@
-# 系统架构设计说明书 (System Architecture Specification)
+# PitchMaster 系统架构
 
-## 1. 核心设计原则 (Design Principles)
-*   **多层多租户隔离 (Multi-tenancy)**: 
-    - **L1 (Tournament)**: 赛事级物理隔离（租户标识：`tournament_id`），支持多赛事平行运行。
-    - **L2 (Club)**: 组织级逻辑隔离（租户标识：`real_club_id`），支持多俱乐部归属管理。
-*   **审计留痕 (Audit Trail)**: 针对高频变动的核心数据（如比分），系统不仅记录最终状态，还通过 `match_score_log` 实现全量版本快照记录。
-*   **低延迟交互 (Real-time)**: 采用 **SSE (Server-Sent Events)** 技术栈，实现“服务端推”模式，确保比分变动在毫秒级同步至所有在线终端。
+---
 
-## 2. 技术栈深度定义 (Technology Stack)
-*   **通信协议**: RESTful API + SSE (Real-time updates)
-*   **并发控制**: 业务互斥锁 (Business Mutual Exclusion) + 数据库行级锁 + 管理员编辑乐观锁定 (`lock_user_id`)。
-*   **前端状态**: React Hooks + SSE EventSource 订阅模式。
-*   **异常处理**: 全局异常处理器 (`GlobalExceptionHandler`) 统一拦截并转换异常为标准 `Result` 格式响应，确保前后端契约一致性。
-    - **权限异常** (`AuthorizationException`): 返回 403 状态码
-    - **认证异常** (`UnauthenticatedException`): 返回 401 状态码
-    - **业务异常** (`IllegalArgumentException`, `IllegalStateException`): 返回 400 状态码并携带具体错误信息
-    - **系统异常** (`Exception`): 返回 500 状态码并记录详细日志
+## 1. 核心设计原则
 
-## 3. 实时性架构 (Real-time Architecture)
+- **多租户隔离**：`tournament_id` 是顶层隔离键。`player_rating_profile`、`player_stat`、`player_rating_history` 均按 `(player_id, tournament_id)` 唯一隔离；`Club` 归属于具体 Tournament。
+- **审计留痕**：比分变动写入 `match_score_log`；评分变动写入 `player_rating_history`，每次记录维度、来源、操作人、前后值。
+- **实时推送**：SSE (Server-Sent Events)，`SseManager` 基于 `matchId` 维护连接池，精准广播赛事级事件。
+- **Controller 只做编排**：业务逻辑下沉到 Service 层；Controller 仅负责参数校验、调用 Service、包装响应。
+
+---
+
+## 2. 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 后端框架 | Spring Boot 3.4 + MyBatis-Plus |
+| 认证授权 | Apache Shiro（角色：`admin` / `player` / `platform_admin`） |
+| 数据库迁移 | Flyway（`src/main/resources/db/migration/`，当前 V18） |
+| 实时推送 | SSE (`SseManager`) |
+| 前端框架 | React 18 + TypeScript + Vite |
+| 前端 UI | Ant Design Mobile + Tailwind CSS（主色 `#1DB954`） |
+| 前端状态 | Zustand |
+| 前端图表 | ECharts（评分雷达图） |
+| HTTP 客户端 | Axios（`withCredentials: true`） |
+
+---
+
+## 3. 主要类结构
+
+```
+controller/
+├── AuthController            # 登录/登出
+├── MatchController           # 赛事查询、报名、分组
+├── MatchAdminController      # 赛事生命周期管理（admin）
+├── MatchGameController       # 场次比分操作
+├── GameParticipantController # 单场球员数据录入
+├── PlayerController          # 球员档案 + 评分查询
+├── PlayerAdminController     # 评分人工修正（admin）
+├── TournamentController      # Tournament CRUD
+├── TournamentPlayerController# 球员加入/离开 Tournament
+└── RealTimeController        # SSE 订阅端点
+
+service/
+├── MatchService              # 赛事业务主流程
+├── RatingService             # FM 评分计算与衰减
+├── PlayerService             # 球员档案 + 人工评分修正
+├── TournamentPlayerService   # Tournament 内球员生命周期
+├── PlayerMutualRatingService # 赛后互评 + MVP 投票
+└── MatchRegistrationService  # 报名状态管理
+
+strategy/  （策略模式，可扩展）
+├── GroupingStrategy          # 分组策略接口
+├── GroupingStrategyFactory   # 策略工厂（按名称获取）
+└── impl/
+    ├── SimpleSkillBalanceStrategy  # 当前默认：蛇形 Snake Draft
+    └── EloRatingStrategyImpl       # Elo 评分策略（保留扩展）
+```
+
+---
+
+## 4. 实时推送架构
 
 ```mermaid
 sequenceDiagram
-    participant P as Player A (Operator)
-    participant S as Spring Boot (Backend)
+    participant V as 观战者
+    participant S as Spring Boot
     participant M as SseManager
-    participant DB as MySQL (Audit Log)
-    participant L as Player B (Viewer)
+    participant DB as MySQL
 
-    L->>S: GET /api/realtime/subscribe/{matchId}
-    S->>M: Register SseEmitter
-    Note over L, M: SSE Connection Established
+    V->>S: GET /api/realtime/subscribe/{matchId}
+    S->>M: 注册 SseEmitter
+    Note over V,M: SSE 长连接建立
 
-    P->>S: POST /api/game/{id}/score (Updated)
-    S->>DB: INSERT INTO match_score_log
+    Note over S: 管理员更新比分
+    S->>DB: INSERT match_score_log
     S->>M: broadcast(matchId, gameData)
-    M-->>L: Push data via SSE
-    L->>L: Update UI State (Scoreboard)
+    M-->>V: SSE 推送
+    V->>V: 更新比分 UI
 ```
 
-## 4. 多租户数据模型映射
-目前系统采用 **共享数据库、共享 Schema (Shared Schema)** 的租户模式：
-*   **当前阶段**: 已完成从单一 `club_id` 到 `tournament_id` + `real_club_id` 的重构（参见 `V12` 迁移脚本）。
-*   **强制过滤**: 应用层通过 MyBatis-Plus 的拦截器机制，在 `Match` 和 `Player` 相关的查询中强制注入 `tournament_id`。
-*   **未来演进**: 动态租户解析（基于请求头、子域名或认证上下文）。
+---
 
-## 5. 核心业务流程与审计
-系统对比分变动采取“双轨制”处理：
-1.  **状态持久化**: 直接更新 `match_game` 表的 `score_a`, `score_b`。
-2.  **流水记录**: 同步向 `match_score_log` 插入版本记录，该记录作为前端 SSE 推送的数据载体。
-3.  **实时分发**: 通过 `SseManager` 维护基于 `match_id` 的连接池，实现精准的“赛事级”广播，避免不必要的全站推送。
+## 5. 异常处理规范
+
+`GlobalExceptionHandler` 统一拦截，返回标准 `Result` 格式：
+
+| 异常类型 | HTTP 状态 |
+|---------|----------|
+| `UnauthenticatedException` | 401 |
+| `AuthorizationException` | 403 |
+| `IllegalArgumentException` / `IllegalStateException` | 400 |
+| `Exception` | 500 |

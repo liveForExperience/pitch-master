@@ -2,13 +2,17 @@ package com.bottomlord.strategy.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.RandomUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bottomlord.entity.Player;
+import com.bottomlord.entity.PlayerRatingProfile;
+import com.bottomlord.mapper.PlayerRatingProfileMapper;
 import com.bottomlord.service.PlayerService;
 import com.bottomlord.strategy.GroupingStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,25 +30,45 @@ public class SimpleSkillBalanceStrategy implements GroupingStrategy {
     @Autowired
     private PlayerService playerService;
 
+    @Autowired
+    private PlayerRatingProfileMapper playerRatingProfileMapper;
+
     @Override
     public Map<Integer, List<Long>> allocate(List<Long> playerIds, int groupCount, Map<String, Object> constraints) {
         if (CollUtil.isEmpty(playerIds)) {
             return Collections.emptyMap();
         }
 
-        // 1. 获取球员详细信息并处理默认分值
+        // 1. 获取球员详细信息
         List<Player> players = playerService.listByIds(playerIds);
-        
-        // 2. 补全缺失球员信息（处理新球员）并排序
-        // 规则：按 Rating 降序，Rating 相同时通过随机数打乱
+
+        // 2. 从 player_rating_profile 加载 tournament 维度评分（三维加权总分）
+        Object tidObj = constraints != null ? constraints.get("tournamentId") : null;
+        if (tidObj != null) {
+            Long tournamentId = ((Number) tidObj).longValue();
+            List<PlayerRatingProfile> profiles = playerRatingProfileMapper.selectList(
+                    new LambdaQueryWrapper<PlayerRatingProfile>()
+                            .in(PlayerRatingProfile::getPlayerId, playerIds)
+                            .eq(PlayerRatingProfile::getTournamentId, tournamentId));
+            Map<Long, BigDecimal> ratingMap = new HashMap<>();
+            profiles.forEach(p -> {
+                BigDecimal s = p.getSkillRating() != null ? p.getSkillRating() : new BigDecimal("5.00");
+                BigDecimal perf = p.getPerformanceRating() != null ? p.getPerformanceRating() : new BigDecimal("5.00");
+                BigDecimal eng = p.getEngagementRating() != null ? p.getEngagementRating() : new BigDecimal("5.00");
+                ratingMap.put(p.getPlayerId(), s.multiply(new BigDecimal("0.40"))
+                        .add(perf.multiply(new BigDecimal("0.40")))
+                        .add(eng.multiply(new BigDecimal("0.20")))
+                        .setScale(2, RoundingMode.HALF_UP));
+            });
+            players.forEach(p -> p.setRating(ratingMap.getOrDefault(p.getId(), new BigDecimal("5.00"))));
+        } else {
+            players.forEach(p -> { if (p.getRating() == null) p.setRating(new BigDecimal("5.00")); });
+        }
+
+        // 3. 按 Rating 降序排序，相同分数随机打乱
         List<Player> sortedPlayers = players.stream()
-                .peek(p -> {
-                    if (p.getRating() == null) {
-                        p.setRating(new BigDecimal("5.0"));
-                    }
-                })
                 .sorted(Comparator.comparing(Player::getRating).reversed()
-                        .thenComparing(p -> RandomUtil.randomInt())) // 随机化相同分数的顺序
+                        .thenComparing(p -> RandomUtil.randomInt()))
                 .collect(Collectors.toList());
 
         // 3. 执行蛇形分配 (Snake Distribution)
