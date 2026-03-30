@@ -38,7 +38,8 @@ controller/
 ├── GameParticipantController # 单场球员数据录入
 ├── PlayerController          # 球员档案 + 评分查询
 ├── PlayerAdminController     # 评分人工修正（admin）
-├── TournamentController      # Tournament CRUD
+├── TournamentController      # Tournament CRUD + 管理员列表
+├── AdminUserController       # 平台管理员专用：用户搜索（platform_admin）
 ├── TournamentPlayerController# 球员加入/离开 Tournament
 └── RealTimeController        # SSE 订阅端点
 

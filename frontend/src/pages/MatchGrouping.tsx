@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Toast } from 'antd-mobile';
 import { useConfirmDialog } from '../components/ConfirmDialog';
-import { Wand2, Save, Globe, Play, UserRoundX, Users, Pencil, Check, X, ChevronLeft, Loader2 } from 'lucide-react';
+import { Wand2, Save, Globe, UserRoundX, Users, Pencil, Check, X, ChevronLeft, Loader2 } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -188,7 +188,6 @@ const MatchGrouping: React.FC = () => {
   const hasAnyGrouped = Object.values(vo?.groups ?? {}).some(g => g.length > 0);
   const allAssigned = (vo?.unassigned?.length ?? 0) === 0 && groupKeys.length > 0;
   const isPublished = vo?.groupsPublished === true;
-  const canStart = matchStatus === 'REGISTRATION_CLOSED' && allAssigned;
   const canEdit = matchStatus === 'PUBLISHED' || matchStatus === 'REGISTRATION_CLOSED';
   const isNotStarted = !loading && vo !== null && groupKeys.length === 0;
 
@@ -260,21 +259,6 @@ const MatchGrouping: React.FC = () => {
       await matchApi.publishGroups(id!);
       await loadGroups();
       Toast.show({ icon: 'success', content: '分组已发布' });
-    } catch {}
-  };
-
-  const handleStartMatch = async () => {
-    const confirmed = await showConfirm({
-      title: '正式开赛',
-      content: '开赛后分组将无法修改，是否确认？',
-      confirmText: '确认开赛',
-    });
-    if (!confirmed) return;
-    try {
-      const actualStartTime = new Date().toISOString();
-      await matchApi.startMatch(id!, actualStartTime);
-      Toast.show({ icon: 'success', content: '比赛已开始！' });
-      navigate(`${basePath}/${id}`, { replace: true });
     } catch {}
   };
 
@@ -550,15 +534,6 @@ const MatchGrouping: React.FC = () => {
               >
                 <Globe size={18} />
                 发布分组（所有人可见）
-              </button>
-            )}
-            {canStart && (
-              <button
-                onClick={handleStartMatch}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black tracking-widest text-black shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Play size={18} fill="currentColor" />
-                正式开赛
               </button>
             )}
           </div>

@@ -25,6 +25,13 @@ export interface TournamentPlayer {
   clubName?: string;
 }
 
+export interface AdminUser {
+  id: number;
+  username: string;
+  realName?: string;
+  status: number;
+}
+
 export const tournamentApi = {
   list: (): Promise<Tournament[]> =>
     apiClient.get('/api/tournament/list'),
@@ -34,6 +41,9 @@ export const tournamentApi = {
 
   create: (tournament: Partial<Tournament>): Promise<Tournament> =>
     apiClient.post('/api/tournament', tournament),
+
+  getAdmins: (tournamentId: number | string): Promise<AdminUser[]> =>
+    apiClient.get(`/api/tournament/${tournamentId}/admins`),
 
   addAdmin: (tournamentId: number | string, userId: number): Promise<void> =>
     apiClient.post(`/api/tournament/${tournamentId}/admin?userId=${userId}`),

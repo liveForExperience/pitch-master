@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.bottomlord.entity.Role;
 import com.bottomlord.entity.Tournament;
 import com.bottomlord.entity.TournamentAdmin;
+import com.bottomlord.entity.User;
 import com.bottomlord.entity.UserRole;
 import com.bottomlord.mapper.RoleMapper;
 import com.bottomlord.mapper.TournamentAdminMapper;
@@ -93,5 +94,10 @@ public class TournamentServiceImpl extends ServiceImpl<TournamentMapper, Tournam
     @Override
     public List<Long> getAdminTournamentIds(Long userId) {
         return tournamentAdminMapper.selectTournamentIdsByUserId(userId);
+    }
+
+    @Override
+    public List<User> listAdminUsers(Long tournamentId) {
+        return tournamentAdminMapper.selectAdminUsersByTournamentId(tournamentId);
     }
 }

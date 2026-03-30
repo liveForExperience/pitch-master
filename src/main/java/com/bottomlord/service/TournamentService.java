@@ -2,6 +2,7 @@ package com.bottomlord.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.bottomlord.entity.Tournament;
+import com.bottomlord.entity.User;
 
 import java.util.List;
 
@@ -44,4 +45,9 @@ public interface TournamentService extends IService<Tournament> {
      * 获取用户管理的 Tournament ID 列表
      */
     List<Long> getAdminTournamentIds(Long userId);
+
+    /**
+     * 获取指定 Tournament 的所有管理员用户（脱敏）
+     */
+    List<User> listAdminUsers(Long tournamentId);
 }

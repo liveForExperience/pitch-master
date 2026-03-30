@@ -35,8 +35,9 @@
 | `/{id}/revert-preparing` | POST | 撤回至筹备阶段 | 仅限从 PUBLISHED 撤回，需 ADMIN 角色 |
 | `/{matchId}/register` | POST | 球员报名 | Query: `playerId` |
 | `/{matchId}/cancel` | POST | 取消报名 | 处理 Late Cancellation 逻辑 |
-| `/{matchId}/approve` | POST | 批准待审批的报名 | 需 ADMIN，Query: `playerId` |
-| `/{matchId}/reject` | POST | 拒绝待审批的报名 | 需 ADMIN，Query: `playerId` |
+| `/{tournamentId}/admin` | POST | 任命 Tournament 管理员（仅平台管理员） | Query: `userId` |
+| `/{tournamentId}/admin` | DELETE | 移除 Tournament 管理员（仅平台管理员） | Query: `userId` |
+| `/{tournamentId}/admins` | GET | 获取该 Tournament 当前管理员列表（仅平台管理员） | 返回 `List<User>`（脱敏，无 password/salt） |
 | `/{id}/pending` | GET | 获取待审批报名列表 | 返回 PENDING 状态的报名记录 |
 | `/{matchId}/eligible-players` | GET | 获取可添加球员列表 | 需 ADMIN，返回当前 tournament 下未报名此赛事的活跃球员 |
 | `/{matchId}/admin/add-player` | POST | 管理员强制添加球员 | 需 ADMIN，Query: `playerId`；绕过容量限制，直接设为 REGISTERED；仅允许 PUBLISHED 或 REGISTRATION_CLOSED 状态 |
@@ -88,7 +89,14 @@
 | `/rating/mvp-votes/{matchId}` | GET | 获取 MVP 票数统计 | 返回 Map<PlayerId, VoteCount> |
 | `/rating/finalize-mvp/{matchId}` | POST | 最终确定本场 MVP | 需 ADMIN 角色，Optional Query: `manualPlayerId` |
 
-## 6. 参赛统计 (Game Participant)
+## 6. 平台管理员 (Admin)
+基础路径: `/api/admin`
+
+| 接口 | 方法 | 说明 | 备注 |
+| :--- | :--- | :--- | :--- |
+| `/users/search` | GET | 按用户名或真实姓名模糊搜索全平台用户 | 仅 platform admin；Query: `q`（关键词，必填）；最多返回 20 条；脱敏返回 |
+
+## 7. 参赛统计 (Game Participant)
 基础路径: `/api/game-participant`
 
 | 接口 | 方法 | 说明 | 备注 |
@@ -96,14 +104,14 @@
 | `/list/{gameId}` | GET | 获取单场比赛所有参与者数据 | 进球数、红黄牌等 |
 | `/batch-update` | POST | 批量更新参与者统计数据 | 需 ADMIN 角色，Body: `List<GameParticipant>` |
 
-## 7. 实时通信 (Real-time)
+## 8. 实时通信 (Real-time)
 基础路径: `/api/realtime`
 
 | 接口 | 方法 | 说明 | 备注 |
 | :--- | :--- | :--- | :--- |
 | `/subscribe/{matchId}` | GET | 订阅赛事比分实时更新 | SSE 协议，推送 `MatchGame` 或 `MatchScoreLog` |
 
-## 8. 关键模型定义 (Key Models)
+## 9. 关键模型定义 (Key Models)
 
 ### RegistrationRequest
 ```json

@@ -50,4 +50,12 @@ public interface UserService extends IService<User> {
      * @return 角色列表
      */
     java.util.List<com.bottomlord.entity.Role> getUserRoles(Long userId);
+
+    /**
+     * 按用户名或真实姓名模糊搜索用户（脱敏，最多20条）
+     *
+     * @param keyword 搜索关键词
+     * @return 用户列表
+     */
+    java.util.List<User> searchUsers(String keyword);
 }

@@ -2,6 +2,7 @@ package com.bottomlord.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.bottomlord.entity.TournamentAdmin;
+import com.bottomlord.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -19,4 +20,9 @@ public interface TournamentAdminMapper extends BaseMapper<TournamentAdmin> {
 
     @Select("SELECT tournament_id FROM tournament_admin WHERE user_id = #{userId}")
     List<Long> selectTournamentIdsByUserId(@Param("userId") Long userId);
+
+    @Select("SELECT u.id, u.username, u.real_name, u.status FROM `user` u " +
+            "INNER JOIN tournament_admin ta ON ta.user_id = u.id " +
+            "WHERE ta.tournament_id = #{tournamentId}")
+    List<User> selectAdminUsersByTournamentId(@Param("tournamentId") Long tournamentId);
 }

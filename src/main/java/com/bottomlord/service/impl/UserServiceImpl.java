@@ -112,4 +112,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public java.util.List<com.bottomlord.entity.Role> getUserRoles(Long userId) {
         return roleMapper.selectRolesByUserId(userId);
     }
+
+    @Override
+    public java.util.List<User> searchUsers(String keyword) {
+        java.util.List<User> users = this.list(new LambdaQueryWrapper<User>()
+                .and(w -> w.like(User::getUsername, keyword)
+                           .or()
+                           .like(User::getRealName, keyword))
+                .eq(User::getStatus, 1)
+                .last("LIMIT 20"));
+        users.forEach(u -> {
+            u.setPassword(null);
+            u.setSalt(null);
+        });
+        return users;
+    }
 }

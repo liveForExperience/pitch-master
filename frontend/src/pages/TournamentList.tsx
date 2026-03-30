@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Toast, Dialog, Input, TextArea, SpinLoading } from 'antd-mobile';
-import { Trophy, Plus, ChevronRight, Users, LogIn, LogOut as LogOutIcon, ShieldCheck } from 'lucide-react';
+import { Trophy, Plus, ChevronRight, Users, LogIn, LogOut as LogOutIcon, ShieldCheck, UserCog } from 'lucide-react';
 import { tournamentApi, type Tournament } from '../api/tournament';
 import useAuthStore from '../store/useAuthStore';
 import useTournamentStore from '../store/useTournamentStore';
+import TournamentAdminModal from '../components/TournamentAdminModal';
 
 const TournamentList: React.FC = () => {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState<number | null>(null);
+  const [adminModalTournament, setAdminModalTournament] = useState<Tournament | null>(null);
   const navigate = useNavigate();
   const { me, fetchMe, isPlatformAdmin } = useAuthStore();
 
@@ -218,6 +220,15 @@ const TournamentList: React.FC = () => {
                         {joining === t.id ? '加入中...' : (t.joinMode === 'OPEN' ? '加入赛事' : '申请加入')}
                       </button>
                     )}
+                    {isPlatformAdmin() && (
+                      <button
+                        onClick={() => setAdminModalTournament(t)}
+                        className="flex items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-primary/30 hover:text-primary"
+                        title="管理 Tournament Admin"
+                      >
+                        <UserCog size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -225,6 +236,12 @@ const TournamentList: React.FC = () => {
           })}
         </div>
       </div>
+
+      <TournamentAdminModal
+        tournamentId={adminModalTournament?.id ?? null}
+        tournamentName={adminModalTournament?.name ?? ''}
+        onClose={() => setAdminModalTournament(null)}
+      />
     </div>
   );
 };

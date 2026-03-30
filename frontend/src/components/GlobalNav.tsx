@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Popup, Toast, Skeleton } from 'antd-mobile';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, X, ChevronRight, IdCard, Shield, Sun, Moon } from 'lucide-react';
+import { User, LogOut, X, ChevronRight, IdCard, Shield, Sun, Moon, ShieldCheck, UserCog, Trash2, Search, UserPlus, ChevronLeft } from 'lucide-react';
 import apiClient from '../api/client';
 import useAuthStore from '../store/useAuthStore';
 import useThemeStore from '../store/useThemeStore';
+import { tournamentApi, type Tournament, type AdminUser } from '../api/tournament';
+import { adminApi } from '../api/admin';
 const gridStyle = {
   backgroundImage:
     'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
@@ -15,11 +17,84 @@ const gridStyle = {
 const GlobalNav: React.FC = () => {
   const [visible, setShowProfile] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [adminPanelVisible, setAdminPanelVisible] = useState(false);
+  const [panelTournaments, setPanelTournaments] = useState<Tournament[]>([]);
+  const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
+  const [panelAdmins, setPanelAdmins] = useState<AdminUser[]>([]);
+  const [panelLoadingAdmins, setPanelLoadingAdmins] = useState(false);
+  const [panelSearchQuery, setPanelSearchQuery] = useState('');
+  const [panelSearchResults, setPanelSearchResults] = useState<AdminUser[]>([]);
+  const [panelSearching, setPanelSearching] = useState(false);
+  const [panelActionUserId, setPanelActionUserId] = useState<number | null>(null);
+  const panelDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
   const { me, loading, fetched, fetchMe } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+
+  const openAdminPanel = async () => {
+    setShowProfile(false);
+    setSelectedTournament(null);
+    setPanelAdmins([]);
+    setPanelSearchQuery('');
+    setPanelSearchResults([]);
+    setAdminPanelVisible(true);
+    try {
+      const list = await tournamentApi.list();
+      setPanelTournaments(list);
+    } catch {}
+  };
+
+  const selectPanelTournament = async (t: Tournament) => {
+    setSelectedTournament(t);
+    setPanelSearchQuery('');
+    setPanelSearchResults([]);
+    setPanelLoadingAdmins(true);
+    try {
+      const admins = await tournamentApi.getAdmins(t.id);
+      setPanelAdmins(admins);
+    } catch {}
+    finally { setPanelLoadingAdmins(false); }
+  };
+
+  const handlePanelSearch = (val: string) => {
+    setPanelSearchQuery(val);
+    if (panelDebounceRef.current) clearTimeout(panelDebounceRef.current);
+    if (!val.trim()) { setPanelSearchResults([]); return; }
+    panelDebounceRef.current = setTimeout(async () => {
+      setPanelSearching(true);
+      try {
+        const results = await adminApi.searchUsers(val.trim());
+        setPanelSearchResults(results);
+      } catch {}
+      finally { setPanelSearching(false); }
+    }, 300);
+  };
+
+  const handlePanelAdd = async (user: AdminUser) => {
+    if (!selectedTournament) return;
+    setPanelActionUserId(user.id);
+    try {
+      await tournamentApi.addAdmin(selectedTournament.id, user.id);
+      Toast.show({ icon: 'success', content: `已任命 ${user.username} 为管理员` });
+      const admins = await tournamentApi.getAdmins(selectedTournament.id);
+      setPanelAdmins(admins);
+    } catch {}
+    finally { setPanelActionUserId(null); }
+  };
+
+  const handlePanelRemove = async (user: AdminUser) => {
+    if (!selectedTournament) return;
+    setPanelActionUserId(user.id);
+    try {
+      await tournamentApi.removeAdmin(selectedTournament.id, user.id);
+      Toast.show({ icon: 'success', content: `已移除 ${user.username} 的管理员权限` });
+      const admins = await tournamentApi.getAdmins(selectedTournament.id);
+      setPanelAdmins(admins);
+    } catch {}
+    finally { setPanelActionUserId(null); }
+  };
 
   useEffect(() => {
     if (visible && (!fetched || !me)) {
@@ -46,6 +121,7 @@ const GlobalNav: React.FC = () => {
   const roles = me?.user?.roles || [];
   const displayRole = roles.map(r => r.name).join(' / ') || '';
   const hasPlayer = !!me?.player;
+  const isPlatformAdmin = useAuthStore.getState().isPlatformAdmin();
 
   return (
     <>
@@ -158,6 +234,31 @@ const GlobalNav: React.FC = () => {
                 />
               </button>
 
+              {/* Platform admin: Tournament Admin 管理 */}
+              {isPlatformAdmin && (
+                <button
+                  type="button"
+                  onClick={openAdminPanel}
+                  className="group flex w-full items-center justify-between rounded-[1.75rem] border border-primary/20 bg-primary/5 dark:bg-primary/10 px-5 py-4 text-left transition-all hover:border-primary/40 hover:bg-primary/10 dark:hover:bg-primary/15 active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
+                      <UserCog size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-gray-900 dark:text-white">Tournament Admin 管理</div>
+                      <div className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-neutral-500">
+                        任免各赛事管理员
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight
+                    size={16}
+                    className="shrink-0 text-primary/40 transition-all group-hover:translate-x-0.5 group-hover:text-primary"
+                  />
+                </button>
+              )}
+
               {/* ─── Player Stats Card (conditional) ─── */}
               {hasPlayer && (
                 <div className="relative overflow-hidden rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_24%),linear-gradient(180deg,rgba(24,24,27,1)_0%,rgba(10,10,10,1)_100%)] shadow-sm dark:shadow-none">
@@ -237,6 +338,170 @@ const GlobalNav: React.FC = () => {
             >
               返回
             </button>
+          </div>
+        </div>
+      </Popup>
+
+      {/* ─── Admin Management Panel (platform admin only) ─── */}
+      <Popup
+        visible={adminPanelVisible}
+        onMaskClick={() => setAdminPanelVisible(false)}
+        position="bottom"
+        bodyStyle={{ borderRadius: '20px 20px 0 0', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="flex flex-col max-h-[85vh] bg-white dark:bg-neutral-950 text-gray-900 dark:text-white">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 dark:border-neutral-800 shrink-0">
+            <div className="flex items-center gap-3">
+              {selectedTournament && (
+                <button
+                  onClick={() => { setSelectedTournament(null); setPanelAdmins([]); setPanelSearchQuery(''); setPanelSearchResults([]); }}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 dark:border-neutral-800 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+              )}
+              <div>
+                <div className="text-[9px] font-black tracking-[0.25em] text-primary uppercase mb-0.5">Platform Admin</div>
+                <h3 className="text-base font-black">
+                  {selectedTournament ? selectedTournament.name : 'Tournament Admin 管理'}
+                </h3>
+              </div>
+            </div>
+            <button
+              onClick={() => setAdminPanelVisible(false)}
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-neutral-900 text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {/* Step 1: tournament selector */}
+            {!selectedTournament && (
+              <div className="space-y-2">
+                <div className="text-[10px] font-black tracking-[0.2em] text-gray-400 dark:text-neutral-600 uppercase mb-3">
+                  选择赛事
+                </div>
+                {panelTournaments.length === 0 ? (
+                  <div className="text-sm text-gray-400 dark:text-neutral-600 italic py-4 text-center">暂无赛事</div>
+                ) : (
+                  panelTournaments.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => selectPanelTournament(t)}
+                      className="group flex w-full items-center justify-between rounded-2xl border border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3.5 text-left transition-all hover:border-primary/30 hover:bg-primary/5 active:scale-[0.98]"
+                    >
+                      <span className="text-sm font-bold">{t.name}</span>
+                      <ChevronRight size={14} className="text-gray-400 group-hover:text-primary transition-colors" />
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Step 2: admin management for selected tournament */}
+            {selectedTournament && (
+              <div className="space-y-5">
+                {/* Current admins */}
+                <section>
+                  <div className="text-[10px] font-black tracking-[0.2em] text-gray-400 dark:text-neutral-600 uppercase mb-3">
+                    当前管理员 ({panelAdmins.length})
+                  </div>
+                  {panelLoadingAdmins ? (
+                    <div className="text-sm text-gray-400 dark:text-neutral-600 py-2">加载中…</div>
+                  ) : panelAdmins.length === 0 ? (
+                    <div className="text-sm text-gray-400 dark:text-neutral-600 italic py-2">暂无管理员</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {panelAdmins.map(admin => (
+                        <div
+                          key={admin.id}
+                          className="flex items-center justify-between rounded-2xl border border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
+                              <ShieldCheck size={14} className="text-primary" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold">{admin.username}</div>
+                              {admin.realName && (
+                                <div className="text-[11px] text-gray-400 dark:text-neutral-600">{admin.realName}</div>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handlePanelRemove(admin)}
+                            disabled={panelActionUserId === admin.id}
+                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-40"
+                            title="移除管理员"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Search & add */}
+                <section>
+                  <div className="text-[10px] font-black tracking-[0.2em] text-gray-400 dark:text-neutral-600 uppercase mb-3">
+                    添加管理员
+                  </div>
+                  <div className="flex items-center gap-2 rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3 mb-3 focus-within:border-primary/40">
+                    <Search size={14} className="text-gray-400 dark:text-neutral-600 shrink-0" />
+                    <input
+                      type="text"
+                      value={panelSearchQuery}
+                      onChange={e => handlePanelSearch(e.target.value)}
+                      placeholder="搜索用户名或姓名…"
+                      className="flex-1 bg-transparent text-sm font-medium text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-neutral-600 outline-none"
+                    />
+                    {panelSearching && (
+                      <span className="text-[10px] text-gray-400 dark:text-neutral-600">搜索中…</span>
+                    )}
+                  </div>
+
+                  {panelSearchResults.length > 0 && (
+                    <div className="space-y-2">
+                      {panelSearchResults.map(user => {
+                        const isAlreadyAdmin = panelAdmins.some(a => a.id === user.id);
+                        return (
+                          <div
+                            key={user.id}
+                            className="flex items-center justify-between rounded-2xl border border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3"
+                          >
+                            <div>
+                              <div className="text-sm font-bold">{user.username}</div>
+                              {user.realName && (
+                                <div className="text-[11px] text-gray-400 dark:text-neutral-600">{user.realName}</div>
+                              )}
+                            </div>
+                            {isAlreadyAdmin ? (
+                              <span className="text-[10px] font-black tracking-wide text-primary/60 uppercase">已是管理员</span>
+                            ) : (
+                              <button
+                                onClick={() => handlePanelAdd(user)}
+                                disabled={panelActionUserId === user.id}
+                                className="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-black text-primary hover:bg-primary/20 transition-colors disabled:opacity-40"
+                              >
+                                <UserPlus size={12} />
+                                任命
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {panelSearchQuery.trim() && !panelSearching && panelSearchResults.length === 0 && (
+                    <div className="text-sm text-gray-400 dark:text-neutral-600 italic py-2">未找到匹配用户</div>
+                  )}
+                </section>
+              </div>
+            )}
           </div>
         </div>
       </Popup>

@@ -227,8 +227,11 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         goal.setCreatedBy(currentUserId);
         goal.setUpdatedBy(currentUserId);
         goalService.save(goal);
-        if (goal.getTeamIndex() == 0) game.setScoreA(game.getScoreA() + 1);
-        else game.setScoreB(game.getScoreB() + 1);
+        if (goal.getTeamIndex().equals(game.getTeamAIndex())) {
+            game.setScoreA(game.getScoreA() + 1);
+        } else if (goal.getTeamIndex().equals(game.getTeamBIndex())) {
+            game.setScoreB(game.getScoreB() + 1);
+        }
         game.setUpdatedBy(currentUserId);
         this.updateById(game);
         logAndBroadcast(game, "GOAL");

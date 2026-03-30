@@ -89,6 +89,23 @@ public class TournamentController {
     }
 
     /**
+     * 获取 Tournament 当前管理员列表（仅平台管理员）
+     */
+    @GetMapping("/{tournamentId}/admins")
+    public Result<List<User>> listAdmins(@PathVariable Long tournamentId) {
+        User currentUser = getCurrentUser();
+        if (!tournamentService.isPlatformAdmin(currentUser.getId())) {
+            return Result.error(403, "仅平台管理员可查看");
+        }
+        List<User> admins = tournamentService.listAdminUsers(tournamentId);
+        admins.forEach(u -> {
+            u.setPassword(null);
+            u.setSalt(null);
+        });
+        return Result.success(admins);
+    }
+
+    /**
      * 球员加入 Tournament
      */
     @PostMapping("/{tournamentId}/join")
