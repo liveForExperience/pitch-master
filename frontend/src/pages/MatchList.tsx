@@ -41,7 +41,7 @@ const MatchList: React.FC = () => {
 
   const fetchMatches = async () => {
     try {
-      const data: any = await apiClient.get('/api/match/list');
+      const data: any = await apiClient.get(`/api/match/list?tournamentId=${tournamentId}`);
       setMatches(data || []);
     } catch (err) {
       setMatches([]);

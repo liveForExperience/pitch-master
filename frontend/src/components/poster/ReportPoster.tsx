@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Flame, Target } from 'lucide-react';
+import { POSTER_THEMES, type PosterThemeKey } from './posterTheme';
 
 interface ReportPosterProps {
   posterRef: React.RefObject<HTMLDivElement>;
@@ -10,166 +10,318 @@ interface ReportPosterProps {
   standings: any;
   stats: any;
   groupsData: any;
+  theme?: PosterThemeKey;
 }
 
 const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 const ReportPoster: React.FC<ReportPosterProps> = ({
-  posterRef, match, posterDate, games, teamNames, standings, stats, groupsData
+  posterRef, match, posterDate, games, teamNames, standings, stats, groupsData, theme = 'night'
 }) => {
+  const t = POSTER_THEMES[theme].tokens;
+  const isNight = theme === 'night';
+
   const getTeamLabel = (idx: number) => teamNames?.[idx] || `Team ${GROUP_LABELS[idx] ?? idx + 1}`;
 
-  // Find champion
   const championTeamIndex = standings?.standings?.[0]?.teamIndex;
   const championPlayers = championTeamIndex !== undefined ? groupsData?.groups?.[championTeamIndex] : [];
   const championTeamName = championTeamIndex !== undefined ? getTeamLabel(championTeamIndex) : '';
 
+  const S: React.CSSProperties = {
+    backgroundColor: t.bg,
+    width: 375,
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    position: 'relative',
+    overflow: 'hidden',
+  };
+
+  const sectionLabel = (_text: string, color?: string): React.CSSProperties => ({
+    fontSize: 9,
+    fontWeight: 800,
+    color: color ?? t.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: '0.14em',
+    marginBottom: 10,
+  });
+
   return (
     <div className="fixed -left-[9999px] top-0">
-      <div 
-        ref={posterRef}
-        className="w-[375px] bg-neutral-950 p-6 pt-8 text-white font-sans relative overflow-hidden flex flex-col gap-5"
-      >
-        {/* 背景装饰 */}
-        <div className="absolute top-0 right-0 opacity-[0.05] text-[80px] leading-none pr-4 pt-6 font-black italic select-none pointer-events-none">
+      <div ref={posterRef} style={S}>
+
+        {/* Top accent bar */}
+        <div style={{ height: 4, background: `linear-gradient(90deg, ${t.accent}, ${isNight ? '#0ea5e9' : '#34d399'})` }} />
+
+        {/* Watermark */}
+        <div style={{
+          position: 'absolute', top: 0, right: 0,
+          fontSize: 80, fontWeight: 900, fontStyle: 'italic',
+          color: t.watermark, lineHeight: 1,
+          paddingRight: 16, paddingTop: 20,
+          pointerEvents: 'none', userSelect: 'none', letterSpacing: '-0.04em',
+        }}>
           REPORT
         </div>
 
-        {/* Header */}
-        <div className="relative z-10 flex flex-col gap-2 mb-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[10px] font-bold tracking-[0.1em] text-primary uppercase self-start">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            Match Report
-          </div>
-          <h1 className="text-[26px] font-black leading-tight tracking-tight mt-1">{match?.title}</h1>
-          <div className="text-xs text-neutral-400 font-semibold">{posterDate.full} @ {match?.location}</div>
-        </div>
+        <div style={{ padding: '24px 24px 0', position: 'relative', zIndex: 10 }}>
 
-        {/* 冠军荣耀 */}
-        {championPlayers && championPlayers.length > 0 && (
-          <div className="relative z-10 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/30 p-4">
-            <div className="flex items-center justify-between mb-3 border-b border-amber-500/20 pb-2">
-              <div className="flex items-center gap-2">
-                <Trophy size={16} className="text-amber-400" />
-                <span className="text-xs font-black text-amber-400 tracking-widest uppercase">Champion队伍</span>
+          {/* ── HEADER ── */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              borderRadius: 999, border: `1px solid ${t.accentBorder}`,
+              backgroundColor: t.accentBg, padding: '4px 12px',
+              fontSize: 9, fontWeight: 800, letterSpacing: '0.12em',
+              color: t.accentText, textTransform: 'uppercase', marginBottom: 12,
+            }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: t.accent }} />
+              MATCH REPORT · {match?.tournamentName || '周赛'}
+            </div>
+
+            <div style={{
+              fontSize: 24, fontWeight: 900, lineHeight: 1.2, letterSpacing: '-0.02em',
+              color: t.textPrimary, marginBottom: 8, wordBreak: 'break-all',
+            }}>
+              {match?.title}
+            </div>
+
+            <div style={{ width: 40, height: 3, borderRadius: 2, backgroundColor: t.accent, marginBottom: 10 }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 11, fontWeight: 500, color: t.textSecondary }}>
+                🕐 {posterDate.full}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 500, color: t.textSecondary }}>
+                📍 {match?.location || '待定'}
+              </span>
+            </div>
+          </div>
+
+          {/* ── CHAMPION ── */}
+          {championPlayers && championPlayers.length > 0 && (
+            <div style={{
+              borderRadius: 14, border: `1px solid ${t.goldBorder}`,
+              backgroundColor: t.goldBg, padding: '14px 14px 12px', marginBottom: 16,
+            }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: 10, paddingBottom: 8,
+                borderBottom: `1px solid ${t.goldBorder}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 14 }}>🏆</span>
+                  <span style={{ fontSize: 10, fontWeight: 900, color: t.gold, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                    冠军队伍
+                  </span>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 900, color: t.textPrimary, fontStyle: 'italic' }}>
+                  {championTeamName}
+                </span>
               </div>
-              <div className="text-sm font-black text-white italic">{championTeamName}</div>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {championPlayers.map((p: any) => (
-                <div key={p.id} className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full pl-2 pr-2.5 py-1">
-                  <div className="flex items-center justify-center text-[10px] font-black text-amber-400 shrink-0">
-                    {(p.name || '?')[0]}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {championPlayers.map((p: any) => (
+                  <div key={p.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    border: `1px solid ${t.goldBorder}`,
+                    borderRadius: 999, padding: '4px 10px',
+                    backgroundColor: isNight ? 'rgba(251,191,36,0.1)' : '#fffbeb',
+                    lineHeight: 1
+                  }}>
+                    <span style={{ fontSize: 10, fontWeight: 900, color: t.gold, display: 'flex', alignItems: 'center' }}>
+                      {(p.name || '?')[0]}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: t.textPrimary, display: 'flex', alignItems: 'center' }}>
+                      {p.name}
+                    </span>
                   </div>
-                  <span className="text-[11px] font-bold text-amber-50 pb-[2px] leading-tight">{p.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 赛况比分 (前4场或全部) */}
-        {games && games.length > 0 && (
-          <div className="relative z-10">
-            <div className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-              <Flame size={12} className="text-primary" /> 赛况记录
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {games.slice(0, 6).map((g: any, idx: number) => (
-                <div key={g.id} className="bg-white/[0.04] border border-white/10 rounded-xl p-2.5 flex flex-col items-center justify-center gap-1">
-                  <span className="text-[9px] text-neutral-500 font-bold uppercase">Match {idx + 1}</span>
-                  <div className="flex items-center justify-center gap-2 w-full">
-                    <span className="text-xs font-bold text-white truncate max-w-[48px] text-right pb-[2px] leading-normal">{getTeamLabel(g.teamAIndex)}</span>
-                    <span className="text-[13px] font-black text-primary px-1">{g.scoreA}:{g.scoreB}</span>
-                    <span className="text-xs font-bold text-white truncate max-w-[48px] text-left pb-[2px] leading-normal">{getTeamLabel(g.teamBIndex)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 积分榜 (简化版) */}
-        {standings && standings.standings && (
-          <div className="relative z-10">
-            <div className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-              积分榜 Standings
-            </div>
-            <div className="bg-white/[0.04] border border-white/10 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[2rem_1fr_2rem_2rem] gap-1 px-3 py-2 text-[9px] font-bold text-neutral-500 border-b border-white/5 bg-white/[0.02]">
-                <span>排名</span>
-                <span>队伍</span>
-                <span className="text-center">净胜</span>
-                <span className="text-center">积分</span>
+                ))}
               </div>
-              {standings.standings.slice(0, 4).map((row: any, i: number) => (
-                <div key={row.teamIndex} className={`grid grid-cols-[2rem_1fr_2rem_2rem] items-center gap-1 px-3 py-2 text-[11px] ${i < 3 ? 'border-b border-white/[0.04]' : ''}`}>
-                  <span className={`font-black ${i === 0 ? 'text-amber-400' : 'text-neutral-400'}`}>{row.rank}</span>
-                  <span className="font-bold text-white truncate pb-[2px] leading-normal">{row.teamName}</span>
-                  <span className="text-center text-neutral-400">{row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}</span>
-                  <span className="text-center font-black text-primary">{row.points}</span>
-                </div>
-              ))}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 射手 / 助攻榜并排 */}
-        {stats && (
-          <div className="relative z-10 grid grid-cols-2 gap-3 pb-2">
-            {/* 射手榜 */}
-            {stats.topScorers && stats.topScorers.length > 0 && (
-              <div className="bg-white/[0.04] border border-white/10 rounded-xl p-3">
-                <div className="text-[10px] font-bold text-sky-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                  <Target size={12} /> 射手榜
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {stats.topScorers.slice(0, 3).map((p: any, i: number) => (
-                    <div key={p.playerId} className="flex items-center justify-between bg-white/[0.03] border border-white/[0.04] rounded-full pl-3 pr-3 py-1">
-                      <div className="flex items-center gap-1.5 overflow-hidden flex-1 min-w-0">
-                        <div className={`flex items-center justify-center text-[10px] shrink-0 ${i === 0 ? 'text-amber-400 font-black' : 'text-neutral-400 font-bold'}`}>
-                          {i + 1}
-                        </div>
-                        <span className="text-[11px] font-bold text-white/90 whitespace-nowrap overflow-hidden text-ellipsis py-0.5 leading-tight flex-1">{p.playerName}</span>
-                      </div>
-                      <span className="text-[10px] font-black text-sky-400 shrink-0 ml-2">{p.goals}球</span>
-                    </div>
+          {/* ── GAMES ── */}
+          {games && games.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={sectionLabel('赛况记录', t.textMuted)}>
+                ⚡ 赛况记录
+              </div>
+              <div style={{
+                borderRadius: 12, border: `1px solid ${t.border}`,
+                backgroundColor: t.card, overflow: 'hidden',
+              }}>
+                {games.slice(0, 6).map((g: any, idx: number) => (
+                  <div key={g.id} style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 56px 1fr',
+                    alignItems: 'center',
+                    padding: '9px 14px',
+                    borderBottom: idx < Math.min(games.length, 6) - 1 ? `1px solid ${t.border}` : 'none',
+                    backgroundColor: idx % 2 === 0 ? 'transparent' : isNight ? 'rgba(255,255,255,0.015)' : 'rgba(0,0,0,0.02)',
+                  }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: t.textPrimary, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 6 }}>
+                      {getTeamLabel(g.teamAIndex)}
+                    </span>
+                    <span style={{
+                      fontSize: 14, fontWeight: 900, color: t.accent,
+                      textAlign: 'center', letterSpacing: '-0.02em',
+                    }}>
+                      {g.scoreA} : {g.scoreB}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: t.textPrimary, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 6 }}>
+                      {getTeamLabel(g.teamBIndex)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── STANDINGS ── */}
+          {standings?.standings && standings.standings.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={sectionLabel('积分榜')}>
+                🏅 积分榜 Standings
+              </div>
+              <div style={{
+                borderRadius: 12, border: `1px solid ${t.border}`,
+                backgroundColor: t.card, overflow: 'hidden',
+              }}>
+                {/* Header row */}
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '28px 1fr 34px 34px 38px',
+                  padding: '7px 14px',
+                  backgroundColor: isNight ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)',
+                  borderBottom: `1px solid ${t.border}`,
+                }}>
+                  {['#', '队伍', '胜', '负', 'Pts'].map((h, i) => (
+                    <span key={i} style={{
+                      fontSize: 9, fontWeight: 800, color: t.textMuted,
+                      textTransform: 'uppercase', letterSpacing: '0.1em',
+                      textAlign: i >= 2 ? 'center' : 'left',
+                    }}>
+                      {h}
+                    </span>
                   ))}
                 </div>
+                {standings.standings.slice(0, 4).map((row: any, i: number) => (
+                  <div key={row.teamIndex} style={{
+                    display: 'grid', gridTemplateColumns: '28px 1fr 34px 34px 38px',
+                    alignItems: 'center', padding: '9px 14px',
+                    borderBottom: i < 3 ? `1px solid ${t.border}` : 'none',
+                    backgroundColor: i === 0 ? (isNight ? 'rgba(251,191,36,0.05)' : '#fffbeb') : 'transparent',
+                  }}>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: i === 0 ? t.gold : t.textMuted }}>
+                      {row.rank}
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: t.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, paddingRight: 4 }}>
+                      {row.teamName}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: t.textSecondary, textAlign: 'center' }}>
+                      {row.wins ?? '-'}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: t.textSecondary, textAlign: 'center' }}>
+                      {row.losses ?? '-'}
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: t.accent, textAlign: 'center' }}>
+                      {row.points}
+                    </span>
+                  </div>
+                ))}
               </div>
-            )}
-            {/* 助攻榜 */}
-            {stats.topAssisters && stats.topAssisters.length > 0 && (
-              <div className="bg-white/[0.04] border border-white/10 rounded-xl p-3">
-                <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                  <Target size={12} /> 助攻榜
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {stats.topAssisters.slice(0, 3).map((p: any, i: number) => (
-                    <div key={p.playerId} className="flex items-center justify-between bg-white/[0.03] border border-white/[0.04] rounded-full pl-3 pr-3 py-1">
-                      <div className="flex items-center gap-1.5 overflow-hidden flex-1 min-w-0">
-                        <div className={`flex items-center justify-center text-[10px] shrink-0 ${i === 0 ? 'text-amber-400 font-black' : 'text-neutral-400 font-bold'}`}>
-                          {i + 1}
-                        </div>
-                        <span className="text-[11px] font-bold text-white/90 whitespace-nowrap overflow-hidden text-ellipsis py-0.5 leading-tight flex-1">{p.playerName}</span>
-                      </div>
-                      <span className="text-[10px] font-black text-emerald-400 shrink-0 ml-2">{p.assists}次</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* Footer branding */}
-        <div className="pt-3 border-t border-neutral-800 flex items-end relative z-10 mt-auto">
-          <div>
-            <div className="text-[9px] text-neutral-600 font-bold mb-1 uppercase tracking-widest">Powered by</div>
-            <div className="text-[13px] font-black italic tracking-tighter">
-              OLDBOY <span className="text-primary">CLUB</span>
+          {/* ── STATS: Scorers + Assisters stacked ── */}
+          {stats && (
+            <div style={{ marginBottom: 16 }}>
+              {/* Top Scorers */}
+              {stats.topScorers && stats.topScorers.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={sectionLabel('射手榜', isNight ? '#38bdf8' : '#0369a1')}>
+                    ⚽ 射手榜
+                  </div>
+                  <div style={{
+                    borderRadius: 12, border: `1px solid ${t.border}`,
+                    backgroundColor: t.card, overflow: 'hidden',
+                  }}>
+                    {stats.topScorers.slice(0, 3).map((p: any, i: number) => (
+                      <div key={p.playerId} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '9px 14px',
+                        borderBottom: i < 2 ? `1px solid ${t.border}` : 'none',
+                        backgroundColor: i === 0 ? (isNight ? 'rgba(251,191,36,0.04)' : '#fffbeb') : 'transparent',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                          <span style={{ fontSize: 12, fontWeight: 900, color: i === 0 ? t.gold : t.textMuted, flexShrink: 0, width: 16 }}>
+                            {i + 1}
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: t.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.playerName}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 900, color: isNight ? '#38bdf8' : '#0369a1', flexShrink: 0, marginLeft: 12 }}>
+                          {p.goals} 球
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Top Assisters */}
+              {stats.topAssisters && stats.topAssisters.length > 0 && (
+                <div>
+                  <div style={sectionLabel('助攻榜', isNight ? '#34d399' : '#059669')}>
+                    🎯 助攻榜
+                  </div>
+                  <div style={{
+                    borderRadius: 12, border: `1px solid ${t.border}`,
+                    backgroundColor: t.card, overflow: 'hidden',
+                  }}>
+                    {stats.topAssisters.slice(0, 3).map((p: any, i: number) => (
+                      <div key={p.playerId} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '9px 14px',
+                        borderBottom: i < 2 ? `1px solid ${t.border}` : 'none',
+                        backgroundColor: i === 0 ? (isNight ? 'rgba(251,191,36,0.04)' : '#fffbeb') : 'transparent',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                          <span style={{ fontSize: 12, fontWeight: 900, color: i === 0 ? t.gold : t.textMuted, flexShrink: 0, width: 16 }}>
+                            {i + 1}
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: t.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.playerName}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 900, color: isNight ? '#34d399' : '#059669', flexShrink: 0, marginLeft: 12 }}>
+                          {p.assists} 次
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── FOOTER ── */}
+          <div style={{
+            paddingTop: 14, paddingBottom: 20,
+            borderTop: `1px solid ${t.divider}`,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+          }}>
+            <div>
+              <div style={{ fontSize: 8, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>
+                Powered by
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 900, fontStyle: 'italic', letterSpacing: '-0.03em', color: t.textPrimary }}>
+                OLDBOY <span style={{ color: t.accent }}>CLUB</span>
+              </div>
+            </div>
+            <div style={{ fontSize: 10, color: t.textMuted, fontWeight: 600 }}>
+              {posterDate.short}
             </div>
           </div>
+
         </div>
       </div>
     </div>

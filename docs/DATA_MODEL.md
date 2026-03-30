@@ -1,6 +1,6 @@
 # PitchMaster 数据模型与领域结构
 
-本系统采用关系型数据库 (MySQL) 进行数据持久化，通过 Flyway 进行版本管理（当前最新：V18）。
+本系统采用关系型数据库 (MySQL) 进行数据持久化，通过 Flyway 进行版本管理（当前最新：V19）。
 
 ---
 
@@ -61,6 +61,24 @@ erDiagram
 
     TOURNAMENT_PLAYER ||--o{ PLAYER_RATING_PROFILE : "has"
     TOURNAMENT_PLAYER ||--o{ PLAYER_STAT : "accumulates"
+
+    TOURNAMENT {
+        bigint id PK
+        string name
+        string description
+        string join_mode "OPEN, APPROVAL"
+        string logo
+        int max_players
+        int status
+        datetime deleted_at "软删除时间，NULL 表示活跃"
+        bigint deleted_by FK "删除操作人 user_id"
+    }
+
+    TOURNAMENT_ADMIN {
+        bigint id PK
+        bigint tournament_id FK
+        bigint user_id FK
+    }
 
     USER {
         bigint id PK
@@ -239,4 +257,5 @@ erDiagram
 - **互评定位**：`player_mutual_rating` 记录赛后荣誉投票，不直接驱动 CPI 三维评分。
 - **费用分摊**：`cancel_deadline` 后取消报名视为 `NO_SHOW`，`is_exempt=true` 豁免分摊，剩余费用向上取整平摊。
 - **比分审计**：`match_score_log` 记录每次比分变动，触发 SSE 推送。
-- **软删除**：`match` 表通过 `deleted_at` 实现软删除。
+- **软删除**：`match` 表和 `tournament` 表均通过 `deleted_at` + `deleted_by` 实现软删除；列表查询自动过滤 `deleted_at IS NOT NULL` 的记录。
+- **Tournament 物理删除**：物理删除 Tournament 时，级联删除所有关联数据（`tournament_admin`、`club`、`tournament_player`、`match`（及其 games/goals/participants/score_logs）、`player_mutual_rating`、`player_stat`、`player_rating_profile`、`player_rating_history`）；仅允许对已软删除的 Tournament 执行物理删除。

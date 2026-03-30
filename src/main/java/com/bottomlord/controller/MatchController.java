@@ -37,8 +37,8 @@ public class MatchController {
     private MatchArenaService matchArenaService;
 
     @GetMapping("/list")
-    public Result<List<Match>> listMatches() {
-        return Result.success(matchService.listUpcomingMatches());
+    public Result<List<Match>> listMatches(@RequestParam Long tournamentId) {
+        return Result.success(matchService.listUpcomingMatches(tournamentId));
     }
 
     @GetMapping("/{id}")
@@ -232,8 +232,8 @@ public class MatchController {
     }
 
     @GetMapping("/trash")
-    public Result<List<Match>> listTrash() {
-        return Result.success(matchService.listTrashedMatches());
+    public Result<List<Match>> listTrash(@RequestParam Long tournamentId) {
+        return Result.success(matchService.listTrashedMatches(tournamentId));
     }
 
     @DeleteMapping("/{matchId}/permanent")

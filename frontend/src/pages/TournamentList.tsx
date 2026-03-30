@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Toast, Dialog, Input, TextArea, SpinLoading } from 'antd-mobile';
-import { Trophy, Plus, ChevronRight, Users, LogIn, LogOut as LogOutIcon, ShieldCheck, UserCog } from 'lucide-react';
+import { Trophy, Plus, ChevronRight, Users, LogIn, LogOut as LogOutIcon, ShieldCheck, UserCog, Trash2 } from 'lucide-react';
 import { tournamentApi, type Tournament } from '../api/tournament';
 import useAuthStore from '../store/useAuthStore';
 import useTournamentStore from '../store/useTournamentStore';
 import TournamentAdminModal from '../components/TournamentAdminModal';
+import TournamentMemberModal from '../components/TournamentMemberModal';
 
 const TournamentList: React.FC = () => {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState<number | null>(null);
   const [adminModalTournament, setAdminModalTournament] = useState<Tournament | null>(null);
+  const [memberModalTournament, setMemberModalTournament] = useState<Tournament | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const navigate = useNavigate();
-  const { me, fetchMe, isPlatformAdmin } = useAuthStore();
+  const { me, fetchMe, isPlatformAdmin, isTournamentAdmin } = useAuthStore();
 
   const joinedIds = me?.joinedTournamentIds ?? [];
 
@@ -68,6 +71,22 @@ const TournamentList: React.FC = () => {
     navigate(`/tournaments/${tournament.id}/matches`);
   };
 
+  const handleSoftDelete = async (t: Tournament) => {
+    const confirmed = await Dialog.confirm({
+      content: `确定要删除「${t.name}」吗？删除后可在回收站恢复。`,
+    });
+    if (!confirmed) return;
+    setDeletingId(t.id);
+    try {
+      await tournamentApi.softDelete(t.id);
+      Toast.show({ icon: 'success', content: '已删除，可在回收站恢复' });
+      await loadTournaments();
+    } catch {
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleCreate = async () => {
     let name = '';
     let description = '';
@@ -119,6 +138,19 @@ const TournamentList: React.FC = () => {
             选择一个赛事加入，或者进入已参与的赛事
           </p>
         </div>
+
+        {/* Platform admin: header actions */}
+        {isPlatformAdmin() && (
+          <div className="mb-4 flex justify-end">
+            <button
+              onClick={() => navigate('/tournaments/trash')}
+              className="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-neutral-900 px-4 py-2 text-sm font-bold text-gray-500 dark:text-neutral-400 transition-all hover:border-gray-300 dark:hover:border-neutral-700 hover:text-gray-900 dark:hover:text-white"
+            >
+              <Trash2 size={14} />
+              回收站
+            </button>
+          </div>
+        )}
 
         {/* Create button for platform admins */}
         {isPlatformAdmin() && (
@@ -220,6 +252,15 @@ const TournamentList: React.FC = () => {
                         {joining === t.id ? '加入中...' : (t.joinMode === 'OPEN' ? '加入赛事' : '申请加入')}
                       </button>
                     )}
+                    {isTournamentAdmin(t.id) && (
+                      <button
+                        onClick={() => setMemberModalTournament(t)}
+                        className="flex items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-primary/30 hover:text-primary"
+                        title="管理成员"
+                      >
+                        <Users size={16} />
+                      </button>
+                    )}
                     {isPlatformAdmin() && (
                       <button
                         onClick={() => setAdminModalTournament(t)}
@@ -227,6 +268,16 @@ const TournamentList: React.FC = () => {
                         title="管理 Tournament Admin"
                       >
                         <UserCog size={16} />
+                      </button>
+                    )}
+                    {isPlatformAdmin() && (
+                      <button
+                        onClick={() => handleSoftDelete(t)}
+                        disabled={deletingId === t.id}
+                        className="flex items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-red-500/30 hover:text-red-500 disabled:opacity-40"
+                        title="删除 Tournament"
+                      >
+                        <Trash2 size={16} />
                       </button>
                     )}
                   </div>
@@ -241,6 +292,12 @@ const TournamentList: React.FC = () => {
         tournamentId={adminModalTournament?.id ?? null}
         tournamentName={adminModalTournament?.name ?? ''}
         onClose={() => setAdminModalTournament(null)}
+      />
+
+      <TournamentMemberModal
+        tournamentId={memberModalTournament?.id ?? null}
+        tournamentName={memberModalTournament?.name ?? ''}
+        onClose={() => setMemberModalTournament(null)}
       />
     </div>
   );

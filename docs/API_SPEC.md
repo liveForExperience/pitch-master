@@ -22,7 +22,34 @@
 | `/logout` | POST | 登出 | 无 |
 | `/unauthenticated` | GET | 未认证提示地址 | 无 |
 
-## 3. 赛事管理模块 (Match Event)
+## 3. Tournament 模块
+基础路径: `/api/tournament`
+
+| 接口 | 方法 | 说明 | 备注 |
+| :--- | :--- | :--- | :--- |
+| `/list` | GET | 获取所有活跃 Tournament 列表 | 自动过滤软删除 |
+| `/{id}` | GET | 获取 Tournament 详情 | 无 |
+| `` | POST | 创建 Tournament | 仅 platform_admin；Body: `Tournament` |
+| `/{tournamentId}/admin` | POST | 任命 Tournament 管理员 | 仅 platform_admin；Query: `userId` |
+| `/{tournamentId}/admin` | DELETE | 移除 Tournament 管理员 | 仅 platform_admin；Query: `userId` |
+| `/{tournamentId}/admins` | GET | 获取管理员列表 | 仅 platform_admin |
+| `/{tournamentId}/is-admin` | GET | 判断当前用户是否为管理员 | 无 |
+| `/{tournamentId}/join` | POST | 球员加入 Tournament | 无 |
+| `/{tournamentId}/leave` | POST | 球员退出 Tournament | 无 |
+| `/{tournamentId}/players` | GET | 获取活跃球员列表 | 无 |
+| `/{tournamentId}/players/pending` | GET | 获取待审批球员列表 | 需管理员权限 |
+| `/{tournamentId}/players/{playerId}/approve` | POST | 审批通过 | 需管理员权限 |
+| `/{tournamentId}/players/{playerId}/reject` | POST | 审批拒绝 | 需管理员权限 |
+| `/{tournamentId}/players/{playerId}` | POST | 管理员直接添加球员（按 playerId） | 需管理员权限 |
+| `/{id}/soft` | DELETE | 软删除 Tournament | 仅 platform_admin；有 ONGOING/PUBLISHED 赛事时拒绝 |
+| `/trash` | GET | 获取回收站 Tournament 列表 | 仅 platform_admin |
+| `/{id}/restore` | POST | 从回收站恢复 Tournament | 仅 platform_admin |
+| `/{id}/permanent` | DELETE | 物理删除 Tournament 及全部关联数据（不可恢复） | 仅 platform_admin；仅限已软删除的 Tournament |
+| `/{tournamentId}/members` | GET | 获取成员列表（ACTIVE/PENDING） | 需 tournament admin 权限 |
+| `/{tournamentId}/members/batch` | POST | 批量添加用户为成员（按 userId 列表） | 需 tournament admin 权限；Body: `{ "userIds": [1,2,3] }`；返回跳过项说明 |
+| `/{tournamentId}/members/{userId}` | DELETE | 移除 Tournament 成员（按 userId） | 需 tournament admin 权限 |
+
+## 4. 赛事管理模块 (Match Event)
 基础路径: `/api/match`
 
 | 接口 | 方法 | 说明 | 备注 |

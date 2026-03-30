@@ -111,8 +111,8 @@ export const matchApi = {
   softDelete: (matchId: string | number): Promise<void> =>
     apiClient.delete(`/api/match/${matchId}/soft`),
 
-  listTrash: (): Promise<any[]> =>
-    apiClient.get('/api/match/trash'),
+  listTrash: (tournamentId: string | number): Promise<any[]> =>
+    apiClient.get(`/api/match/trash?tournamentId=${tournamentId}`),
 
   permanentDelete: (matchId: string | number): Promise<void> =>
     apiClient.delete(`/api/match/${matchId}/permanent`),

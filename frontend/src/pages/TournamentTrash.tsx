@@ -1,24 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Toast } from 'antd-mobile';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { ChevronLeft, Trash2, RotateCcw, Loader2 } from 'lucide-react';
-import { matchApi } from '../api/match';
+import { tournamentApi, type Tournament } from '../api/tournament';
 import dayjs from 'dayjs';
 
-const matchStatusMeta: Record<string, { label: string; badgeClass: string }> = {
-  PREPARING: { label: '筹备中', badgeClass: 'border-neutral-500/20 bg-neutral-500/10 text-neutral-400' },
-  PUBLISHED: { label: '报名中', badgeClass: 'border-primary/20 bg-primary/10 text-primary' },
-  REGISTRATION_CLOSED: { label: '报名已截止', badgeClass: 'border-sky-500/20 bg-sky-500/10 text-sky-400' },
-  ONGOING: { label: '比赛中', badgeClass: 'border-orange-500/20 bg-orange-500/10 text-orange-400' },
-  MATCH_FINISHED: { label: '比赛结束', badgeClass: 'border-amber-500/20 bg-amber-500/10 text-amber-400' },
-  CANCELLED: { label: '已取消', badgeClass: 'border-red-500/20 bg-red-500/10 text-red-400' },
-};
-
-const MatchTrash: React.FC = () => {
+const TournamentTrash: React.FC = () => {
   const navigate = useNavigate();
-  const { tournamentId } = useParams<{ tournamentId: string }>();
-  const [matches, setMatches] = useState<any[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [operating, setOperating] = useState<number | null>(null);
   const { show: showConfirm, DialogComponent } = useConfirmDialog();
@@ -26,10 +16,9 @@ const MatchTrash: React.FC = () => {
   const fetchTrash = async () => {
     setLoading(true);
     try {
-      const data = await matchApi.listTrash(tournamentId!);
-      setMatches(data || []);
-    } catch (err) {
-      console.error(err);
+      const data = await tournamentApi.listTrash();
+      setTournaments(data || []);
+    } catch {
     } finally {
       setLoading(false);
     }
@@ -37,48 +26,45 @@ const MatchTrash: React.FC = () => {
 
   useEffect(() => { fetchTrash(); }, []);
 
-  const handleRestore = async (matchId: number) => {
+  const handleRestore = async (id: number) => {
     const result = await showConfirm({
-      title: '恢复赛事',
-      content: '确定要恢复此赛事吗？恢复后将重新出现在赛事列表中。',
+      title: '恢复 Tournament',
+      content: '确定要恢复此 Tournament 吗？恢复后将重新出现在列表中。',
     });
     if (!result) return;
-
-    setOperating(matchId);
+    setOperating(id);
     try {
-      await matchApi.restore(matchId);
-      Toast.show({ icon: 'success', content: '赛事已恢复' });
+      await tournamentApi.restore(id);
+      Toast.show({ icon: 'success', content: 'Tournament 已恢复' });
       fetchTrash();
-    } catch { /* handled by interceptor */ }
-    finally { setOperating(null); }
+    } catch {
+    } finally {
+      setOperating(null);
+    }
   };
 
-  const handlePermanentDelete = async (matchId: number) => {
+  const handlePermanentDelete = async (t: Tournament) => {
     const result = await showConfirm({
       title: '永久删除',
       content: (
         <div className="space-y-2">
           <div className="text-red-400 font-bold">此操作无法撤销！</div>
-          <div className="text-sm text-neutral-500">将彻底删除赛事及所有关联数据（报名、场次、比分等）。</div>
+          <div className="text-sm text-neutral-500">
+            将彻底删除「{t.name}」及其所有关联数据（赛事、球员、评分、战绩等）。
+          </div>
         </div>
       ),
     });
     if (!result) return;
-
-    setOperating(matchId);
+    setOperating(t.id);
     try {
-      await matchApi.permanentDelete(matchId);
+      await tournamentApi.permanentDelete(t.id);
       Toast.show({ icon: 'success', content: '已永久删除' });
       fetchTrash();
-    } catch { /* handled by interceptor */ }
-    finally { setOperating(null); }
-  };
-
-  const getStatusMeta = (status?: string) => {
-    return matchStatusMeta[status || ''] || {
-      label: '状态待定',
-      badgeClass: 'border-neutral-300 dark:border-neutral-700 bg-gray-100 dark:bg-neutral-800/80 text-gray-600 dark:text-neutral-300',
-    };
+    } catch {
+    } finally {
+      setOperating(null);
+    }
   };
 
   return (
@@ -92,7 +78,7 @@ const MatchTrash: React.FC = () => {
           >
             <ChevronLeft size={20} className="text-gray-500 dark:text-neutral-400" />
           </button>
-          <h1 className="flex-1 text-lg font-black text-gray-900 dark:text-white">赛事回收站</h1>
+          <h1 className="flex-1 text-lg font-black text-gray-900 dark:text-white">Tournament 回收站</h1>
         </div>
       </div>
 
@@ -103,41 +89,37 @@ const MatchTrash: React.FC = () => {
             <Loader2 size={32} className="animate-spin text-primary" />
             <div className="mt-4 text-sm text-gray-500 dark:text-neutral-500">加载中...</div>
           </div>
-        ) : matches.length === 0 ? (
+        ) : tournaments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Trash2 size={48} className="text-gray-300 dark:text-neutral-700" />
             <div className="mt-4 text-sm font-bold text-gray-500 dark:text-neutral-500">回收站为空</div>
-            <div className="mt-2 text-xs text-gray-400 dark:text-neutral-600">已删除的赛事会出现在这里</div>
+            <div className="mt-2 text-xs text-gray-400 dark:text-neutral-600">已删除的 Tournament 会出现在这里</div>
           </div>
         ) : (
           <div className="space-y-4">
-            {matches.map((match) => {
-              const statusMeta = getStatusMeta(match.status);
-              const isOperating = operating === match.id;
-              
+            {tournaments.map((t) => {
+              const isOperating = operating === t.id;
               return (
                 <div
-                  key={match.id}
+                  key={t.id}
                   className="rounded-2xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-6 shadow-sm dark:shadow-none"
                 >
                   <div className="mb-4 flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="mb-2 flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold ${statusMeta.badgeClass}`}>
-                          {statusMeta.label}
-                        </span>
-                      </div>
-                      <h3 className="text-lg font-black text-gray-900 dark:text-white">{match.title}</h3>
+                      <h3 className="text-lg font-black text-gray-900 dark:text-white">{t.name}</h3>
+                      {t.description && (
+                        <p className="mt-1 text-sm text-gray-500 dark:text-neutral-500 line-clamp-2">{t.description}</p>
+                      )}
                       <div className="mt-2 space-y-1 text-xs text-gray-500 dark:text-neutral-500">
-                        <div>开始时间：{dayjs(match.startTime).format('YYYY-MM-DD HH:mm')}</div>
-                        <div>删除时间：{dayjs(match.deletedAt).format('YYYY-MM-DD HH:mm')}</div>
+                        {t.deletedAt && (
+                          <div>删除时间：{dayjs(t.deletedAt).format('YYYY-MM-DD HH:mm')}</div>
+                        )}
                       </div>
                     </div>
                   </div>
-
                   <div className="flex gap-3">
                     <button
-                      onClick={() => handleRestore(match.id)}
+                      onClick={() => handleRestore(t.id)}
                       disabled={isOperating}
                       className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-3 text-sm font-bold text-emerald-400 transition-all hover:bg-emerald-500/15 active:scale-[0.98] disabled:opacity-50"
                     >
@@ -145,7 +127,7 @@ const MatchTrash: React.FC = () => {
                       恢复
                     </button>
                     <button
-                      onClick={() => handlePermanentDelete(match.id)}
+                      onClick={() => handlePermanentDelete(t)}
                       disabled={isOperating}
                       className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 py-3 text-sm font-bold text-red-400 transition-all hover:bg-red-500/15 active:scale-[0.98] disabled:opacity-50"
                     >
@@ -160,10 +142,9 @@ const MatchTrash: React.FC = () => {
         )}
       </div>
 
-      {/* Confirm Dialog */}
       <DialogComponent />
     </div>
   );
 };
 
-export default MatchTrash;
+export default TournamentTrash;

@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Popup, Toast, Skeleton } from 'antd-mobile';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, X, ChevronRight, IdCard, Shield, Sun, Moon, ShieldCheck, UserCog, Trash2, Search, UserPlus, ChevronLeft } from 'lucide-react';
+import { User, LogOut, X, ChevronRight, IdCard, Shield, Sun, Moon, ShieldCheck, UserCog, Trash2, Search, UserPlus, ChevronLeft, Users } from 'lucide-react';
 import apiClient from '../api/client';
 import useAuthStore from '../store/useAuthStore';
 import useThemeStore from '../store/useThemeStore';
 import { tournamentApi, type Tournament, type AdminUser } from '../api/tournament';
 import { adminApi, type PageResult } from '../api/admin';
+import TournamentMemberModal from './TournamentMemberModal';
 const gridStyle = {
   backgroundImage:
     'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
@@ -20,6 +21,12 @@ const GlobalNav: React.FC = () => {
   const [adminPanelVisible, setAdminPanelVisible] = useState(false);
   const [panelTournaments, setPanelTournaments] = useState<Tournament[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
+  // Member management panel (tournament admin)
+  const [memberSelectorVisible, setMemberSelectorVisible] = useState(false);
+  const [memberSelectorTournaments, setMemberSelectorTournaments] = useState<Tournament[]>([]);
+  const [memberSelectorLoading, setMemberSelectorLoading] = useState(false);
+  const [memberModalTournamentId, setMemberModalTournamentId] = useState<number | null>(null);
+  const [memberModalTournamentName, setMemberModalTournamentName] = useState('');
   const [panelAdmins, setPanelAdmins] = useState<AdminUser[]>([]);
   const [panelLoadingAdmins, setPanelLoadingAdmins] = useState(false);
   const [panelSearchQuery, setPanelSearchQuery] = useState('');
@@ -122,12 +129,27 @@ const GlobalNav: React.FC = () => {
     }
   };
 
+  const openMemberSelector = async () => {
+    setShowProfile(false);
+    setMemberSelectorLoading(true);
+    setMemberSelectorVisible(true);
+    try {
+      const all = await tournamentApi.list();
+      const adminIds = me?.adminTournamentIds ?? [];
+      const isPlatAdmin = useAuthStore.getState().isPlatformAdmin();
+      const filtered = isPlatAdmin ? all : all.filter(t => adminIds.includes(t.id));
+      setMemberSelectorTournaments(filtered);
+    } catch {}
+    finally { setMemberSelectorLoading(false); }
+  };
+
   const displayName = me?.player?.nickname || me?.user?.username || '';
   const clubName = me?.player?.clubName || 'Free Agent';
   const roles = me?.user?.roles || [];
   const displayRole = roles.map(r => r.name).join(' / ') || '';
   const hasPlayer = !!me?.player;
   const isPlatformAdmin = useAuthStore.getState().isPlatformAdmin();
+  const isTournamentAdmin = (me?.adminTournamentIds?.length ?? 0) > 0 || isPlatformAdmin;
 
   return (
     <>
@@ -240,6 +262,31 @@ const GlobalNav: React.FC = () => {
                 />
               </button>
 
+              {/* Tournament admin: 管理成员 */}
+              {isTournamentAdmin && (
+                <button
+                  type="button"
+                  onClick={openMemberSelector}
+                  className="group flex w-full items-center justify-between rounded-[1.75rem] border border-primary/20 bg-primary/5 dark:bg-primary/10 px-5 py-4 text-left transition-all hover:border-primary/40 hover:bg-primary/10 dark:hover:bg-primary/15 active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
+                      <Users size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-gray-900 dark:text-white">管理成员</div>
+                      <div className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-neutral-500">
+                        向赛事中添加平台用户
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight
+                    size={16}
+                    className="shrink-0 text-primary/40 transition-all group-hover:translate-x-0.5 group-hover:text-primary"
+                  />
+                </button>
+              )}
+
               {/* Platform admin: Tournament Admin 管理 */}
               {isPlatformAdmin && (
                 <button
@@ -347,6 +394,59 @@ const GlobalNav: React.FC = () => {
           </div>
         </div>
       </Popup>
+
+      {/* ─── Member Selector Panel (tournament admin) ─── */}
+      <Popup
+        visible={memberSelectorVisible}
+        onMaskClick={() => setMemberSelectorVisible(false)}
+        position="bottom"
+        bodyStyle={{ borderRadius: '20px 20px 0 0', maxHeight: '60vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="flex flex-col max-h-[60vh] bg-white dark:bg-neutral-950 text-gray-900 dark:text-white">
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 dark:border-neutral-800 shrink-0">
+            <div>
+              <div className="text-[9px] font-black tracking-[0.25em] text-primary uppercase mb-0.5">Tournament Admin</div>
+              <h3 className="text-base font-black">选择赛事 · 管理成员</h3>
+            </div>
+            <button
+              onClick={() => setMemberSelectorVisible(false)}
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-neutral-900 text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {memberSelectorLoading ? (
+              <div className="text-sm text-gray-400 dark:text-neutral-600 italic py-4 text-center">加载中…</div>
+            ) : memberSelectorTournaments.length === 0 ? (
+              <div className="text-sm text-gray-400 dark:text-neutral-600 italic py-4 text-center">暂无可管理的赛事</div>
+            ) : (
+              <div className="space-y-2">
+                {memberSelectorTournaments.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setMemberSelectorVisible(false);
+                      setMemberModalTournamentId(t.id);
+                      setMemberModalTournamentName(t.name);
+                    }}
+                    className="group flex w-full items-center justify-between rounded-2xl border border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3.5 text-left transition-all hover:border-primary/30 hover:bg-primary/5 active:scale-[0.98]"
+                  >
+                    <span className="text-sm font-bold">{t.name}</span>
+                    <ChevronRight size={14} className="text-gray-400 group-hover:text-primary transition-colors" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Popup>
+
+      <TournamentMemberModal
+        tournamentId={memberModalTournamentId}
+        tournamentName={memberModalTournamentName}
+        onClose={() => setMemberModalTournamentId(null)}
+      />
 
       {/* ─── Admin Management Panel (platform admin only) ─── */}
       <Popup

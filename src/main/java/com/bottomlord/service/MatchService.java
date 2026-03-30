@@ -28,9 +28,10 @@ public interface MatchService extends IService<Match> {
     /**
      * 获取近期赛事列表
      *
+     * @param tournamentId 赛事所属 Tournament ID
      * @return 赛事列表
      */
-    List<Match> listUpcomingMatches();
+    List<Match> listUpcomingMatches(Long tournamentId);
 
     /**
      * 发布新赛事（仅限 admin，初始状态为 PREPARING）
@@ -226,9 +227,10 @@ public interface MatchService extends IService<Match> {
     /**
      * 获取回收站赛事列表（仅限管理员）
      *
+     * @param tournamentId 赛事所属 Tournament ID
      * @return 已软删除的赛事列表
      */
-    List<Match> listTrashedMatches();
+    List<Match> listTrashedMatches(Long tournamentId);
 
     /**
      * 物理删除赛事及关联数据（仅限管理员）

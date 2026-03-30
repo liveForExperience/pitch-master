@@ -12,10 +12,11 @@ import { matchApi } from '../api/match';
 import type { GroupsVO, StandingsVO, MatchStatsVO, MatchGame } from '../api/match';
 import dayjs from 'dayjs';
 import useAuthStore from '../store/useAuthStore';
-import html2canvas from 'html2canvas';
+import * as htmlToImage from 'html-to-image';
 import GameCard from '../components/GameCard';
 import RegistrationPoster from '../components/poster/RegistrationPoster';
 import ReportPoster from '../components/poster/ReportPoster';
+import { POSTER_THEMES, type PosterThemeKey } from '../components/poster/posterTheme';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { positionMeta, getMatchStatusMeta } from '../constants/match';
 
@@ -50,6 +51,8 @@ const MatchDetail: React.FC = () => {
   const registrationPosterRef = useRef<HTMLDivElement>(null);
   const reportPosterRef = useRef<HTMLDivElement>(null);
   const [generatedPosterUrl, setGeneratedPosterUrl] = useState<string | null>(null);
+  const [posterTheme, setPosterTheme] = useState<PosterThemeKey>('night');
+  const [showThemePicker, setShowThemePicker] = useState(false);
 
   // Post-match states
   const [standings, setStandings] = useState<StandingsVO | null>(null);
@@ -298,14 +301,15 @@ const MatchDetail: React.FC = () => {
     const isReport = match.status === 'MATCH_FINISHED';
     const targetRef = isReport ? reportPosterRef : registrationPosterRef;
     if (!targetRef.current) return;
+    setShowThemePicker(false);
     Toast.show({ icon: 'loading', content: '生成海报中...', duration: 0 });
     try {
-      const canvas = await html2canvas(targetRef.current, {
-        useCORS: true,
-        scale: 2,
-        backgroundColor: '#0a0a0a',
+      const dataUrl = await htmlToImage.toPng(targetRef.current, {
+        pixelRatio: 2,
+        backgroundColor: POSTER_THEMES[posterTheme].tokens.bgCanvas,
+        skipFonts: true,
       });
-      setGeneratedPosterUrl(canvas.toDataURL('image/png'));
+      setGeneratedPosterUrl(dataUrl);
       Toast.clear();
     } catch (err) {
       console.error(err);
@@ -603,7 +607,7 @@ const MatchDetail: React.FC = () => {
             {/* Poster Generator Button for normal users */}
             {match.status !== 'PREPARING' && (
               <button
-                onClick={handleGeneratePoster}
+                onClick={() => setShowThemePicker(true)}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 py-4 text-sm font-black text-white tracking-wide shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Share2 size={16} />
@@ -974,6 +978,7 @@ const MatchDetail: React.FC = () => {
         posterDate={posterDate}
         registeredCount={registeredCount}
         totalCapacity={totalCapacity}
+        theme={posterTheme}
       />
       <ReportPoster
         posterRef={reportPosterRef}
@@ -984,10 +989,71 @@ const MatchDetail: React.FC = () => {
         standings={standings}
         stats={stats}
         groupsData={groupsData}
+        theme={posterTheme}
       />
 
       {/* Confirm Dialog */}
       <DialogComponent />
+
+      {/* Theme Picker */}
+      <CenterPopup visible={showThemePicker} onMaskClick={() => setShowThemePicker(false)}>
+        <div className="p-5 w-[320px]">
+          <div className="mb-5">
+            <h3 className="text-base font-black text-gray-900 dark:text-white tracking-tight">选择海报主题</h3>
+            <p className="text-xs text-gray-400 dark:text-neutral-500 mt-1">不同风格，一键生成</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            {(Object.values(POSTER_THEMES) as typeof POSTER_THEMES[PosterThemeKey][]).map((th) => (
+              <button
+                key={th.key}
+                onClick={() => setPosterTheme(th.key)}
+                style={{ borderColor: posterTheme === th.key ? th.previewAccent : undefined }}
+                className={`relative rounded-2xl border-2 p-3 text-left transition-all active:scale-95 ${
+                  posterTheme === th.key
+                    ? 'shadow-lg'
+                    : 'border-gray-200 dark:border-neutral-700'
+                }`}
+              >
+                {/* Mini preview swatch */}
+                <div
+                  className="mb-2.5 h-16 w-full rounded-xl overflow-hidden"
+                  style={{ backgroundColor: th.previewBg }}
+                >
+                  <div style={{ height: 3, background: `linear-gradient(90deg, ${th.previewAccent}, ${th.key === 'night' ? '#0ea5e9' : '#34d399'})` }} />
+                  <div className="flex flex-col gap-1 p-2">
+                    <div style={{ height: 4, width: '70%', borderRadius: 2, backgroundColor: th.previewAccent, opacity: 0.9 }} />
+                    <div style={{ height: 3, width: '90%', borderRadius: 2, backgroundColor: th.key === 'night' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)' }} />
+                    <div style={{ height: 3, width: '55%', borderRadius: 2, backgroundColor: th.key === 'night' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
+                  </div>
+                </div>
+                <div className="text-[12px] font-black" style={{ color: th.previewAccent }}>{th.label}</div>
+                <div className="text-[10px] text-gray-400 dark:text-neutral-500 mt-0.5 leading-tight">{th.desc}</div>
+                {posterTheme === th.key && (
+                  <div
+                    className="absolute top-2 right-2 h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-black"
+                    style={{ backgroundColor: th.previewAccent, color: th.key === 'night' ? '#000' : '#fff' }}
+                  >
+                    ✓
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleGeneratePoster}
+            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3.5 text-sm font-black text-white tracking-wide shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.98]"
+          >
+            <Share2 size={15} />
+            生成海报
+          </button>
+          <button
+            onClick={() => setShowThemePicker(false)}
+            className="mt-3 w-full py-2.5 text-xs font-semibold text-gray-400 dark:text-neutral-500 transition-colors hover:text-gray-600 dark:hover:text-neutral-300"
+          >
+            取消
+          </button>
+        </div>
+      </CenterPopup>
 
       {/* Poster Preview Modal */}
       <CenterPopup visible={!!generatedPosterUrl} onMaskClick={() => setGeneratedPosterUrl(null)}>

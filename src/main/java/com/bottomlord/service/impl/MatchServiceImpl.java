@@ -98,11 +98,12 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     }
 
     @Override
-    public List<Match> listUpcomingMatches() {
+    public List<Match> listUpcomingMatches(Long tournamentId) {
         boolean isAdmin = SecurityUtils.getSubject().hasRole("admin");
         LambdaQueryWrapper<Match> wrapper = new LambdaQueryWrapper<Match>()
                 .isNull(Match::getDeletedAt)
                 .ne(Match::getStatus, Match.STATUS_CANCELLED)
+                .eq(Match::getTournamentId, tournamentId)
                 .orderByDesc(Match::getStartTime);
         // 普通用户只能看到已发布的赛事 (PUBLISHED 及之后的)，管理员可以看到筹备中的赛事
         if (!isAdmin) {
@@ -826,9 +827,10 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
 
     @Override
     @RequiresRoles("admin")
-    public List<Match> listTrashedMatches() {
+    public List<Match> listTrashedMatches(Long tournamentId) {
         return this.list(new LambdaQueryWrapper<Match>()
                 .isNotNull(Match::getDeletedAt)
+                .eq(Match::getTournamentId, tournamentId)
                 .orderByDesc(Match::getDeletedAt));
     }
 

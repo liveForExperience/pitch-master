@@ -11,6 +11,7 @@ import MatchLive from './pages/MatchLive';
 import GameDetail from './pages/GameDetail';
 import MatchPublish from './pages/MatchPublish';
 import MatchTrash from './pages/MatchTrash';
+import TournamentTrash from './pages/TournamentTrash';
 import MatchAddPlayers from './pages/MatchAddPlayers';
 import PlayerRatingDemo from './pages/PlayerRatingDemo';
 import ProfileEdit from './pages/ProfileEdit';
@@ -56,6 +57,9 @@ function App() {
 
           {/* Tournament 大厅（登录后首页） */}
           <Route path="/tournaments" element={<TournamentList />} />
+
+          {/* Tournament 回收站（platform admin） */}
+          <Route path="/tournaments/trash" element={<TournamentTrash />} />
 
           {/* Tournament 维度下的赛事路由 */}
           <Route path="/tournaments/:tournamentId/matches" element={<MatchList />} />

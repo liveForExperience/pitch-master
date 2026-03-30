@@ -37,6 +37,9 @@ public class User extends BaseEntity {
     @TableField(exist = false)
     private java.util.List<Role> roles;
 
+    @TableField(exist = false)
+    private String playerNickname;
+
     /**
      * 获取角色名称列表
      */

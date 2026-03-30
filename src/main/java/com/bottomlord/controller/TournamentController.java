@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tournament 管理控制器
@@ -200,6 +201,105 @@ public class TournamentController {
     public Result<Boolean> isAdmin(@PathVariable Long tournamentId) {
         User currentUser = getCurrentUser();
         return Result.success(tournamentService.isAdmin(tournamentId, currentUser.getId()));
+    }
+
+    /**
+     * 软删除 Tournament（仅平台管理员）
+     */
+    @DeleteMapping("/{id}/soft")
+    public Result<Void> softDelete(@PathVariable Long id) {
+        User currentUser = getCurrentUser();
+        if (!tournamentService.isPlatformAdmin(currentUser.getId())) {
+            return Result.error(403, "仅平台管理员可删除 Tournament");
+        }
+        tournamentService.softDeleteTournament(id, currentUser.getId());
+        return Result.success();
+    }
+
+    /**
+     * 获取回收站 Tournament 列表（仅平台管理员）
+     */
+    @GetMapping("/trash")
+    public Result<List<Tournament>> listTrash() {
+        User currentUser = getCurrentUser();
+        if (!tournamentService.isPlatformAdmin(currentUser.getId())) {
+            return Result.error(403, "仅平台管理员可查看回收站");
+        }
+        return Result.success(tournamentService.listTrashedTournaments());
+    }
+
+    /**
+     * 恢复软删除的 Tournament（仅平台管理员）
+     */
+    @PostMapping("/{id}/restore")
+    public Result<Void> restore(@PathVariable Long id) {
+        User currentUser = getCurrentUser();
+        if (!tournamentService.isPlatformAdmin(currentUser.getId())) {
+            return Result.error(403, "仅平台管理员可恢复 Tournament");
+        }
+        tournamentService.restoreTournament(id);
+        return Result.success();
+    }
+
+    /**
+     * 物理删除 Tournament 及所有关联数据（仅平台管理员，不可恢复）
+     */
+    @DeleteMapping("/{id}/permanent")
+    public Result<Void> permanentDelete(@PathVariable Long id) {
+        User currentUser = getCurrentUser();
+        if (!tournamentService.isPlatformAdmin(currentUser.getId())) {
+            return Result.error(403, "仅平台管理员可执行物理删除");
+        }
+        tournamentService.permanentDeleteTournament(id);
+        return Result.success();
+    }
+
+    /**
+     * 列出 Tournament 成员（tournament admin 可查看）
+     */
+    @GetMapping("/{tournamentId}/members")
+    public Result<List<User>> listMembers(@PathVariable Long tournamentId) {
+        User currentUser = getCurrentUser();
+        if (!tournamentService.isAdmin(tournamentId, currentUser.getId())) {
+            return Result.error(403, "仅 Tournament 管理员可查看成员");
+        }
+        List<User> members = tournamentService.listMembers(tournamentId);
+        members.forEach(u -> {
+            u.setPassword(null);
+            u.setSalt(null);
+        });
+        return Result.success(members);
+    }
+
+    /**
+     * 批量添加用户到 Tournament（tournament admin 权限）
+     */
+    @PostMapping("/{tournamentId}/members/batch")
+    public Result<List<String>> batchAddMembers(@PathVariable Long tournamentId,
+                                                @RequestBody Map<String, List<Long>> body) {
+        User currentUser = getCurrentUser();
+        if (!tournamentService.isAdmin(tournamentId, currentUser.getId())) {
+            return Result.error(403, "仅 Tournament 管理员可添加成员");
+        }
+        List<Long> userIds = body.get("userIds");
+        if (userIds == null || userIds.isEmpty()) {
+            return Result.error(400, "userIds 不能为空");
+        }
+        List<String> skipped = tournamentService.batchAddMembers(tournamentId, userIds);
+        return Result.success(skipped);
+    }
+
+    /**
+     * 移除 Tournament 成员（tournament admin 权限）
+     */
+    @DeleteMapping("/{tournamentId}/members/{userId}")
+    public Result<Void> removeMember(@PathVariable Long tournamentId, @PathVariable Long userId) {
+        User currentUser = getCurrentUser();
+        if (!tournamentService.isAdmin(tournamentId, currentUser.getId())) {
+            return Result.error(403, "仅 Tournament 管理员可移除成员");
+        }
+        tournamentService.removeMember(tournamentId, userId);
+        return Result.success();
     }
 
     private User getCurrentUser() {

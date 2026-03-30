@@ -8,6 +8,8 @@ export interface Tournament {
   joinMode: 'OPEN' | 'APPROVAL';
   logo?: string;
   maxPlayers?: number;
+  deletedAt?: string;
+  deletedBy?: number;
 }
 
 export interface TournamentPlayer {
@@ -75,4 +77,25 @@ export const tournamentApi = {
 
   isAdmin: (tournamentId: number | string): Promise<boolean> =>
     apiClient.get(`/api/tournament/${tournamentId}/is-admin`),
+
+  softDelete: (id: number | string): Promise<void> =>
+    apiClient.delete(`/api/tournament/${id}/soft`),
+
+  listTrash: (): Promise<Tournament[]> =>
+    apiClient.get('/api/tournament/trash'),
+
+  restore: (id: number | string): Promise<void> =>
+    apiClient.post(`/api/tournament/${id}/restore`),
+
+  permanentDelete: (id: number | string): Promise<void> =>
+    apiClient.delete(`/api/tournament/${id}/permanent`),
+
+  listMembers: (tournamentId: number | string): Promise<AdminUser[]> =>
+    apiClient.get(`/api/tournament/${tournamentId}/members`),
+
+  batchAddMembers: (tournamentId: number | string, userIds: number[]): Promise<string[]> =>
+    apiClient.post(`/api/tournament/${tournamentId}/members/batch`, { userIds }),
+
+  removeMember: (tournamentId: number | string, userId: number): Promise<void> =>
+    apiClient.delete(`/api/tournament/${tournamentId}/members/${userId}`),
 };
