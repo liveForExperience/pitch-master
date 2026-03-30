@@ -63,6 +63,18 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
         return null;
     }
 
+    private boolean isAdmin() {
+        Object principal = SecurityUtils.getSubject().getPrincipal();
+        if (principal instanceof User) {
+            User user = (User) principal;
+            if (user.getRoles() != null) {
+                return user.getRoles().stream()
+                        .anyMatch(role -> "admin".equals(role.getName()) || "platform_admin".equals(role.getName()));
+            }
+        }
+        return false;
+    }
+
     private void logAndBroadcast(MatchGame game, String type) {
         MatchScoreLog log = new MatchScoreLog();
         log.setGameId(game.getId());
@@ -150,6 +162,11 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     }
 
     private void checkParticipantPermission(Long matchId) {
+        // 管理员豁免报名检查
+        if (isAdmin()) {
+            return;
+        }
+        // 普通球员必须已报名才能操作
         Long currentUserId = getCurrentUserId();
         if (currentUserId == null) throw new IllegalStateException("请先登录");
         Player player = playerService.getByUserId(currentUserId);

@@ -611,6 +611,14 @@ const MatchDetail: React.FC = () => {
                 <div className="flex items-center justify-center gap-2 rounded-2xl border border-primary/20 bg-primary/8 py-3 text-xs font-bold text-primary">
                   <Shield size={14} /> 您已成功报名
                 </div>
+                {match.status === 'ONGOING' && (
+                  <button
+                    onClick={() => navigate(`${basePath}/${id}/live`)}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-4 text-sm font-black text-white tracking-wide shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Swords size={16} /> 进入比赛
+                  </button>
+                )}
                 {canRegister && (
                   <button
                     onClick={handleCancelRegistration}
