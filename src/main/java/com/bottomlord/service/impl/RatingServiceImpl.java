@@ -178,7 +178,7 @@ public class RatingServiceImpl implements RatingService {
                 updatePlayerAttributes(playerId, p, actualScore);
 
                 // 4. 战绩统计更新
-                updatePlayerStats(playerId, p, actualScore);
+                updatePlayerStats(playerId, tournamentId, p, actualScore);
             } catch (Exception e) {
                 log.error("结算球员评分失败: playerId={}, gameId={}, error={}", p.getPlayerId(), gameId, e.getMessage(), e);
                 throw new RuntimeException("结算球员评分失败: " + p.getPlayerId(), e);
@@ -215,9 +215,10 @@ public class RatingServiceImpl implements RatingService {
         attributeMapper.updateById(attr);
     }
 
-    private void updatePlayerStats(Long playerId, GameParticipant p, double actualScore) {
+    private void updatePlayerStats(Long playerId, Long tournamentId, GameParticipant p, double actualScore) {
         PlayerStat stat = statMapper.selectOne(new LambdaQueryWrapper<PlayerStat>()
-                .eq(PlayerStat::getPlayerId, playerId));
+                .eq(PlayerStat::getPlayerId, playerId)
+                .eq(PlayerStat::getTournamentId, tournamentId));
         if (stat == null) return;
 
         stat.setTotalMatches(defaultIfNull(stat.getTotalMatches(), 0) + 1);

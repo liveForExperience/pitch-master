@@ -6,14 +6,12 @@ import com.bottomlord.entity.Player;
 import com.bottomlord.entity.PlayerAttribute;
 import com.bottomlord.entity.PlayerRatingHistory;
 import com.bottomlord.entity.PlayerRatingProfile;
-import com.bottomlord.entity.PlayerStat;
 import com.bottomlord.mapper.PlayerMapper;
 import com.bottomlord.mapper.ClubMapper;
 import com.bottomlord.mapper.TournamentMapper;
 import com.bottomlord.mapper.PlayerAttributeMapper;
 import com.bottomlord.mapper.PlayerRatingHistoryMapper;
 import com.bottomlord.mapper.PlayerRatingProfileMapper;
-import com.bottomlord.mapper.PlayerStatMapper;
 import com.bottomlord.mapper.UserMapper;
 import com.bottomlord.entity.Club;
 import com.bottomlord.entity.Tournament;
@@ -42,9 +40,6 @@ public class PlayerServiceImpl extends ServiceImpl<PlayerMapper, Player> impleme
     private PlayerAttributeMapper playerAttributeMapper;
 
     @Autowired
-    private PlayerStatMapper playerStatMapper;
-
-    @Autowired
     private PlayerRatingProfileMapper playerRatingProfileMapper;
 
     @Autowired
@@ -64,6 +59,7 @@ public class PlayerServiceImpl extends ServiceImpl<PlayerMapper, Player> impleme
         }
         boolean success = super.save(player);
         if (success) {
+            // 创建全局 FM 属性（player_attribute 表是全局的，不分 tournament）
             PlayerAttribute attr = new PlayerAttribute();
             attr.setPlayerId(player.getId());
             attr.setPace(10);
@@ -75,46 +71,10 @@ public class PlayerServiceImpl extends ServiceImpl<PlayerMapper, Player> impleme
             attr.setMarketValue(BigDecimal.ZERO);
             playerAttributeMapper.insert(attr);
 
-            PlayerStat stat = new PlayerStat();
-            stat.setPlayerId(player.getId());
-            stat.setTotalMatches(0);
-            stat.setWins(0);
-            stat.setDraws(0);
-            stat.setLosses(0);
-            stat.setTotalGoals(0);
-            stat.setTotalAssists(0);
-            stat.setTotalMvps(0);
-            stat.setCleanSheets(0);
-            stat.setRecentForm("");
-            playerStatMapper.insert(stat);
-
-            PlayerRatingProfile profile = new PlayerRatingProfile();
-            profile.setPlayerId(player.getId());
-            profile.setSkillRating(new BigDecimal("5.00"));
-            profile.setPerformanceRating(new BigDecimal("5.00"));
-            profile.setEngagementRating(new BigDecimal("5.00"));
-            profile.setProvisionalMatches(0);
-            profile.setAppearanceCount(0);
-            profile.setActiveStreakWeeks(0);
-            profile.setLastAttendanceTime(player.getLastAttendanceTime());
-            profile.setRatingVersion(2);
-            playerRatingProfileMapper.insert(profile);
-
-            PlayerRatingHistory history = new PlayerRatingHistory();
-            history.setPlayerId(player.getId());
-            history.setDimension("TOTAL");
-            history.setSourceType("INITIALIZATION");
-            history.setOldRating(player.getRating());
-            history.setNewRating(player.getRating());
-            history.setOldValue(player.getRating());
-            history.setNewValue(player.getRating());
-            history.setDelta(BigDecimal.ZERO);
-            history.setChangeReason("INITIALIZATION");
-            history.setReasonCode("INITIALIZATION");
-            history.setReasonDetail("player-bootstrap");
-            history.setCreateTime(LocalDateTime.now());
-            playerRatingHistoryMapper.insert(history);
-            log.info("新球员入驻，已同步初始化FM属性与战绩表: id={}, nickname={}", player.getId(), player.getNickname());
+            // 注意：PlayerStat、PlayerRatingProfile、PlayerRatingHistory 均为 tournament 维度数据
+            // 这些数据会在 TournamentPlayerService.initTournamentData() 中创建
+            // 当球员加入具体 tournament 时才初始化
+            log.info("新球员入驻，已初始化全局属性: id={}, nickname={}", player.getId(), player.getNickname());
         }
         return success;
     }
