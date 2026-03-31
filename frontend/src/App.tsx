@@ -16,6 +16,7 @@ import MatchAddPlayers from './pages/MatchAddPlayers';
 import PlayerRatingDemo from './pages/PlayerRatingDemo';
 import ProfileEdit from './pages/ProfileEdit';
 import GlobalNav from './components/GlobalNav';
+import BottomNav from './components/BottomNav';
 import useThemeStore from './store/useThemeStore';
 
 // 主题应用器：监听主题状态，写入 <html> 的 class
@@ -37,11 +38,11 @@ const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 text-gray-900 dark:text-white selection:bg-primary selection:text-black transition-colors duration-200">
-      {/* DEBUG ELEMENT */}
-      <div className="fixed top-0 left-0 w-full h-1 bg-primary z-[9999]"></div>
-      
       {shouldShowNav && <GlobalNav />}
-      {children}
+      <div className={shouldShowNav ? 'pb-16 md:pb-0' : ''}>
+        {children}
+      </div>
+      {shouldShowNav && <BottomNav />}
     </div>
   );
 };

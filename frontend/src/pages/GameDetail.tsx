@@ -78,7 +78,7 @@ export default function GameDetail() {
   }, [fetchGame, game?.status]);
 
   const teamName = (idx: number) =>
-    game?.teamNames?.[idx] ?? `第${idx + 1}队`;
+    game?.teamNames?.[idx] ?? `队伍 ${String.fromCharCode(65 + idx)}`;
 
   const scheduledStart = () => {
     if (!game?.matchStartTime || game.durationPerGame == null || game.gameIndex == null) return null;
@@ -790,7 +790,7 @@ function GoalLog({ goals, game, isAdmin, onDeleteGoal }: {
   onDeleteGoal?: (goalId: number) => void;
 }) {
   if (!goals || goals.length === 0) return null;
-  const tName = (idx: number) => game.teamNames?.[idx] ?? `第${idx + 1}队`;
+  const tName = (idx: number) => game.teamNames?.[idx] ?? `队伍 ${String.fromCharCode(65 + idx)}`;
 
   return (
     <div className="rounded-2xl border border-gray-200 dark:border-white/6 bg-white dark:bg-white/[0.02] px-5 py-4">

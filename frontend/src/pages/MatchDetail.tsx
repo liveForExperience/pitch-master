@@ -5,11 +5,10 @@ import { useConfirmDialog } from '../components/ConfirmDialog';
 import {
   ChevronLeft, Clock, MapPin, Users, CalendarClock,
   UserPlus, LogOut, Shield, Loader2, Calculator, CheckCircle,
-  XCircle, Play, LayoutList, Edit3, Trash2, ChevronRight, Swords, Share2, X, Plus, Pencil
+  XCircle, Play, LayoutList, Edit3, Trash2, ChevronRight, Swords, Share2, X, Pencil
 } from 'lucide-react';
 import apiClient from '../api/client';
 import { matchApi } from '../api/match';
-import { gameApi } from '../api/game';
 import type { GroupsVO, StandingsVO, MatchStatsVO, MatchGame } from '../api/match';
 import dayjs from 'dayjs';
 import useAuthStore from '../store/useAuthStore';
@@ -60,14 +59,8 @@ const MatchDetail: React.FC = () => {
   const [stats, setStats] = useState<MatchStatsVO | null>(null);
   const [games, setGames] = useState<MatchGame[]>([]);
 
-  // Game management (ONGOING)
-  const [showAddGameModal, setShowAddGameModal] = useState(false);
-  const [addGameTeamA, setAddGameTeamA] = useState<string>('');
-  const [addGameTeamB, setAddGameTeamB] = useState<string>('');
-  const [addGameLoading, setAddGameLoading] = useState(false);
-
-  // Team name editing
-  const [showTeamNameEdit, setShowTeamNameEdit] = useState(false);
+  // Team name editing modal
+  const [showTeamNameModal, setShowTeamNameModal] = useState(false);
   const [teamNameEdits, setTeamNameEdits] = useState<Record<number, string>>({});
 
   const fetchData = async () => {
@@ -312,51 +305,29 @@ const MatchDetail: React.FC = () => {
     } catch { /* handled by interceptor */ }
   };
 
-  /* ── Admin: delete READY game ── */
-  const handleDeleteGame = async (gameId: number) => {
-    const confirmed = await showConfirm({
-      title: '删除场次',
-      content: '确定要删除这个还未开始的场次吗？',
-    });
-    if (!confirmed) return;
-    try {
-      await gameApi.deleteGame(gameId);
-      Toast.show({ icon: 'success', content: '场次已删除' });
-      fetchData();
-    } catch { }
-  };
-
-  /* ── Admin: create new game ── */
-  const handleCreateGame = async () => {
-    if (!addGameTeamA || !addGameTeamB) {
-      Toast.show({ icon: 'fail', content: '请选择参赛队伍' });
-      return;
-    }
-    if (addGameTeamA === addGameTeamB) {
-      Toast.show({ icon: 'fail', content: '两支队伍不能相同' });
-      return;
-    }
-    setAddGameLoading(true);
-    try {
-      await gameApi.createGame(Number(id), Number(addGameTeamA), Number(addGameTeamB));
-      Toast.show({ icon: 'success', content: '场次已新建' });
-      setShowAddGameModal(false);
-      setAddGameTeamA('');
-      setAddGameTeamB('');
-      fetchData();
-    } catch { }
-    finally { setAddGameLoading(false); }
-  };
-
   /* ── Admin: save team name ── */
-  const handleSaveTeamName = async (groupIndex: number) => {
-    const name = teamNameEdits[groupIndex];
-    if (!name || !name.trim()) return;
+  const handleSaveAllTeamNames = async () => {
+    const entries = Object.entries(teamNameEdits).filter(([, v]) => v && v.trim());
+    if (entries.length === 0) return;
     try {
-      await matchApi.updateTeamName(id!, groupIndex, name.trim());
+      await Promise.all(entries.map(([k, v]) => matchApi.updateTeamName(id!, Number(k), v.trim())));
       Toast.show({ icon: 'success', content: '队名已更新' });
+      setShowTeamNameModal(false);
       fetchData();
     } catch { }
+  };
+
+  const openTeamNameModal = () => {
+    const initEdits: Record<number, string> = {};
+    const existingNames = match.teamNames ?? {};
+    const numGroups = match.numGroups ?? 0;
+    if (Object.keys(existingNames).length > 0) {
+      Object.entries(existingNames).forEach(([k, v]) => { initEdits[Number(k)] = v as string; });
+    } else {
+      for (let i = 0; i < numGroups; i++) { initEdits[i] = ''; }
+    }
+    setTeamNameEdits(initEdits);
+    setShowTeamNameModal(true);
   };
 
   /* ── Poster generation ── */
@@ -428,7 +399,7 @@ const MatchDetail: React.FC = () => {
             </div>
           </div>
 
-          <h1 className="max-w-3xl text-3xl font-black leading-[1.08] tracking-[-0.03em] text-gray-900 dark:text-white lg:text-5xl">
+          <h1 className="max-w-3xl text-2xl font-black leading-[1.08] tracking-[-0.03em] text-gray-900 dark:text-white sm:text-3xl lg:text-5xl">
             {match.title}
           </h1>
           <div className={`mt-3 h-px w-20 bg-gradient-to-r ${statusMeta.accentClass}`} />
@@ -547,6 +518,12 @@ const MatchDetail: React.FC = () => {
                     >
                       <XCircle size={13} /> 结束比赛
                     </button>
+                    <button
+                      onClick={openTeamNameModal}
+                      className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03] py-3 text-xs font-bold text-gray-600 dark:text-neutral-300 transition-all hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-100 dark:hover:bg-white/[0.06] active:scale-95"
+                    >
+                      <Pencil size={13} /> 修改队名
+                    </button>
                   </>
                 )}
               </div>
@@ -630,7 +607,7 @@ const MatchDetail: React.FC = () => {
                     onClick={() => navigate(`${basePath}/${id}/live`)}
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-4 text-sm font-black text-white tracking-wide shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    <Swords size={16} /> 进入比赛
+                    <Swords size={16} /> 进入赛场
                   </button>
                 )}
                 {canRegister && (
@@ -955,86 +932,6 @@ const MatchDetail: React.FC = () => {
           <TabsContent value="live">
               <div className="space-y-6 pt-4">
 
-                {/* ── Team name editing (admin, ONGOING + MATCH_FINISHED) ── */}
-                {admin && ['ONGOING', 'MATCH_FINISHED'].includes(match.status) && match.teamNames && Object.keys(match.teamNames).length > 0 && (
-                  <div className="rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-6 sm:p-8">
-                    <div className="mb-4 flex items-center justify-between">
-                      <h3 className="text-xs font-black tracking-[0.2em] text-violet-600 dark:text-violet-400">队名管理</h3>
-                      <button
-                        onClick={() => {
-                          if (!showTeamNameEdit) {
-                            const initEdits: Record<number, string> = {};
-                            Object.entries(match.teamNames ?? {}).forEach(([k, v]) => { initEdits[Number(k)] = v as string; });
-                            setTeamNameEdits(initEdits);
-                          }
-                          setShowTeamNameEdit(s => !s);
-                        }}
-                        className="flex items-center gap-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 border border-violet-400/30 dark:border-violet-500/20 rounded-full px-3 py-1.5 hover:bg-violet-500/10 transition-colors"
-                      >
-                        <Pencil size={11} /> {showTeamNameEdit ? '收起' : '编辑队名'}
-                      </button>
-                    </div>
-                    {showTeamNameEdit && (
-                      <div className="flex flex-col gap-3">
-                        {Object.entries(match.teamNames ?? {}).sort(([a], [b]) => Number(a) - Number(b)).map(([idx]) => (
-                          <div key={idx} className="flex items-center gap-3">
-                            <span className="w-14 shrink-0 text-[10px] font-black tracking-widest text-gray-400 dark:text-neutral-600">
-                              TEAM {String.fromCharCode(65 + Number(idx))}
-                            </span>
-                            <input
-                              value={teamNameEdits[Number(idx)] ?? ''}
-                              onChange={e => setTeamNameEdits(prev => ({ ...prev, [Number(idx)]: e.target.value }))}
-                              className="flex-1 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-primary/50"
-                            />
-                            <button
-                              onClick={() => handleSaveTeamName(Number(idx))}
-                              className="shrink-0 rounded-xl bg-primary/10 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
-                            >
-                              保存
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── ONGOING: game management (admin) ── */}
-                {match.status === 'ONGOING' && admin && (
-                  <div className="rounded-[2rem] border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.98)_0%,rgba(10,10,10,1)_100%)] p-6 sm:p-8">
-                    <div className="mb-6 flex items-center justify-between">
-                      <h3 className="text-xs font-black tracking-[0.2em] text-orange-600 dark:text-orange-400">场次管理</h3>
-                      <button
-                        onClick={() => { setAddGameTeamA(''); setAddGameTeamB(''); setShowAddGameModal(true); }}
-                        className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 border border-orange-400/30 dark:border-orange-500/20 rounded-full px-3 py-1.5 hover:bg-orange-500/10 transition-colors"
-                      >
-                        <Plus size={11} /> 新增场次
-                      </button>
-                    </div>
-                    {games.length === 0 ? (
-                      <p className="py-4 text-center text-sm text-gray-400 dark:text-neutral-600">暂无场次</p>
-                    ) : (
-                      <div className="flex flex-col gap-3">
-                        {games.map(game => (
-                          <div key={game.id} className="flex items-center gap-3">
-                            <div className="flex-1">
-                              <GameCard game={game} tNames={match.teamNames ?? {}} matchId={id!} />
-                            </div>
-                            {game.status === 'READY' && (
-                              <button
-                                onClick={() => handleDeleteGame(game.id)}
-                                className="shrink-0 flex items-center justify-center h-9 w-9 rounded-2xl border border-red-200 dark:border-red-900/30 bg-red-50/60 dark:bg-red-950/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-                                title="删除场次"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {match.status === 'MATCH_FINISHED' && standings && stats && (
                   <div className="space-y-6">
@@ -1137,55 +1034,40 @@ const MatchDetail: React.FC = () => {
         theme={posterTheme}
       />
 
-      {/* Add Game Modal */}
-      <CenterPopup visible={showAddGameModal} onMaskClick={() => setShowAddGameModal(false)}>
-        <div className="p-5 w-[320px]">
+      {/* Team Name Edit Modal */}
+      <CenterPopup visible={showTeamNameModal} onMaskClick={() => setShowTeamNameModal(false)}>
+        <div className="p-5 w-[90vw] max-w-[380px]">
           <div className="mb-5">
-            <h3 className="text-base font-black text-gray-900 dark:text-white tracking-tight">新增场次</h3>
-            <p className="text-xs text-gray-400 dark:text-neutral-500 mt-1">选择参赛队伍</p>
+            <h3 className="text-base font-black text-gray-900 dark:text-white tracking-tight">修改队名</h3>
           </div>
-          <div className="flex flex-col gap-4 mb-5">
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-gray-500 dark:text-neutral-400">队伍 A</label>
-              <select
-                value={addGameTeamA}
-                onChange={e => setAddGameTeamA(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary/50"
-              >
-                <option value="">请选择</option>
-                {Object.entries(match.teamNames ?? {}).sort(([a], [b]) => Number(a) - Number(b)).map(([idx, name]) => (
-                  <option key={idx} value={idx}>{name as string}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-gray-500 dark:text-neutral-400">队伍 B</label>
-              <select
-                value={addGameTeamB}
-                onChange={e => setAddGameTeamB(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary/50"
-              >
-                <option value="">请选择</option>
-                {Object.entries(match.teamNames ?? {}).sort(([a], [b]) => Number(a) - Number(b)).map(([idx, name]) => (
-                  <option key={idx} value={idx}>{name as string}</option>
-                ))}
-              </select>
-            </div>
+          <div className="flex flex-col gap-4 mb-6">
+            {Object.keys(teamNameEdits).sort((a, b) => Number(a) - Number(b)).map((idx) => (
+              <div key={idx} className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-black tracking-widest text-gray-400 dark:text-neutral-600">
+                  TEAM {String.fromCharCode(65 + Number(idx))}
+                </span>
+                <input
+                  value={teamNameEdits[Number(idx)] ?? ''}
+                  onChange={e => setTeamNameEdits(prev => ({ ...prev, [Number(idx)]: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-primary/50"
+                />
+              </div>
+            ))}
           </div>
-          <button
-            onClick={handleCreateGame}
-            disabled={addGameLoading}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/70 py-3.5 text-sm font-black text-white tracking-wide shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50"
-          >
-            {addGameLoading ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-            确认新增
-          </button>
-          <button
-            onClick={() => setShowAddGameModal(false)}
-            className="mt-3 w-full py-2.5 text-xs font-semibold text-gray-400 dark:text-neutral-500 transition-colors hover:text-gray-600 dark:hover:text-neutral-300"
-          >
-            取消
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowTeamNameModal(false)}
+              className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-gray-400 dark:text-neutral-500 bg-gray-100 dark:bg-white/[0.04] transition-colors hover:text-gray-600 dark:hover:text-neutral-300"
+            >
+              取消
+            </button>
+            <button
+              onClick={handleSaveAllTeamNames}
+              className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary/90 transition-colors"
+            >
+              保存
+            </button>
+          </div>
         </div>
       </CenterPopup>
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Popup, Toast, Skeleton } from 'antd-mobile';
 import { useNavigate } from 'react-router-dom';
+import useNavStore from '../store/useNavStore';
 import { User, LogOut, X, ChevronRight, IdCard, Shield, Sun, Moon, ShieldCheck, UserCog, Trash2, Search, UserPlus, ChevronLeft, Users } from 'lucide-react';
 import apiClient from '../api/client';
 import useAuthStore from '../store/useAuthStore';
@@ -16,7 +17,7 @@ const gridStyle = {
 
 
 const GlobalNav: React.FC = () => {
-  const [visible, setShowProfile] = useState(false);
+  const { profileVisible: visible, setProfileVisible: setShowProfile } = useNavStore();
   const [loggingOut, setLoggingOut] = useState(false);
   const [adminPanelVisible, setAdminPanelVisible] = useState(false);
   const [panelTournaments, setPanelTournaments] = useState<Tournament[]>([]);
@@ -163,9 +164,10 @@ const GlobalNav: React.FC = () => {
         >
           {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </button>
+        {/* 桌面端头像按钮；移动端由底部 BottomNav「我的」Tab 替代 */}
         <button 
           onClick={() => setShowProfile(true)}
-          className="w-12 h-12 rounded-2xl bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 flex items-center justify-center text-primary shadow-2xl hover:scale-105 active:scale-95 transition-all group"
+          className="hidden md:flex w-12 h-12 rounded-2xl bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 items-center justify-center text-primary shadow-2xl hover:scale-105 active:scale-95 transition-all group"
         >
           <User size={20} className="group-hover:animate-pulse" />
         </button>
@@ -389,7 +391,7 @@ const GlobalNav: React.FC = () => {
               onClick={() => setShowProfile(false)}
               className="w-full py-3 text-center text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-neutral-500 transition-colors hover:text-gray-900 dark:hover:text-white"
             >
-              返回
+              关闭
             </button>
           </div>
         </div>

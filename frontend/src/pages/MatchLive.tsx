@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, ChevronLeft, Trophy, BarChart2, Swords, Target, Handshake, MapPin, Users } from 'lucide-react';
+import { Loader2, ChevronLeft, Trophy, BarChart2, Swords, Target, Handshake, MapPin, Users, Plus, Trash2 } from 'lucide-react';
 import apiClient from '../api/client';
 import { matchApi } from '../api/match';
 import type { StandingsVO, MatchStatsVO, MatchGame } from '../api/match';
+import { gameApi } from '../api/game';
 import dayjs from 'dayjs';
 import GameCard from '../components/GameCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
-import { Toast } from 'antd-mobile';
+import { Toast, CenterPopup } from 'antd-mobile';
 import useAuthStore from '../store/useAuthStore';
 import { cn } from '../lib/utils';
 
@@ -33,6 +34,11 @@ const MatchLive: React.FC = () => {
   const [standings, setStandings] = useState<StandingsVO | null>(null);
   const [stats, setStats] = useState<MatchStatsVO | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
+
+  const [showAddGameModal, setShowAddGameModal] = useState(false);
+  const [addGameTeamA, setAddGameTeamA] = useState<string>('');
+  const [addGameTeamB, setAddGameTeamB] = useState<string>('');
+  const [addGameLoading, setAddGameLoading] = useState(false);
 
   const [gameTab, setGameTab] = useState<GameTab>('PLAYING');
   const [statsTab, setStatsTab] = useState<StatsTab>('scorers');
@@ -83,6 +89,42 @@ const MatchLive: React.FC = () => {
     };
     return () => es.close();
   }, [id]);
+
+  /* ── Game management handlers ── */
+  const handleDeleteGame = async (gameId: number) => {
+    const confirmed = await showConfirm({
+      title: '删除场次',
+      content: '确定要删除这个还未开始的场次吗？',
+    });
+    if (!confirmed) return;
+    try {
+      await gameApi.deleteGame(gameId);
+      Toast.show({ icon: 'success', content: '场次已删除' });
+      const gamesData = await apiClient.get('/api/game/list', { params: { matchId: id } }) as MatchGame[];
+      setGames(gamesData ?? []);
+    } catch { }
+  };
+
+  const handleCreateGame = async () => {
+    if (!addGameTeamA || !addGameTeamB) {
+      Toast.show({ icon: 'fail', content: '请选择参赛队伍' });
+      return;
+    }
+    if (addGameTeamA === addGameTeamB) {
+      Toast.show({ icon: 'fail', content: '两支队伍不能相同' });
+      return;
+    }
+    setAddGameLoading(true);
+    try {
+      await gameApi.createGame(Number(id), Number(addGameTeamA), Number(addGameTeamB));
+      Toast.show({ icon: 'success', content: '场次已新建' });
+      setShowAddGameModal(false);
+      setAddGameTeamA('');
+      setAddGameTeamB('');
+      const gamesData = await apiClient.get('/api/game/list', { params: { matchId: id } }) as MatchGame[];
+      setGames(gamesData ?? []);
+    } catch { } finally { setAddGameLoading(false); }
+  };
 
   /* ── Derived ── */
   const playingGames = games.filter(g => g.status === 'PLAYING');
@@ -203,8 +245,9 @@ const MatchLive: React.FC = () => {
           <h2 className="text-xs font-black tracking-[0.18em] text-gray-500 dark:text-neutral-400">场次</h2>
         </div>
 
-        {/* Tab bar */}
-        <div className="mb-5 flex gap-1 rounded-2xl border border-gray-200 dark:border-white/6 bg-gray-100 dark:bg-white/[0.02] p-1">
+        {/* Tab bar + add game button */}
+        <div className="mb-5 flex items-center gap-2">
+        <div className="flex flex-1 gap-1 rounded-2xl border border-gray-200 dark:border-white/6 bg-gray-100 dark:bg-white/[0.02] p-1">
           {(['PLAYING', 'READY', 'FINISHED'] as GameTab[]).map(tab => (
             <button
               key={tab}
@@ -233,6 +276,15 @@ const MatchLive: React.FC = () => {
             </button>
           ))}
         </div>
+        {admin && match?.status === 'ONGOING' && (
+          <button
+            onClick={() => { setAddGameTeamA(''); setAddGameTeamB(''); setShowAddGameModal(true); }}
+            className="shrink-0 flex items-center gap-1.5 rounded-2xl border border-orange-400/30 bg-orange-500/[0.07] px-3 py-2.5 text-[11px] font-bold text-orange-500 dark:text-orange-400 transition-all hover:bg-orange-500/[0.12] active:scale-95"
+          >
+            <Plus size={13} /> 新增
+          </button>
+        )}
+        </div>
 
         {activeGames[gameTab].length === 0 ? (
           <div className="rounded-2xl border border-gray-200 dark:border-white/6 bg-gray-50 dark:bg-white/[0.02] py-12 text-center">
@@ -241,7 +293,20 @@ const MatchLive: React.FC = () => {
         ) : (
           <div className="flex flex-col gap-3">
             {activeGames[gameTab].map(game => (
-              <GameCard key={game.id} game={game} tNames={tNames} matchId={id!} />
+              <div key={game.id} className="flex items-center gap-2">
+                <div className="flex-1">
+                  <GameCard game={game} tNames={tNames} matchId={id!} />
+                </div>
+                {admin && game.status === 'READY' && (
+                  <button
+                    onClick={() => handleDeleteGame(game.id)}
+                    className="shrink-0 flex items-center justify-center h-11 w-11 rounded-2xl border border-red-200 dark:border-red-900/30 bg-red-50/60 dark:bg-red-950/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                    title="删除场次"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -369,6 +434,58 @@ const MatchLive: React.FC = () => {
           })()}
         </div>
       </section>
+
+      {/* Add Game Modal */}
+      <CenterPopup visible={showAddGameModal} onMaskClick={() => setShowAddGameModal(false)}>
+        <div className="p-5 w-[320px]">
+          <div className="mb-5">
+            <h3 className="text-base font-black text-gray-900 dark:text-white tracking-tight">新增场次</h3>
+            <p className="text-xs text-gray-400 dark:text-neutral-500 mt-1">选择参赛队伍</p>
+          </div>
+          <div className="flex flex-col gap-4 mb-5">
+            <div>
+              <label className="mb-1.5 block text-xs font-bold text-gray-500 dark:text-neutral-400">队伍 A</label>
+              <select
+                value={addGameTeamA}
+                onChange={e => setAddGameTeamA(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary/50"
+              >
+                <option value="">请选择</option>
+                {Object.entries(tNames).sort(([a], [b]) => Number(a) - Number(b)).map(([idx, name]) => (
+                  <option key={idx} value={idx}>{name as string}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-bold text-gray-500 dark:text-neutral-400">队伍 B</label>
+              <select
+                value={addGameTeamB}
+                onChange={e => setAddGameTeamB(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary/50"
+              >
+                <option value="">请选择</option>
+                {Object.entries(tNames).sort(([a], [b]) => Number(a) - Number(b)).map(([idx, name]) => (
+                  <option key={idx} value={idx}>{name as string}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button
+            onClick={handleCreateGame}
+            disabled={addGameLoading}
+            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/70 py-3.5 text-sm font-black text-black tracking-wide shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50"
+          >
+            {addGameLoading ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+            确认新增
+          </button>
+          <button
+            onClick={() => setShowAddGameModal(false)}
+            className="mt-3 w-full py-2.5 text-xs font-semibold text-gray-400 dark:text-neutral-500 transition-colors hover:text-gray-600 dark:hover:text-neutral-300"
+          >
+            取消
+          </button>
+        </div>
+      </CenterPopup>
     </div>
   );
 };

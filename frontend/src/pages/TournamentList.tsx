@@ -224,19 +224,19 @@ const TournamentList: React.FC = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     {isJoined ? (
                       <>
                         <button
                           onClick={() => handleEnter(t)}
-                          className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-black text-black transition-all hover:translate-y-[-1px] hover:shadow-lg hover:shadow-primary/25 active:translate-y-0"
+                          className="flex flex-1 min-w-[120px] items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-black text-black transition-all hover:translate-y-[-1px] hover:shadow-lg hover:shadow-primary/25 active:translate-y-0"
                         >
                           进入赛事中心
                           <ChevronRight size={16} />
                         </button>
                         <button
                           onClick={() => handleLeave(t.id)}
-                          className="flex items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-red-500/30 hover:text-red-500"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-red-500/30 hover:text-red-500"
                           title="退出赛事"
                         >
                           <LogOutIcon size={16} />
@@ -246,7 +246,7 @@ const TournamentList: React.FC = () => {
                       <button
                         onClick={() => handleJoin(t.id)}
                         disabled={joining === t.id}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-black text-primary transition-all hover:bg-primary/20 active:scale-[0.98] disabled:opacity-50"
+                        className="flex flex-1 min-w-[120px] items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-black text-primary transition-all hover:bg-primary/20 active:scale-[0.98] disabled:opacity-50"
                       >
                         <LogIn size={16} />
                         {joining === t.id ? '加入中...' : (t.joinMode === 'OPEN' ? '加入赛事' : '申请加入')}
@@ -255,7 +255,7 @@ const TournamentList: React.FC = () => {
                     {isTournamentAdmin(t.id) && (
                       <button
                         onClick={() => setMemberModalTournament(t)}
-                        className="flex items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-primary/30 hover:text-primary"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-primary/30 hover:text-primary"
                         title="管理成员"
                       >
                         <Users size={16} />
@@ -264,7 +264,7 @@ const TournamentList: React.FC = () => {
                     {isPlatformAdmin() && (
                       <button
                         onClick={() => setAdminModalTournament(t)}
-                        className="flex items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-primary/30 hover:text-primary"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-primary/30 hover:text-primary"
                         title="管理 Tournament Admin"
                       >
                         <UserCog size={16} />
@@ -274,7 +274,7 @@ const TournamentList: React.FC = () => {
                       <button
                         onClick={() => handleSoftDelete(t)}
                         disabled={deletingId === t.id}
-                        className="flex items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 px-4 py-3 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-red-500/30 hover:text-red-500 disabled:opacity-40"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 text-sm font-bold text-gray-400 dark:text-neutral-600 transition-all hover:border-red-500/30 hover:text-red-500 disabled:opacity-40"
                         title="删除 Tournament"
                       >
                         <Trash2 size={16} />

@@ -50,6 +50,12 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
   transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 底部安全区工具类（适配刘海屏 + 底部 Tab 高度） */
+.pb-safe {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
 
 /* 全局滚动条美化 */

@@ -447,18 +447,18 @@ const MatchPublish: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate(basePath)}
-          className="flex items-center text-gray-500 dark:text-neutral-500 hover:text-gray-900 dark:hover:text-white transition-colors font-bold mb-12 group"
+          className="flex items-center text-gray-500 dark:text-neutral-500 hover:text-gray-900 dark:hover:text-white transition-colors font-bold mb-6 sm:mb-12 group"
         >
           <ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" />
           返回赛事中心
         </button>
 
         {/* 页面标题 */}
-        <header className="mb-16">
+        <header className="mb-8 sm:mb-16">
           <div className="inline-flex items-center rounded-full border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-6">
             {isEditMode ? '赛事编辑' : '赛事发布'}
           </div>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter mb-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-6xl font-black tracking-tighter mb-4">
             {isEditMode ? '编辑' : '创建新'}
             <br />
             <span className="text-primary">比赛日程</span>

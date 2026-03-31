@@ -171,7 +171,7 @@ const MatchList: React.FC = () => {
           <div className="mb-4 inline-flex items-center rounded-full border border-gray-200 dark:border-white/8 bg-gray-100 dark:bg-white/[0.03] px-4 py-2 text-[10px] font-black tracking-[0.28em] text-primary">
             赛事中枢
           </div>
-          <h1 className="text-5xl font-black tracking-tighter text-gray-900 dark:text-white lg:text-7xl">赛事中心</h1>
+          <h1 className="text-3xl font-black tracking-tighter text-gray-900 dark:text-white sm:text-5xl lg:text-7xl">赛事中心</h1>
           <p className="mt-5 max-w-xl text-sm font-medium leading-7 text-gray-500 dark:text-neutral-500 sm:text-[15px]">
             聚焦报名中与比赛中的关键赛事，快速进入详情、查看费用与进度，减少无效浏览与重复操作。
           </p>
@@ -317,12 +317,12 @@ const MatchList: React.FC = () => {
                         {admin && (
                           <button
                             onClick={(e) => handleDeleteMatch(e, match.id)}
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-red-500/15 bg-red-500/[0.06] text-red-400/80 transition-all hover:border-red-500/30 hover:bg-red-500/[0.12] hover:text-red-400 active:scale-95"
+                            className="flex h-11 w-11 items-center justify-center rounded-full border border-red-500/15 bg-red-500/[0.06] text-red-400/80 transition-all hover:border-red-500/30 hover:bg-red-500/[0.12] hover:text-red-400 active:scale-95"
                           >
                             <Trash2 size={13} />
                           </button>
                         )}
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] text-gray-400 dark:text-neutral-600 transition-all duration-300 group-hover:border-primary/20 group-hover:bg-primary/[0.08] group-hover:text-primary">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/[0.03] text-gray-400 dark:text-neutral-600 transition-all duration-300 group-hover:border-primary/20 group-hover:bg-primary/[0.08] group-hover:text-primary">
                           <ChevronRight size={16} className="transition-transform duration-300 group-hover:translate-x-0.5" />
                         </span>
                       </div>
