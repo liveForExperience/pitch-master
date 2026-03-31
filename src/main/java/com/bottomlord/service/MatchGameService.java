@@ -133,4 +133,40 @@ public interface MatchGameService extends IService<MatchGame> {
      * @return 参赛球员列表
      */
     List<GameParticipant> listParticipants(Long gameId);
+
+    /**
+     * 撤销进球记录（Admin-only）
+     * <p>撤销成功后自动递减对应队伍比分，并广播 SSE。</p>
+     *
+     * @param goalId 进球记录ID
+     */
+    void deleteGoal(Long goalId);
+
+    /**
+     * 修改场次开始/结束时间（Admin-only）
+     * <p>适用于 PLAYING 和 FINISHED 状态的场次。</p>
+     *
+     * @param gameId    场次ID
+     * @param startTime 新的开始时间（null 表示不修改）
+     * @param endTime   新的结束时间（null 表示不修改）
+     */
+    void updateGameTimes(Long gameId, java.time.LocalDateTime startTime, java.time.LocalDateTime endTime);
+
+    /**
+     * 删除未开始的场次（Admin-only）
+     * <p>仅允许删除 READY 状态的场次，级联清除参赛人员记录。</p>
+     *
+     * @param gameId 场次ID
+     */
+    void deleteGame(Long gameId);
+
+    /**
+     * 在进行中的赛事中手动新建场次（Admin-only）
+     *
+     * @param matchId    所属赛事ID
+     * @param teamAIndex A队序号
+     * @param teamBIndex B队序号
+     * @return 新建的场次
+     */
+    MatchGame createGame(Long matchId, Integer teamAIndex, Integer teamBIndex);
 }

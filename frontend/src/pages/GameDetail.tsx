@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Toast } from 'antd-mobile';
-import { ChevronLeft, Target, Zap, Clock, Flag, Trophy, User } from 'lucide-react';
+import { ChevronLeft, Target, Zap, Clock, Flag, Trophy, User, Pencil, Trash2 } from 'lucide-react';
 import { gameApi } from '../api/game';
 import type { GameDetailVO, ParticipantInfo, RecordGoalRequest } from '../api/game';
+import useAuthStore from '../store/useAuthStore';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '../components/ui/dialog';
@@ -39,9 +40,16 @@ export default function GameDetail() {
     return () => clearInterval(timer);
   }, []);
 
+  const { isAdmin } = useAuthStore();
+  const admin = isAdmin();
+
   const [showStartModal, setShowStartModal] = useState(false);
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [timeInput, setTimeInput] = useState('');
+
+  const [showTimeEditModal, setShowTimeEditModal] = useState(false);
+  const [timeEditStart, setTimeEditStart] = useState('');
+  const [timeEditEnd, setTimeEditEnd] = useState('');
 
   const toLocalIsoString = (date: Date) => {
     const tzOffset = date.getTimezoneOffset() * 60000;
@@ -188,6 +196,45 @@ export default function GameDetail() {
     setGoalDraft({ teamIndex: 0, type: null, scorer: null });
   };
 
+  const handleDeleteGoal = async (goalId: number) => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    try {
+      await gameApi.deleteGoal(goalId);
+      Toast.show({ icon: 'success', content: '进球已撤销' });
+      await fetchGame();
+    } catch (e: unknown) {
+      Toast.show({ icon: 'fail', content: e instanceof Error ? e.message : '操作失败' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openTimeEditModal = () => {
+    setTimeEditStart(game?.startTime ? toLocalIsoString(new Date(game.startTime)) : '');
+    setTimeEditEnd(game?.endTime ? toLocalIsoString(new Date(game.endTime)) : '');
+    setShowTimeEditModal(true);
+  };
+
+  const confirmTimeEdit = async () => {
+    if (!gameId || actionLoading) return;
+    setActionLoading(true);
+    try {
+      const fmt = (v: string) => v.length === 16 ? v + ':00' : v;
+      await gameApi.updateTimes(
+        gameId,
+        timeEditStart ? fmt(timeEditStart) : undefined,
+        timeEditEnd ? fmt(timeEditEnd) : undefined,
+      );
+      setShowTimeEditModal(false);
+      await fetchGame();
+    } catch (e: unknown) {
+      Toast.show({ icon: 'fail', content: e instanceof Error ? e.message : '操作失败' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) return (
     <div className="flex h-[60vh] items-center justify-center">
       <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -329,6 +376,11 @@ export default function GameDetail() {
                 <span className="text-[10px] font-mono text-gray-400 dark:text-neutral-600 whitespace-nowrap">
                   {formatTime(game.startTime)}~{formatTime(game.endTime)}
                 </span>
+                {admin && (
+                  <button onClick={openTimeEditModal} className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-primary/70 hover:text-primary transition-colors">
+                    <Pencil size={10} /> 改时间
+                  </button>
+                )}
               </div>
               {/* Team B */}
               <div className="flex flex-1 flex-col items-center gap-2">
@@ -371,7 +423,7 @@ export default function GameDetail() {
           )}
 
           {/* Goal log */}
-          <GoalLog goals={game.goals} game={game} />
+          <GoalLog goals={game.goals} game={game} isAdmin={admin} onDeleteGoal={handleDeleteGoal} />
 
           {/* Overtime */}
           <div className="rounded-2xl border border-gray-200 dark:border-white/6 bg-white dark:bg-white/[0.02] px-5 py-4">
@@ -437,10 +489,17 @@ export default function GameDetail() {
               </div>
               <div className="shrink-0 flex flex-col items-center gap-1 px-2">
                 <span className="text-2xl font-black text-gray-300 dark:text-neutral-700">:</span>
-                <span className="text-[9px] font-mono text-gray-400 dark:text-neutral-600 whitespace-nowrap">
-                  {formatTime(game.startTime)} — {formatTime(game.endTime)}
-                  {(game.overtimeMinutes ?? 0) > 0 && ` +${game.overtimeMinutes}'`}
-                </span>
+          <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-mono text-gray-400 dark:text-neutral-600 whitespace-nowrap">
+                    {formatTime(game.startTime)} — {formatTime(game.endTime)}
+                    {(game.overtimeMinutes ?? 0) > 0 && ` +${game.overtimeMinutes}'`}
+                  </span>
+                  {admin && (
+                    <button onClick={openTimeEditModal} className="flex items-center gap-1 text-[10px] font-semibold text-primary/70 hover:text-primary transition-colors">
+                      <Pencil size={10} /> 改时间
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex-1 text-center">
                 <div className={cn('mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border', scoreB > scoreA ? 'border-primary/30 bg-primary/10' : 'border-gray-200 dark:border-white/6 bg-gray-100 dark:bg-white/[0.04]')}>
@@ -452,7 +511,33 @@ export default function GameDetail() {
             </div>
           </div>
 
-          <GoalLog goals={game.goals} game={game} />
+          {/* Admin: supplement goal buttons for FINISHED games */}
+          {admin && goalStep === 'idle' && (
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => beginGoalFlow(game.teamAIndex)}
+                disabled={actionLoading}
+                className="group relative overflow-hidden rounded-2xl border border-sky-500/20 bg-sky-500/[0.05] py-3.5 text-sm font-bold text-sky-600 dark:text-sky-400 transition-all hover:border-sky-500/35 hover:bg-sky-500/[0.10] active:scale-[0.97] disabled:opacity-40"
+              >
+                <div className="flex items-center justify-center gap-1.5">
+                  <Target size={13} />
+                  {nameA} 补录进球
+                </div>
+              </button>
+              <button
+                onClick={() => beginGoalFlow(game.teamBIndex)}
+                disabled={actionLoading}
+                className="group relative overflow-hidden rounded-2xl border border-orange-500/20 bg-orange-500/[0.05] py-3.5 text-sm font-bold text-orange-600 dark:text-orange-400 transition-all hover:border-orange-500/35 hover:bg-orange-500/[0.10] active:scale-[0.97] disabled:opacity-40"
+              >
+                <div className="flex items-center justify-center gap-1.5">
+                  <Target size={13} />
+                  {nameB} 补录进球
+                </div>
+              </button>
+            </div>
+          )}
+
+          <GoalLog goals={game.goals} game={game} isAdmin={admin} onDeleteGoal={handleDeleteGoal} />
 
           <div className="grid grid-cols-2 gap-3">
             <ParticipantStats title={nameA} participants={game.teamAParticipants} />
@@ -538,6 +623,38 @@ export default function GameDetail() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Times Dialog ── */}
+      <Dialog open={showTimeEditModal} onOpenChange={setShowTimeEditModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>修改比赛时间</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-bold text-gray-500 dark:text-neutral-400">开始时间</label>
+              <input
+                type="datetime-local"
+                value={timeEditStart}
+                onChange={e => setTimeEditStart(e.target.value)}
+                className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary/50 w-full"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-bold text-gray-500 dark:text-neutral-400">结束时间</label>
+              <input
+                type="datetime-local"
+                value={timeEditEnd}
+                onChange={e => setTimeEditEnd(e.target.value)}
+                className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/[0.04] px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-primary/50 w-full"
+              />
+            </div>
+            <Button variant="primary" size="lg" className="w-full" onClick={confirmTimeEdit} disabled={actionLoading}>
+              <Pencil size={15} /> 保存修改
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -666,7 +783,12 @@ function ScorerList({ participants, onSelect }: {
   );
 }
 
-function GoalLog({ goals, game }: { goals: GameDetailVO['goals']; game: GameDetailVO }) {
+function GoalLog({ goals, game, isAdmin, onDeleteGoal }: {
+  goals: GameDetailVO['goals'];
+  game: GameDetailVO;
+  isAdmin?: boolean;
+  onDeleteGoal?: (goalId: number) => void;
+}) {
   if (!goals || goals.length === 0) return null;
   const tName = (idx: number) => game.teamNames?.[idx] ?? `第${idx + 1}队`;
 
@@ -706,9 +828,18 @@ function GoalLog({ goals, game }: { goals: GameDetailVO['goals']; game: GameDeta
                     <span className="text-xs text-gray-400 dark:text-neutral-600">↪ {g.assistantName}</span>
                   )}
                   {g.occurredAt && (
-                    <span className="ml-auto text-[10px] font-mono text-gray-400 dark:text-neutral-600">
+                    <span className="text-[10px] font-mono text-gray-400 dark:text-neutral-600">
                       {new Date(g.occurredAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
                     </span>
+                  )}
+                  {isAdmin && onDeleteGoal && (
+                    <button
+                      onClick={() => onDeleteGoal(g.goalId)}
+                      className="ml-auto flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full hover:bg-red-500/15 text-gray-300 dark:text-neutral-700 hover:text-red-400 transition-colors"
+                      title="撤销进球"
+                    >
+                      <Trash2 size={11} />
+                    </button>
                   )}
                 </div>
               </div>

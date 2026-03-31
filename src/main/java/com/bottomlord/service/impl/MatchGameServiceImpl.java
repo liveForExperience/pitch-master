@@ -403,4 +403,81 @@ public class MatchGameServiceImpl extends ServiceImpl<MatchGameMapper, MatchGame
     public List<GameParticipant> listParticipants(Long gameId) {
         return participantService.listByGameId(gameId);
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteGoal(Long goalId) {
+        if (!isAdmin()) throw new IllegalStateException("无权限操作");
+        MatchGoal goal = goalService.getById(goalId);
+        if (goal == null) throw new IllegalArgumentException("进球记录不存在");
+        MatchGame game = this.getById(goal.getGameId());
+        if (game == null) throw new IllegalArgumentException("场次不存在");
+
+        goalService.removeById(goalId);
+
+        if (goal.getTeamIndex().equals(game.getTeamAIndex())) {
+            game.setScoreA(Math.max(0, game.getScoreA() - 1));
+        } else if (goal.getTeamIndex().equals(game.getTeamBIndex())) {
+            game.setScoreB(Math.max(0, game.getScoreB() - 1));
+        }
+        game.setUpdatedBy(getCurrentUserId());
+        this.updateById(game);
+        logAndBroadcast(game, "GOAL_REVOKED");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateGameTimes(Long gameId, LocalDateTime startTime, LocalDateTime endTime) {
+        if (!isAdmin()) throw new IllegalStateException("无权限操作");
+        MatchGame game = this.getById(gameId);
+        if (game == null) throw new IllegalArgumentException("场次不存在");
+        if ("READY".equals(game.getStatus())) throw new IllegalStateException("场次尚未开始，无法修改时间");
+
+        if (startTime != null) game.setStartTime(startTime);
+        if (endTime != null) game.setEndTime(endTime);
+        game.setUpdatedBy(getCurrentUserId());
+        this.updateById(game);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteGame(Long gameId) {
+        if (!isAdmin()) throw new IllegalStateException("无权限操作");
+        MatchGame game = this.getById(gameId);
+        if (game == null) throw new IllegalArgumentException("场次不存在");
+        if (!"READY".equals(game.getStatus())) throw new IllegalStateException("只能删除尚未开始的场次");
+
+        participantService.remove(new LambdaQueryWrapper<GameParticipant>()
+                .eq(GameParticipant::getGameId, gameId));
+        this.removeById(gameId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public MatchGame createGame(Long matchId, Integer teamAIndex, Integer teamBIndex) {
+        if (!isAdmin()) throw new IllegalStateException("无权限操作");
+        Match match = matchService.getById(matchId);
+        if (match == null) throw new IllegalArgumentException("赛事不存在");
+        if (!Match.STATUS_ONGOING.equals(match.getStatus())) {
+            throw new IllegalStateException("只能在进行中的赛事中新建场次");
+        }
+        if (teamAIndex.equals(teamBIndex)) throw new IllegalArgumentException("两支队伍不能相同");
+
+        Integer maxIndex = this.list(new LambdaQueryWrapper<MatchGame>()
+                .eq(MatchGame::getMatchId, matchId)
+                .orderByDesc(MatchGame::getGameIndex)
+                .last("LIMIT 1"))
+                .stream().map(MatchGame::getGameIndex).findFirst().orElse(-1);
+
+        MatchGame game = new MatchGame();
+        game.setMatchId(matchId);
+        game.setTeamAIndex(teamAIndex);
+        game.setTeamBIndex(teamBIndex);
+        game.setStatus("READY");
+        game.setGameIndex(maxIndex + 1);
+        game.setCreatedBy(getCurrentUserId());
+        game.setUpdatedBy(getCurrentUserId());
+        this.save(game);
+        return game;
+    }
 }

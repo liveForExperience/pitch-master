@@ -74,4 +74,16 @@ export const gameApi = {
 
   removeParticipant: (gameId: number | string, playerId: number): Promise<void> =>
     apiClient.delete(`/api/game/${gameId}/participants/${playerId}`),
+
+  deleteGoal: (goalId: number): Promise<void> =>
+    apiClient.delete(`/api/game/goal/${goalId}`),
+
+  updateTimes: (gameId: number | string, startTime?: string, endTime?: string): Promise<void> =>
+    apiClient.patch(`/api/game/${gameId}/times`, { startTime, endTime }),
+
+  deleteGame: (gameId: number | string): Promise<void> =>
+    apiClient.delete(`/api/game/${gameId}`),
+
+  createGame: (matchId: number | string, teamAIndex: number, teamBIndex: number): Promise<void> =>
+    apiClient.post('/api/game', { matchId, teamAIndex, teamBIndex }),
 };

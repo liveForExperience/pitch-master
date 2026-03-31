@@ -102,6 +102,10 @@
 | `/{gameId}/lock` | POST | 获取比分修改锁 | 冲突返回 409 |
 | `/{gameId}/unlock` | POST | 释放修改锁 | 无 |
 | `/{gameId}/logs` | GET | 获取比分变更审计日志 | 按时间倒序返回 |
+| `/goal/{goalId}` | DELETE | 撤销进球记录（Admin-only） | 自动递减对应队伍比分，广播 SSE；适用于 PLAYING/FINISHED 状态 |
+| `/{gameId}/times` | PATCH | 修改场次开始/结束时间（Admin-only） | Body: `{ startTime?, endTime? }`（ISO 8601 LocalDateTime）；适用于 PLAYING/FINISHED 状态 |
+| `/{gameId}` | DELETE | 删除未开始场次（Admin-only） | 仅限 READY 状态；级联删除参赛人员 |
+| `/` | POST | 手动新建场次（Admin-only） | Body: `{ matchId, teamAIndex, teamBIndex }`；赛事须为 ONGOING 状态 |
 
 ## 5. 球员与评分模块 (Player & Rating)
 基础路径: `/api`

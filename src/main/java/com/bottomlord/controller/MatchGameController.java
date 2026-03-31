@@ -101,4 +101,40 @@ public class MatchGameController {
         matchGameService.removeParticipant(gameId, playerId);
         return Result.success();
     }
+
+    @DeleteMapping("/goal/{goalId}")
+    public Result<Void> deleteGoal(@PathVariable Long goalId) {
+        matchGameService.deleteGoal(goalId);
+        return Result.success();
+    }
+
+    @PatchMapping("/{gameId}/times")
+    public Result<Void> updateGameTimes(@PathVariable Long gameId, @RequestBody java.util.Map<String, String> body) {
+        java.time.LocalDateTime startTime = null;
+        java.time.LocalDateTime endTime = null;
+        if (body != null) {
+            if (body.containsKey("startTime") && body.get("startTime") != null && !body.get("startTime").isEmpty()) {
+                startTime = java.time.LocalDateTime.parse(body.get("startTime"));
+            }
+            if (body.containsKey("endTime") && body.get("endTime") != null && !body.get("endTime").isEmpty()) {
+                endTime = java.time.LocalDateTime.parse(body.get("endTime"));
+            }
+        }
+        matchGameService.updateGameTimes(gameId, startTime, endTime);
+        return Result.success();
+    }
+
+    @DeleteMapping("/{gameId}")
+    public Result<Void> deleteGame(@PathVariable Long gameId) {
+        matchGameService.deleteGame(gameId);
+        return Result.success();
+    }
+
+    @PostMapping
+    public Result<MatchGame> createGame(@RequestBody java.util.Map<String, Object> body) {
+        Long matchId = Long.valueOf(body.get("matchId").toString());
+        Integer teamAIndex = Integer.valueOf(body.get("teamAIndex").toString());
+        Integer teamBIndex = Integer.valueOf(body.get("teamBIndex").toString());
+        return Result.success(matchGameService.createGame(matchId, teamAIndex, teamBIndex));
+    }
 }
