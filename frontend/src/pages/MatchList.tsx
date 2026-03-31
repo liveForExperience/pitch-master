@@ -215,6 +215,18 @@ const MatchList: React.FC = () => {
         </div>
       </section>
 
+      {admin && (
+        <div className="relative z-10 mx-auto mb-3 flex max-w-5xl justify-end md:hidden">
+          <button
+            onClick={() => navigate(`${basePath}/trash`)}
+            className="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-neutral-800 bg-gray-100 dark:bg-neutral-900 px-4 py-2 text-sm font-bold text-gray-500 dark:text-neutral-400 transition-all hover:border-gray-300 dark:hover:border-neutral-700 hover:text-gray-900 dark:hover:text-white"
+          >
+            <Trash2 size={14} />
+            回收站
+          </button>
+        </div>
+      )}
+
       <section className="relative z-10 mx-auto mb-7 flex max-w-5xl flex-wrap gap-2.5">
         {filterOptions.filter(o => !o.adminOnly || admin).map((option) => {
           const active = option.key === activeFilter;
