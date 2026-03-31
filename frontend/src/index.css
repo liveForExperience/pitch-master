@@ -42,6 +42,8 @@
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -51,6 +53,9 @@ body {
   overflow-x: hidden;
   transition: background-color 0.2s ease, color 0.2s ease;
   -webkit-overflow-scrolling: touch;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
 /* 底部安全区工具类（适配刘海屏 + 底部 Tab 高度） */
