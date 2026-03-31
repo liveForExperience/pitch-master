@@ -404,6 +404,7 @@ const MatchPublish: React.FC = () => {
         plannedGameCount: form.plannedGameCount,
         durationPerGame: form.durationPerGame,
         totalCost: form.totalCost ? Number(form.totalCost) : 0,
+        tournamentId: tournamentId ? Number(tournamentId) : undefined,
       };
 
       if (isEditMode && id) {

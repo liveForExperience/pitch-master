@@ -73,37 +73,56 @@ const RegistrationPoster: React.FC<RegistrationPosterProps> = ({
           </div>
 
           {/* Stats cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-            {/* Registered count */}
-            <div style={{
-              borderRadius: 16, border: `1px solid ${t.border}`,
-              backgroundColor: t.card, padding: '14px 12px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
-                已报名
-              </div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: t.accent, lineHeight: 1 }}>
-                {registeredCount}
-              </div>
-              {totalCapacity > 0 && (
-                <div style={{ fontSize: 10, color: t.textMuted, marginTop: 4 }}>
-                  / {totalCapacity} 人
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {/* Registered count */}
+              <div style={{
+                borderRadius: 16, border: `1px solid ${t.border}`,
+                backgroundColor: t.card, padding: '14px 12px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
+                  已报名
                 </div>
-              )}
+                <div style={{ fontSize: 28, fontWeight: 900, color: t.accent, lineHeight: 1 }}>
+                  {registeredCount}
+                </div>
+                {totalCapacity > 0 && (
+                  <div style={{ fontSize: 10, color: t.textMuted, marginTop: 4 }}>
+                    / {totalCapacity} 人
+                  </div>
+                )}
+              </div>
+
+              {/* Format */}
+              <div style={{
+                borderRadius: 16, border: `1px solid ${t.border}`,
+                backgroundColor: t.card, padding: '14px 12px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
+                  比赛场次
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: t.textPrimary, lineHeight: 1 }}>
+                  {match?.plannedGameCount ?? '-'}
+                </div>
+                <div style={{ fontSize: 10, color: t.textMuted, marginTop: 4 }}>场</div>
+              </div>
             </div>
 
-            {/* Format */}
+            {/* Registration status card (full-width) */}
             <div style={{
-              borderRadius: 16, border: `1px solid ${t.border}`,
-              backgroundColor: t.card, padding: '14px 12px', textAlign: 'center',
+              borderRadius: 16,
+              border: `1px solid ${match?.status === 'PUBLISHED' ? t.accentBorder : t.border}`,
+              backgroundColor: match?.status === 'PUBLISHED' ? t.accentBg : t.card,
+              padding: '12px 16px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
-                比赛场次
+              <div style={{ fontSize: 9, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                报名状态
               </div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: t.textPrimary, lineHeight: 1 }}>
-                {match?.plannedGameCount ?? '-'}
+              <div style={{ width: 1, height: 12, backgroundColor: t.divider }} />
+              <div style={{ fontSize: 13, fontWeight: 800, color: match?.status === 'PUBLISHED' ? t.accentText : t.textMuted }}>
+                {match?.status === 'PUBLISHED' ? '🟢 开放报名中' : '🔴 报名已截止'}
               </div>
-              <div style={{ fontSize: 10, color: t.textMuted, marginTop: 4 }}>场</div>
             </div>
           </div>
 
@@ -126,30 +145,6 @@ const RegistrationPoster: React.FC<RegistrationPosterProps> = ({
               </div>
             </div>
           )}
-
-          {/* CTA badge */}
-          <div style={{
-            borderRadius: 12, border: `1px solid ${t.accentBorder}`,
-            backgroundColor: t.accentBg, padding: '12px 16px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            marginBottom: 24,
-          }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: t.accentText, letterSpacing: '0.08em', marginBottom: 2 }}>
-                报名状态
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: t.accentText }}>
-                {match?.status === 'PUBLISHED' ? '🟢 开放报名中' : '🔴 报名已截止'}
-              </div>
-            </div>
-            <div style={{
-              fontSize: 10, fontWeight: 900, color: isNight ? '#000' : '#fff',
-              backgroundColor: t.accent, borderRadius: 8, padding: '6px 12px',
-              letterSpacing: '0.06em',
-            }}>
-              扫码报名
-            </div>
-          </div>
 
           {/* Footer */}
           <div style={{

@@ -19,9 +19,9 @@ const formatPosterDate = (value: string | number | Date) => {
   };
 };
 
-type MatchFilterKey = 'FOCUS' | 'ALL' | 'PUBLISHED' | 'ONGOING' | 'MATCH_FINISHED';
+type MatchFilterKey = 'FOCUS' | 'ALL' | 'PREPARING' | 'PUBLISHED' | 'ONGOING' | 'MATCH_FINISHED';
 const DEFAULT_FILTER: MatchFilterKey = 'FOCUS';
-const MATCH_FILTER_KEYS: MatchFilterKey[] = ['FOCUS', 'ALL', 'PUBLISHED', 'ONGOING', 'MATCH_FINISHED'];
+const MATCH_FILTER_KEYS: MatchFilterKey[] = ['FOCUS', 'ALL', 'PREPARING', 'PUBLISHED', 'ONGOING', 'MATCH_FINISHED'];
 
 const parseFilterFromQuery = (value: string | null): MatchFilterKey => {
   if (!value) return DEFAULT_FILTER;
@@ -112,13 +112,14 @@ const MatchList: React.FC = () => {
 
   const statusSummary = matches.reduce(
     (summary, match) => {
-      if (match.status === 'PUBLISHED') summary.published += 1;
+      if (match.status === 'PREPARING') summary.preparing += 1;
+      else if (match.status === 'PUBLISHED') summary.published += 1;
       else if (match.status === 'REGISTRATION_CLOSED') summary.grouping += 1;
       else if (match.status === 'ONGOING') summary.ongoing += 1;
       else if (match.status === 'MATCH_FINISHED') summary.finished += 1;
       return summary;
     },
-    { published: 0, grouping: 0, ongoing: 0, finished: 0 }
+    { preparing: 0, published: 0, grouping: 0, ongoing: 0, finished: 0 }
   );
 
   const sortedMatches = useMemo(() => {
@@ -141,14 +142,18 @@ const MatchList: React.FC = () => {
   const filteredMatches = useMemo(() => {
     if (activeFilter === 'ALL') return sortedMatches;
     if (activeFilter === 'FOCUS') {
-      return sortedMatches.filter((match) => ['PUBLISHED', 'ONGOING'].includes(match.status));
+      const focusStatuses = admin
+        ? ['PREPARING', 'PUBLISHED', 'ONGOING']
+        : ['PUBLISHED', 'ONGOING'];
+      return sortedMatches.filter((match) => focusStatuses.includes(match.status));
     }
     return sortedMatches.filter((match) => match.status === activeFilter);
-  }, [activeFilter, sortedMatches]);
+  }, [activeFilter, sortedMatches, admin]);
 
-  const filterOptions: Array<{ key: MatchFilterKey; label: string; count: number }> = [
-    { key: 'FOCUS', label: '关注中', count: statusSummary.published + statusSummary.ongoing },
+  const filterOptions: Array<{ key: MatchFilterKey; label: string; count: number; adminOnly?: boolean }> = [
+    { key: 'FOCUS', label: '关注中', count: statusSummary.published + statusSummary.ongoing + (admin ? statusSummary.preparing : 0) },
     { key: 'ALL', label: '全部', count: matches.length },
+    { key: 'PREPARING', label: '筹备中', count: statusSummary.preparing, adminOnly: true },
     { key: 'PUBLISHED', label: '报名中', count: statusSummary.published },
     { key: 'ONGOING', label: '比赛中', count: statusSummary.ongoing },
     { key: 'MATCH_FINISHED', label: '已结束', count: statusSummary.finished },
@@ -211,7 +216,7 @@ const MatchList: React.FC = () => {
       </section>
 
       <section className="relative z-10 mx-auto mb-7 flex max-w-5xl flex-wrap gap-2.5">
-        {filterOptions.map((option) => {
+        {filterOptions.filter(o => !o.adminOnly || admin).map((option) => {
           const active = option.key === activeFilter;
           return (
             <button
@@ -351,7 +356,7 @@ const MatchList: React.FC = () => {
       {admin && (
         <FloatingBubble
           className="md:hidden"
-          style={{ '--initial-position-bottom': '40px', '--initial-position-right': '24px', '--background': '#1DB954' }}
+          style={{ '--initial-position-bottom': '40px', '--initial-position-right': '24px', '--background': '#1DB954', '--z-index': '1000' }}
           onClick={() => navigate(`${basePath}/publish`)}
         >
           <Plus size={24} color="white" />
