@@ -235,11 +235,15 @@ jobs:
 
 ---
 
-## 8. 现状（Phase 0 末）
+## 8. 现状（Phase 0 末已落地）
 
-- ✅ ECS 上 v1 已彻底下线，端口 80 由 Nginx 占用但无 site
+- ✅ ECS 上 v1 已彻底下线
 - ✅ GitHub 远端 `https://github.com/liveForExperience/pitch-master.git` 可写
-- ⬜ 上述所有 ECS 一次性准备工作均未执行
-- ⬜ 本文件描述的 GitHub Actions 与 systemd 单元均未创建
+- ✅ ECS 已 bootstrap（Node 22 / `/opt/pitchmaster-v2/` 目录 / deploy key / systemd unit enabled）
+- ✅ Nginx site `pitchmaster-v2.conf` 已落地，`/api/* → :3000`，`/` → `current/web/dist`
+- ✅ GitHub Actions workflow `.github/workflows/deploy.yml` 已写入
+- ✅ ADR-0007 已签发
+- ⬜ GitHub Secrets 4 项待用户在仓库设置
+- ⬜ 首次 push 触发部署待验证
 
-**预计实施时机**：Phase 1 MVP（首批 API 通） 完成后立即推进 Phase 3 准备，以便 Phase 1 验收阶段就能跑在 ECS 上做真机调试。
+> ADR-0007（2026-06-19）决定将部署链路从 Phase 3 提前到 Phase 0 末实施。

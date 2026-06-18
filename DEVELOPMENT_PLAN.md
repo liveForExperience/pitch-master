@@ -358,6 +358,35 @@
 
 下一步：进入 Phase 1。先实现 T1.1（Drizzle schema + 5 张表 + 迁移）打地基。
 
+### 2026-06-19 · Phase 0 增补 · 部署链路提前落地（ADR-0007，进行中）
+
+需求方决定不等 Phase 3，把 GitHub → ECS 部署链路提前到 Phase 0 末实施，理由是越早让 ECS 跑起来越早暴露真机问题。详见 ADR-0007。
+
+本次完成：
+
+| 步骤 | 动作 | 结果 |
+|---|---|---|
+| 1 | 本地生成 `~/.ssh/pitchmaster_deploy` ed25519 keypair（专用） | OK |
+| 2 | 写 `deploy/systemd/pitchmaster-v2.service`（systemd unit，含资源限制 400M / 沙箱化） | OK |
+| 3 | 写 `deploy/scripts/deploy-receive.sh`（解包 → symlink 切换 → restart → 15 次健康检查 → 失败回滚） | OK |
+| 4 | 写 `deploy/scripts/ecs-bootstrap.sh`（一次性初始化，幂等） | OK |
+| 5 | 写 `.github/workflows/deploy.yml`（main push 自动触发；typecheck + test + build + scp + ssh deploy + public health 验证） | OK |
+| 6 | 写 `deploy/nginx/pitchmaster-v2.conf`（`/api/* → :3000`，其余 → web/dist + SPA fallback） | OK |
+| 7 | scp `deploy/` 整目录到 ECS，跑 bootstrap：装 Node 22（满足 >=20）/ 建目录 / 装 deploy key（带 5 项限制） / 装 systemd unit / enable | OK |
+| 8 | 用 deploy key 登录 ECS 验证 `whoami` + `ls /opt/pitchmaster-v2/` | OK，登录通 |
+| 9 | 把 Nginx site 落上 ECS，注释掉 `/etc/nginx/nginx.conf` 默认 server 块，reload nginx | OK，无冲突警告 |
+| 10 | 公网验收：`curl http://8.153.145.81/` 与 `/api/health` 分别返回 500、502（预期，因 web/dist 尚无、backend 未启动） | OK，链路通 |
+
+待用户配合：在 GitHub 仓库 Settings → Secrets and variables → Actions 设置 4 个 secret：
+- `DEPLOY_SSH_KEY` = `~/.ssh/pitchmaster_deploy` 全文
+- `DEPLOY_HOST` = `8.153.145.81`
+- `DEPLOY_USER` = `root`
+- `DEPLOY_KNOWN_HOSTS` = `ssh-keyscan 8.153.145.81` 输出
+
+配置完成后 push 任意代码到 main 即可触发部署，预期最终：
+- `curl http://8.153.145.81/api/health` → `{"status":"ok",...}`
+- 浏览器访问 `http://8.153.145.81/` → 看到 hello-world 脚手架页（"PitchMaster v2 · 球场速记 · 脚手架就绪"）
+
 ---
 
 ## 6. 签署

@@ -1,0 +1,35 @@
+[Unit]
+Description=PitchMaster v2 (Node + Hono)
+Documentation=https://github.com/liveForExperience/pitch-master
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/pitchmaster-v2/current
+EnvironmentFile=-/opt/pitchmaster-v2/shared/.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOST=127.0.0.1
+ExecStart=/usr/bin/node backend/dist/index.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+
+# Sandbox hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/pitchmaster /opt/pitchmaster-v2
+
+# Resource limits (1.8 GiB box, leave headroom)
+MemoryMax=400M
+LimitNOFILE=4096
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pitchmaster-v2
+
+[Install]
+WantedBy=multi-user.target
