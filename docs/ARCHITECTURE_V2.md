@@ -248,8 +248,10 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | POST | `/api/games/:id/events/batch` | Admin | 批量事件（离线 replay） |
 | DELETE | `/api/games/:id/events/:eventId` | Admin | 撤销事件（写入 UNDO 而非物理删除） |
 | GET | `/api/games/:id/stream` | 公开 | SSE 订阅 |
-| GET | `/api/events/:id/report` | 公开 | H5 战报数据 JSON |
-| GET | `/api/events/:id/poster.png` | 公开 | 渲染海报 |
+| GET | `/api/games/:id/report` | 公开 | 单场战报数据 JSON（比分 + 进球流水 + 单场 MVP） |
+| GET | `/api/games/:id/poster.png` | 公开 | 单场海报（PNG） |
+| GET | `/api/events/:id/report?topN=5` | 公开 | 活动战报数据 JSON（场次结果 + 积分榜 + 射手榜 + 助攻榜 + 活动 MVP），`topN` 默认 5、范围 1-20 |
+| GET | `/api/events/:id/poster.png?topN=5` | 公开 | 活动海报（PNG，长图自适应高度），`topN` 同上 |
 | GET | `/healthz` | 公开 | `{ok:true, version, uptime}` |
 
 ### 4.3 关键请求/响应样例
@@ -381,60 +383,278 @@ worker.flush():
 
 ## 7. 战报渲染
 
-### 7.1 H5 战报（路由）
+> 战报与 §8 的 UI 设计令牌**同源**——海报由 satori 渲染 React 组件，组件直接消费 Tailwind 等价的样式表达，确保"分享图 / 在线 H5 / App 内页面"三处视觉完全一致。任何对 §8 设计令牌的修改自动传导到战报。
 
-`/events/:shortCode/report`：纯 React 页面，从 `GET /api/events/:id/report` 拉数据渲染。
+### 7.1 战报两层
 
-### 7.2 图片海报（服务端 satori）
+| 层级 | 触发 | 内容 |
+|---|---|---|
+| **单场战报** | 一场比赛 `FINISHED` 后 | 比分 + 计时 + 进球流水（分队伍）+ 单场 MVP（=进球+助攻最多者，并列取较早出现） |
+| **活动战报** | 活动 finish 或 admin 随时分享 | 场次结果列表 + 积分榜 + 射手榜（Top N）+ 助攻榜（Top N）+ 活动 MVP（=活动内总进球+总助攻最多者） |
+
+两层战报均提供：
+- H5 只读页面（路由：`/events/:shortCode/report`、`/games/:id/report`）
+- PNG 海报（API：`/api/events/:id/poster.png`、`/api/games/:id/poster.png`）
+
+`topN` 由 admin 在"分享活动战报"时通过 query 选择（默认 5、范围 1-20）。前端 UI 提供下拉选择器。
+
+### 7.2 数据派生算法
+
+**积分榜（standings）** — 标准足球规则：
+
+```ts
+const POINTS = { win: 3, draw: 1, loss: 0 }
+
+interface TeamStanding {
+  teamId: string; teamName: string; colorHex: string;
+  played: number; wins: number; draws: number; losses: number;
+  goalsFor: number; goalsAgainst: number; goalDiff: number;
+  points: number; rank: number;
+}
+
+function computeStandings(event): TeamStanding[] {
+  const acc = new Map<teamId, TeamStanding>()
+  // 初始化每个队伍
+  for (team of event.teams) acc.set(team.id, { ...zeroStat, teamId: team.id, ... })
+
+  // 仅统计已结束的场次
+  for (game of event.games.filter(g => g.status === 'FINISHED')) {
+    const { scoreA, scoreB } = deriveScore(game.events)
+    const a = acc.get(game.teamAId)!, b = acc.get(game.teamBId)!
+    a.played++; b.played++
+    a.goalsFor += scoreA; a.goalsAgainst += scoreB
+    b.goalsFor += scoreB; b.goalsAgainst += scoreA
+    if (scoreA > scoreB)      { a.wins++;  b.losses++ }
+    else if (scoreA < scoreB) { b.wins++;  a.losses++ }
+    else                      { a.draws++; b.draws++  }
+  }
+
+  // 计算积分与净胜球
+  for (s of acc.values()) {
+    s.points = s.wins * POINTS.win + s.draws * POINTS.draw
+    s.goalDiff = s.goalsFor - s.goalsAgainst
+  }
+
+  // 排序：积分 desc → 净胜球 desc → 进球数 desc → 队名 asc
+  const sorted = [...acc.values()].sort((x, y) =>
+    y.points - x.points
+    || y.goalDiff - x.goalDiff
+    || y.goalsFor - x.goalsFor
+    || x.teamName.localeCompare(y.teamName, 'zh-Hans')
+  )
+  sorted.forEach((s, i) => s.rank = i + 1)
+  return sorted
+}
+```
+
+**射手榜（top scorers）**：
+- 统计所有 `FINISHED` 场次中、未被 `UNDO` 的 `GOAL` 事件
+- 按 `scorer_roster_id` group by，count desc
+- 同分按"首次进球时间"升序（先进者靠前）
+- 关联 `roster.name` + `team.name` + `team.color_hex`
+- 截断至 `topN`
+
+**助攻榜（top assists）**：
+- 统计所有 `FINISHED` 场次中、未被 `UNDO` 且 `assistant_roster_id` 非空的事件
+- 其余同射手榜
+
+**活动 MVP**：
+- 每个 roster 计算 `goals + assists` 总分
+- 取最高者；并列时优先取首次进球时间更早者
+
+> ⚠️ 排序稳定性约束：同一份事件流多次渲染必须得到相同排序，禁止用 `Map` 迭代顺序作为隐含排序键。
+
+### 7.3 数据契约（API 返回）
+
+**`GET /api/events/:id/report?topN=5`**
+```ts
+interface EventReport {
+  event: { id, shortCode, name, createdAt, finishedAt? }
+  games: Array<{
+    id, teamA: TeamBrief, teamB: TeamBrief,
+    scoreA, scoreB, status, durationMs
+  }>
+  standings: TeamStanding[]               // §7.2 输出
+  topScorers: Array<{
+    rosterId, name, teamId, teamName, colorHex,
+    goals: number, firstGoalAt: number    // epoch ms，用于排序
+  }>
+  topAssists: Array<{
+    rosterId, name, teamId, teamName, colorHex,
+    assists: number, firstAssistAt: number
+  }>
+  mvp?: { rosterId, name, teamName, colorHex, goals, assists }
+  meta: { topN: number, generatedAt: number }
+}
+```
+
+**`GET /api/games/:id/report`**
+```ts
+interface GameReport {
+  game: { id, eventId, teamA, teamB, scoreA, scoreB,
+          startedAt, finishedAt, durationMs, status }
+  goals: Array<{                         // 按时间升序
+    minute: number,                      // 相对开赛多少分钟
+    teamSide: 'A' | 'B',
+    scorerName: string,
+    assistantName?: string,
+    type: 'GOAL' | 'OWN_GOAL'
+  }>
+  gameMvp?: { rosterId, name, teamName, colorHex, goals, assists }
+}
+```
+
+### 7.4 渲染管线（服务端 satori）
 
 ```ts
 // backend/src/services/poster.service.ts
 import satori from 'satori'
 import { Resvg } from '@resvg/resvg-js'
 
-const fontData = fs.readFileSync('./assets/fonts/NotoSansSC-subset.ttf')
+const fontRegular = fs.readFileSync('./assets/fonts/NotoSansSC-Regular-subset.ttf')
+const fontBold    = fs.readFileSync('./assets/fonts/NotoSansSC-Bold-subset.ttf')
 
-export async function renderPoster(eventId: string): Promise<Buffer> {
-  const data = await reportService.build(eventId)
-  const svg = await satori(<PosterTemplate {...data} />, {
+export async function renderEventPoster(
+  eventId: string, opts: { topN?: number } = {}
+): Promise<Buffer> {
+  const data = await reportService.buildEvent(eventId, { topN: opts.topN ?? 5 })
+
+  // 长图：根据榜单实际行数动态计算高度
+  const height = estimateEventPosterHeight(data)   // 通常 2400-3000
+
+  const svg = await satori(<EventPosterTemplate {...data} />, {
+    width: 1080,
+    height,
+    fonts: [
+      { name: 'NotoSC', data: fontRegular, weight: 400 },
+      { name: 'NotoSC', data: fontBold,    weight: 700 },
+    ],
+  })
+  return new Resvg(svg, { background: '#ffffff' }).render().asPng()
+}
+
+export async function renderGamePoster(gameId: string): Promise<Buffer> {
+  const data = await reportService.buildGame(gameId)
+  const svg = await satori(<GamePosterTemplate {...data} />, {
     width: 1080,
     height: 1920,
-    fonts: [{ name: 'NotoSC', data: fontData }],
+    fonts: [...]
   })
-  return new Resvg(svg).render().asPng()
+  return new Resvg(svg, { background: '#ffffff' }).render().asPng()
 }
 ```
 
-### 7.3 模板设计（v2 默认）
+字体子集化（Phase 0 完成）：
+- 使用 [`subset-font`](https://github.com/papandreou/subset-font) 仅保留常用 CJK 子集（GB2312 + 数字 + 字母 + 标点 + emoji 映射）
+- Regular + Bold 各约 ~250KB
+- 文件位置：`backend/src/assets/fonts/`
 
-文字优先、极简风格。版面：
+### 7.5 模板：活动战报（EventPosterTemplate）
+
+风格 **B · 卡片浅底长图**（已锁定）。版面（自上而下）：
+
 ```
-┌──────────────────────────┐
-│  🏆 {EVENT_NAME}          │
-│  2026-06-18               │
-├──────────────────────────┤
-│  {TEAM_A}  3 - 2  {TEAM_B}│
-│       (全场 50min)         │
-├──────────────────────────┤
-│  ⚽ 进球                  │
-│  {TEAM_A}                 │
-│   陈宇 ×2 (12', 47')      │
-│   王勇 (33')              │
-│  {TEAM_B}                 │
-│   李雷 (8')              │
-│   韩梅梅 (29')            │
-├──────────────────────────┤
-│  🅰 助攻                 │
-│  陈宇×1, 王勇×1, 李雷×1   │
-├──────────────────────────┤
-│  ⭐ MVP                   │
-│  陈宇 (2G/1A)            │
-├──────────────────────────┤
-│  Generated by PitchMaster │
-└──────────────────────────┘
+┌──────────────────────────────────────┐
+│   [Header]                            │
+│   🏆  {event.name}                    │
+│   {YYYY-MM-DD HH:mm}                  │
+└──────────────────────────────────────┘
+
+╭───── [Card] 场次结果 ────────────────╮
+│   ▮ TeamA  3                          │
+│                              ◀ 胜    │
+│   ▮ TeamB  2                          │
+│   ─────────────────                   │
+│   ...每场一组...                       │
+╰───────────────────────────────────────╯
+
+╭───── [Card] 🏅 积分榜 ───────────────╮
+│   排名  队伍   场 胜 平 负 净胜 积分   │
+│    1   ▮红队   2  2  0  0  +3   6    │
+│    ...                                │
+╰───────────────────────────────────────╯
+
+╭───── [Card] 👟 射手榜 (Top N) ──────╮
+│   1. 陈宇    ▮ 红队        3 球       │
+│   ...                                  │
+╰───────────────────────────────────────╯
+
+╭───── [Card] 🅰 助攻榜 (Top N) ──────╮
+│   1. 陈宇    ▮ 红队        2 助       │
+│   ...                                  │
+╰───────────────────────────────────────╯
+
+╭───── [Card] ⭐ 活动 MVP ────────────╮
+│                                        │
+│        陈宇 · 红队 · 3G / 2A           │
+│                                        │
+╰───────────────────────────────────────╯
+
+   [Footer] PitchMaster · {shortCode}
 ```
 
-> 若 §待决 O3 决定要"装饰图形版"，提供第二个模板组件，按 query 参数选择。
+**视觉规则**（与 §8 设计令牌严格对应）：
+- 整体背景 `bg-surface`（#ffffff）
+- 卡片背景 `bg-elevated`（#f8fafc）+ `rounded-2xl`（16px）+ `shadow-sm`
+- 卡片间距 `gap-4`（16px）；卡片内边距 `p-6`（24px）
+- 标题字号 `text-lg font-bold`（18/700）；数据行 `text-base tabular-nums`（16）
+- 队名前色条：`w-1.5 h-full rounded-full bg-[team.colorHex]`
+- 名次徽章：圆形 `w-7 h-7 bg-primary text-white`（前 3 名）/ `bg-slate-200 text-slate-700`（4+）
+- "胜/平/负"小标签：`text-xs px-2 py-0.5 rounded-full`，胜 = primary 绿、平 = slate、负 = danger 红
+
+### 7.6 模板：单场战报（GamePosterTemplate）
+
+固定 1080×1920，单页版面：
+
+```
+┌──────────────────────────────────────┐
+│   PitchMaster                          │
+│   {event.name} · 第 {n} 场             │
+│   2026-06-18                           │
+└──────────────────────────────────────┘
+
+╭───── [Card] 比分 ──────────────────╮
+│                                       │
+│   ▮ 红队           3   -   2  ▮ 蓝队 │
+│                                       │
+│         全场 50:00 · 已结束           │
+╰───────────────────────────────────────╯
+
+╭───── [Card] ⚽ 进球流水 ───────────╮
+│  ▮ 红队                                │
+│   12'  陈宇                            │
+│   33'  王勇  (助攻: 陈宇)              │
+│   47'  陈宇                            │
+│  ▮ 蓝队                                │
+│   08'  李雷                            │
+│   29'  韩梅梅  (助攻: 李雷)            │
+╰───────────────────────────────────────╯
+
+╭───── [Card] ⭐ 本场 MVP ───────────╮
+│        陈宇 · 红队 · 2G / 1A          │
+╰───────────────────────────────────────╯
+
+   [Footer] PitchMaster · {shortCode}
+```
+
+视觉规则同 §7.5；进球时间 = `(goal.serverTs - game.startedAt - 暂停期内)` / 60000，向下取整为分钟。
+
+### 7.7 H5 战报页面
+
+H5 复用 satori 模板的同一套 React 组件（`PosterCard`、`StandingsTable`、`ScorerRow` 等），仅在外层容器加 PWA 安全区域、可点击交互（如点击场次跳到 `/games/:id`）和"分享"按钮。
+
+**关键加成（§p6 决策）**：H5 头部固定一个 CTA：`"想下次也来踢吗？→ 进活动主页"`，链接到 `/events/:shortCode`。
+
+---
+
+## 7A. 海报渲染兜底策略
+
+| 风险 | 缓解 |
+|---|---|
+| satori 不支持某些 CSS 特性（grid、transform 等） | 在 `PosterTemplate` 组件内严格使用 satori 支持的子集（flex、border、border-radius、shadow 简化版）；本地单测 `assets/snapshots/` 比对 PNG |
+| 字体文件过大拖累构建 | 子集化到 ≤250KB 单字重；CI 检查字体文件大小 |
+| 长图高度估算偏差导致内容被裁切 | `estimateEventPosterHeight()` 取保守值（按最大行数计算），底部留 100px 空白兜底 |
+| 海报渲染响应慢 | 后端缓存：activity-level 海报按 `(eventId, topN, lastEventTs)` 缓存 60s；live 活动也能接受 |
 
 ---
 
@@ -462,30 +682,85 @@ export async function renderPoster(eventId: string): Promise<Buffer> {
 /admin/restore                             凭 PIN 找回 adminToken
 ```
 
-### 8.3 UI 设计令牌（Tailwind）
+### 8.3 UI 设计系统（与战报严格同源）
+
+> 本节定义 **唯一一套** 视觉令牌，App 页面、H5 战报、PNG 海报三处都消费它。任何变更必须三处同步。
+
+#### 8.3.1 色板
 
 ```js
-// web/tailwind.config.js (节选)
+// web/tailwind.config.js
 extend: {
   colors: {
-    primary: '#10b981',     // 翠绿（球场）
-    danger:  '#ef4444',
-    surface: '#0f172a',     // 深色背景
-    onSurface: '#f8fafc',
+    primary:   '#10b981',   // 翠绿（球场，主操作 / 名次徽章前 3 / 胜利标签）
+    primaryDk: '#059669',   // primary 按下/hover
+    danger:    '#ef4444',   // 撤销、负标签、错误
+    warning:   '#f59e0b',   // 暂停状态
+    surface:   '#ffffff',   // 主背景（浅色优先）
+    elevated:  '#f8fafc',   // 卡片背景
+    border:    '#e2e8f0',   // 分隔线、卡片边框
+    textPri:   '#0f172a',   // 主文本
+    textSec:   '#64748b',   // 次要文本
+    textInv:   '#ffffff',   // 反色文本（按钮上字）
+    chipBg:    '#f1f5f9',   // tabular row 斑马底
   },
-  fontFamily: {
-    sans: ['ui-sans-serif', 'system-ui', '"PingFang SC"', '"Microsoft YaHei"'],
-  },
-  fontSize: {
-    'tap': '1.75rem',       // 大按钮文字
-    'score': '4rem',
-  }
 }
 ```
 
-强制规范：
+> 队伍颜色 `team.color_hex` 由用户在配置队伍时选；预置 8 色调色板：`['#ef4444','#f59e0b','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899']`。
+
+#### 8.3.2 字号 / 字重
+
+```js
+fontSize: {
+  // 应用层
+  'tap':    ['1.75rem', { lineHeight: '2.25rem', fontWeight: '700' }],  // 大按钮（GOAL）
+  'score':  ['4rem',    { lineHeight: '1',       fontWeight: '800' }],  // 比分数字
+
+  // 战报海报 / H5 共用
+  'h1':     ['1.875rem', { lineHeight: '2.25rem', fontWeight: '700' }], // 海报顶部活动名
+  'h2':     ['1.25rem',  { lineHeight: '1.75rem', fontWeight: '700' }], // 卡片标题
+  'body':   ['1rem',     { lineHeight: '1.5rem',  fontWeight: '400' }], // 列表正文
+  'caption':['0.75rem',  { lineHeight: '1rem',    fontWeight: '400' }], // 次要说明
+},
+fontFamily: {
+  sans: ['ui-sans-serif', 'system-ui', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'],
+  // 数字对齐：所有数据行加 class="tabular-nums"
+},
+```
+
+#### 8.3.3 间距 / 圆角 / 阴影
+
+| Token | 值 | 用途 |
+|---|---|---|
+| `space-card-gap` | 16px (`gap-4`) | 卡片之间 |
+| `space-card-padding` | 24px (`p-6`) | 卡片内边距 |
+| `space-row-gap` | 8px (`gap-2`) | 行内元素间距 |
+| `radius-card` | 16px (`rounded-2xl`) | 所有卡片 |
+| `radius-pill` | 9999px (`rounded-full`) | 名次徽章、状态 chip |
+| `shadow-card` | `0 1px 3px rgba(15,23,42,.04), 0 1px 2px rgba(15,23,42,.06)` | 卡片浅阴影 |
+
+#### 8.3.4 组件清单（与战报共用，放 `web/src/components/ui/`）
+
+| 组件 | 用途 | 应用页面 | 海报模板 |
+|---|---|---|---|
+| `Card` | 圆角+阴影容器 | 所有页面 | ✓ |
+| `Section` | 卡片内顶部带图标的标题区 | 所有页面 | ✓ |
+| `TeamBadge` | 队伍色条 + 队名 | 录入页、详情页 | ✓ |
+| `RankBadge` | 名次徽章（1-3 绿色 / 4+ 灰色） | 战报、积分榜 | ✓ |
+| `StatusChip` | 胜/平/负 / 暂停/进行中 等小标签 | 录入页、战报 | ✓ |
+| `StatRow` | 一行：左侧名次+人名+队伍 / 右侧数字 | 战报榜单 | ✓ |
+| `ScoreBoard` | 大比分显示 | 录入页、单场战报 | ✓ |
+
+> 这些组件先开发为 React 组件（应用内），再被 satori 直接复用（仅替换 Tailwind class 为 satori 兼容 inline style）。两边样式由共享的 `tokens.ts` 派生，**不允许任何一处 hardcode 颜色/字号**。
+
+#### 8.3.5 交互硬性规范
+
 - 任何可点击元素最小命中区 ≥ 56×56px（拇指可达性）
 - 主操作按钮（GOAL）一律 ≥ 屏宽 80% × 高度 25vh
+- 所有数字（比分、积分、统计）必须 `tabular-nums`
+- 所有列表带斑马底（奇数行 `bg-chipBg/50`）提升可读性
+- 浅色优先，未来如做深色模式必须同时维护两套海报背景
 
 ---
 

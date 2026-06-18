@@ -176,16 +176,27 @@
 - `POST /api/games/:id/events/batch`：接收 `[{type, payload, clientTs}]`，按 clientTs 排序后写入
 - 幂等保证：每条事件携带客户端生成的 `clientEventId` (UUID)，服务端 unique 约束
 
-**T2.4 战报：图片**
-- 安装 `satori` + `@resvg/resvg-js`
-- `GET /api/events/:id/poster.png` 服务端渲染 1080x1920 PNG
-- 模板设计见 `ARCHITECTURE_V2.md` §7
+**T2.4 战报：派生数据 + API**
+- `report.service.ts`：实现 `computeStandings / topScorers / topAssists / eventMvp / gameMvp`（见 `ARCHITECTURE_V2.md` §7.2）
+- 单元测试：积分榜排序稳定性、并列时的 tie-breaker、空数据兜底
+- API：`GET /api/games/:id/report`、`GET /api/events/:id/report?topN=`
 
-**T2.5 战报：H5**
-- `/events/:shortCode/report` 路由
-- 显示全部场次、事件流、Top 进球/助攻、MVP（=进球+助攻最高分球员）
+**T2.5 战报：UI 组件（共享给 App / H5 / 海报）**
+- 在 `web/src/components/ui/` 实现 `Card / Section / TeamBadge / RankBadge / StatusChip / StatRow / ScoreBoard`（见 `ARCHITECTURE_V2.md` §8.3.4）
+- 共享 `tokens.ts` 统一色板/字号/间距，**禁止 hardcode 颜色**
+- 两个战报页面：`/events/:shortCode/report`、`/games/:id/report`，复用上述组件
 
-**T2.6 分享集成**
+**T2.6 战报：图片海报（satori）**
+- 安装 `satori` + `@resvg/resvg-js` + `subset-font`
+- 字体子集化打包到 `backend/src/assets/fonts/`（Regular + Bold 各 ≤250KB）
+- 实现 `EventPosterTemplate`、`GamePosterTemplate`（与 T2.5 UI 组件结构同源）
+- API：`GET /api/games/:id/poster.png`、`GET /api/events/:id/poster.png?topN=`
+- 缓存：活动海报按 `(eventId, topN, lastEventTs)` 缓存 60s
+- 落到 `assets/snapshots/` 的 PNG 比对作为视觉回归测试
+
+**T2.7 分享集成**
+- 战报 H5 顶部 CTA："想下次也来踢吗？→ 进活动主页"
+- 活动主页 / 单场详情提供"分享战报"按钮：admin 可选 `topN` (1-20，默认 5)
 - Web Share API：图片 + 文案 + H5 链接（fallback 复制链接到剪贴板）
 
 #### Phase 2 Gate
@@ -193,7 +204,11 @@
 - ✅ 飞行模式下：录入 5 个进球 + 1 个撤销，UI 全部即时响应
 - ✅ 恢复网络 10 秒内，服务端能查到全部事件且顺序正确
 - ✅ 同一事件重复提交（模拟弱网重试）只生效 1 次（幂等）
-- ✅ 活动主页点击"出战报" → 3 秒内显示图片 + H5 链接
+- ✅ 单场结束页一键出"单场战报"图片 + H5
+- ✅ 活动主页点击"出战报" → 选 `topN` → 3 秒内显示长图海报 + H5 链接
+- ✅ 积分榜单测覆盖：含平局、并列、零数据三种边界
+- ✅ H5 战报与 PNG 海报视觉一致（人工目视 + snapshot 比对）
+- ✅ 战报 PNG 字体大小 ≤ 500KB 合计（regular + bold 子集后）
 
 ---
 
@@ -245,7 +260,7 @@
 |---|---|---|---|
 | O1 | 是否买域名 + 备案 | 需求方 | Phase 3 中期 |
 | O2 | 球场 GPS 自动识别活动地点？ | 需求方 | Phase 2 评审 |
-| O3 | 战报海报视觉风格（极简文字版 vs 装饰图形版）需要给 2 个 mock | 执笔人 | Phase 2 开始前 |
+| ~~O3~~ | ~~战报海报视觉风格~~ | ~~已决~~ | **已决 2026-06-18：风格 B 卡片浅底长图，详见 ADR-0005** |
 | O4 | 黑/白色主题切换是否必要？ | 需求方 | Phase 1 评审 |
 
 ---
