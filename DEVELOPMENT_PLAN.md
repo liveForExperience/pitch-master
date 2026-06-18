@@ -285,9 +285,51 @@
 > - 原 T1.5 SSE 推送提前到 T1.3 完成（前端调试更方便）
 > ```
 
-### 2026-MM-DD · Phase 0 · 开工
+### 2026-06-18 · Phase 0 · 文档体系建立 + v1 资产归档
 
-- 待执行
+- [x] T0.1 v1 代码归档至 `legacy/`（commit `c3cc22a`）
+- [x] T0.2 git tag `legacy/v1-final` + `v2-start`
+- [x] T0.3 删除 v1 AI 上下文文件（GEMINI.md / .windsurfrules / .windsurf/ / TODO.md / *.log）
+- [x] T0.5 重写根 README.md 为 v2 视角
+- [x] 三份核心文档产出：`AGENTS.md`、`DEVELOPMENT_PLAN.md`、`docs/ARCHITECTURE_V2.md`、`docs/DECISIONS.md`（4 条 ADR）
+
+#### 阶段内增补
+- 战报需求扩展为两层 + 三榜（commit `ca479a5`，详见 ADR-0005）
+- v1 运行时下线方案与工具（commit `9be7490`，详见 ADR-0006）
+
+### 2026-06-19 · Phase 0 · T0.6 v1 运行时彻底下线（已完成）
+
+实施过程：
+
+| 步骤 | 动作 | 结果 |
+|---|---|---|
+| 1 | ssh root@8.153.145.81 资产盘点 | 主机 Alibaba Cloud Linux 3，2C/1.8G/40G；v1 占内存 ~310MB / 磁盘 547MB；MySQL 8.0.33（手工 tar 安装）/ pitch_master 库 20 表 0.79MB |
+| 2 | 执行 `legacy-shutdown.sh --dump-only` | 配置备份成功；mysqldump 因 sudo PATH 未含 /usr/local/bin 而跳过 |
+| 3 | 改用绝对路径 `/usr/local/bin/mysqldump` 手动备份 | `pitch_master-20260619-002357.sql.gz` 仅 11KB，含 20 张表 + flyway_schema_history |
+| 4 | scp 拉回本地 → 验证 dump 完整性 → `legacy/db-dump/` 归档 | commit `99f2017` |
+| 5 | stop + disable + rm pitchmaster.service | ✅ Unit not found |
+| 6 | rm /etc/nginx/conf.d/pitchmaster.conf + reload nginx | ✅ Nginx 仍 active 保留 |
+| 7 | DROP DATABASE pitch_master | ✅ 仅剩系统库 |
+| 8 | 后台 rm -rf /opt/pitchmaster /etc/pitchmaster /opt/maven | ✅ 全消失（547MB 释放） |
+| 9 | stop + disable + rm mysqld.service；清理 /usr/local/mysql、/var/lib/mysql、/etc/my.cnf、所有 /usr/local/bin/mysql* 符号链接 | ✅ mysql 命令 not found |
+| 10 | rm /usr/lib/jvm/jdk-21.0.7+6 + /etc/profile.d/{java,maven}.sh + sed 清 /etc/profile 中 maven PATH | ✅ java/mvn 命令 not found |
+| 11 | rm /root/projects（用户本地 v1 副本）、/etc/profile.bak、/root/legacy-shutdown.sh | ✅ 全清 |
+| 12 | 最终验收 | 见下表 |
+
+资源对比：
+
+| 指标 | 下线前 | 下线后 | 变化 |
+|---|---|---|---|
+| 内存使用 | 1.1 GiB | 404 MiB | **释放 826 MiB** |
+| 内存空闲 | 87 MiB | 913 MiB | +826 MiB |
+| 磁盘使用 | 12 GB | 9.7 GB | **释放 2.3 GB** |
+| 端口 8080 | 监听 | 无监听 | 释放 |
+| 端口 3306 | 监听 | 无监听 | 释放 |
+| 端口 80 | Nginx + v1 site | Nginx 仅默认 | 保留供 v2 |
+
+注意事项：
+- 端口 9000 上发现 `webhook` 进程（非 v1），未动。如不需要请人工确认。
+- ECS 上仍残留 `~/.bash_history`（含 v1 部署历史，无敏感信息）、`/var/backups/pitchmaster-v1/`（含 env 明文密码）。备份目录建议在确认本地归档完整后人工删除：`sudo rm -rf /var/backups/pitchmaster-v1/`
 
 ---
 
