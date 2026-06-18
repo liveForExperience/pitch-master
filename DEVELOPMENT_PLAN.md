@@ -387,6 +387,41 @@
 - `curl http://8.153.145.81/api/health` → `{"status":"ok",...}`
 - 浏览器访问 `http://8.153.145.81/` → 看到 hello-world 脚手架页（"PitchMaster v2 · 球场速记 · 脚手架就绪"）
 
+**2026-06-19 01:25 CST 首次部署成功**（GitHub Actions run #27777219998）：
+- 用户 `gh auth login` 后，4 个 Secret 自动配置完成
+- 第一次 workflow 失败：shared/ 无 workspace 结构导致 `@hono/node-server` 缺失 → commit `ddf446c` 修复
+- 第二次 workflow 全绿（38s）：build → scp → deploy-receive → health check → public verify
+- 公网验收：
+  - `curl http://8.153.145.81/api/health` → `{"status":"ok","service":"pitchmaster-backend",...}`
+  - `http://8.153.145.81/` → 前端 SPA 正常渲染，后端联通性显示 ok
+- 当前 active release：`20260619-012444-ddf446c`
+
+### 2026-06-19 · Phase 1 · MVP 在线版（T1.1–T1.6，进行中）
+
+| 任务 | 状态 | 说明 |
+|---|---|---|
+| T1.1 数据库 | ✔ | Drizzle schema 5 表 + `0000_initial.sql` + WAL client；启动时 `runMigrations()`；`DB_FILE` env |
+| T1.2 后端 API | ✔ | event/game-ops/game/timer services + Hono routes；`{ ok, data }` / `{ ok, error }` 响应；Bearer / pin 鉴权 |
+| T1.3 前端 | ✔ | react-router 7 页（/、/events/new、/events/:shortCode、setup、/games/new、record、detail）；localStorage adminToken + recent events；SSE 订阅 record 页 |
+| T1.4 计时器 | ✔ | `GET /api/time` + timer.service elapsed 公式 |
+| T1.5 SSE | ✔ | `GET /api/games/:id/stream` + in-memory sse-broker |
+| T1.6 测试 | ✔ | 15 tests；核心 service 行覆盖 **70.56%**（≥60% 门禁） |
+
+本地工程验收：
+- `npm test`（backend）15/15 ✔
+- `npm run typecheck`（root）✔
+- `npm run build`（backend + web）✔
+
+Gate 待人工验收（未在本阶段自动跑通）：
+- ⬜ 1 分钟内建活动 → 配队 → 开赛 → 记 3 球 → 看比分
+- ⬜ 另一浏览器 ≤2s SSE 分数同步
+- ⬜ 重启后 SQLite 数据保留
+
+已知限制 / 后续改进：
+- 录制页返回链接依赖 session store 中的 recent events；直接粘贴 URL 仍可录入（roster 已随 game detail 返回）
+- Drizzle snapshot meta 为手工占位，后续 `db:gen` 可重新生成
+- 代码尚未 commit / push（用户未要求）
+
 ---
 
 ## 6. 签署
