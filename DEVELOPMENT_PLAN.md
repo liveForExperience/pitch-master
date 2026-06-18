@@ -1,0 +1,282 @@
+# PitchMaster v2 · 开发计划（DEVELOPMENT_PLAN）
+
+> **状态**：草案 v0.1 · 待需求方签署后执行
+> **签署人**：需求提出者（项目所有者） · 执笔人：接手架构师
+> **配套文档**：[`AGENTS.md`](./AGENTS.md)（AI 上下文） · [`docs/ARCHITECTURE_V2.md`](./docs/ARCHITECTURE_V2.md)（技术蓝图） · 本文件（路线 + 阶段 + 验收）
+>
+> 本文件是 **路线图与验收门禁**。技术实施细节（DDL、API 字段、算法伪代码、目录约定）一律放在 `ARCHITECTURE_V2.md`，避免重复维护。
+
+---
+
+## 0. 决策矩阵（已签署）
+
+| # | 决策点 | 选择 |
+|---|---|---|
+| D1 | 项目方向 | **推倒重做**，v1 整体归档到 `legacy/`，git 打 tag `legacy/v1-final` |
+| D2 | 目标用户 | 自己 + 朋友 1-2 个俱乐部，<50 人，玩具工具 |
+| D3 | 安全投入 | 暂不投入（不做密码强化、CSRF、限流、审计） |
+| D4 | 文档体系 | 单一 `AGENTS.md` + `DEVELOPMENT_PLAN.md` + `docs/ARCHITECTURE_V2.md`，删除 `GEMINI.md` / `.windsurfrules` / 老 docs |
+| D5 | 测试门禁 | 后端核心模块（事件流、计时、战报派生）单测 ≥ 60%；前端 0 强制 |
+| D6 | 业务删减 | 完全删除：互评、三维 FM 评分、Tournament/Club 两级租户、Late Cancellation 费用、复杂权限 |
+| D7 | Apple Watch | Phase 4 可选；Phase 1-3 不做，但后端 API 设计上需"Watch-friendly"（短载荷、原子操作、可重放） |
+| D8 | 账号体系 | **零 SMS / 零邮件**；创建者本机生成"管理员令牌"存 localStorage + 6 位 PIN（可拾回） |
+| D9 | 后端栈 | **Node 20 + TypeScript + Hono + Drizzle ORM + SQLite** |
+| D10 | 数据库 | SQLite 单文件，备份 = 复制 `.db`；不引入容器化 DB |
+| D11 | 前端栈 | **React 18 + Vite + TS + Tailwind + Radix UI + Zustand + PWA** |
+| D12 | 计时器 | 服务器权威 `startTime` + 客户端只显示，差值法 |
+| D13 | 战报 | 图片海报（服务端用 `satori` 渲染 PNG）+ 只读 H5 链接 双产物 |
+| D14 | 离线 | PWA + IndexedDB 本地事件队列 + 联网后按客户端时间戳 replay |
+| D15 | 部署 | 单台 ECS：systemd + Caddy（自动 HTTPS）+ SQLite 文件 · Phase 3 前都可纯本地 + IP 跑通 |
+
+> 任何决策的变更，必须更新本表 + 修订 ARCHITECTURE_V2.md 对应章节，且在 §13 阶段记录登记变更原因与影响范围。
+
+---
+
+## 1. 北极星指标与产品边界
+
+### 1.1 北极星指标（决定一切优先级）
+
+> **"现场操作者从打开页面到记下一个进球，**耗时 ≤ 8 秒**；从活动结束到看到可分享战报，耗时 ≤ 3 秒。"**
+
+任何特性如果伤害这两个数字，一律 reject。
+
+### 1.2 In-Scope（v2 必须做）
+
+1. 创建活动（输入名字 + 选择球队数）
+2. 配置队伍：每队"点几下名字加人"
+3. 自由对阵：手动选两支队开打（不做自动分组）
+4. 比赛中：开始/暂停/恢复/结束 计时
+5. 记录事件：进球 / 助攻 / 乌龙 / 撤销
+6. 多端实时观战（SSE）
+7. 离线录入 + 联网回放
+8. 活动结束生成战报（图片 + H5）
+9. 通过 6 位 PIN + 短码访问只读看板
+
+### 1.3 Out-of-Scope（v2 明确不做）
+
+- 用户注册 / 密码 / 角色权限矩阵
+- Tournament / Club 两级租户
+- 球员档案、身价、能力面板
+- 评分系统（任何形式）
+- 互评 / MVP 投票（不做投票，由数据自动派生 MVP = 进球 + 助攻最多者）
+- 费用结算与分摊
+- 海报模板自定义
+- 多语言（仅简体中文）
+
+### 1.4 Should-Have（v3+ 候选）
+
+- watchOS 原生 app（Phase 4 可启动）
+- 球员身份在多次活动间复用（"我的常客"）
+- 自动均衡分组建议
+- 历史数据报表
+
+---
+
+## 2. 阶段计划
+
+> **总周期**：约 7-9 周（按业余时间投入，每周 8-12 小时估算）。每阶段尾置一道验收门禁（Gate），未通过不得进入下一阶段。
+
+### 2.1 Phase 0 · 准备（W1，约 4-6 小时）
+
+**目标**：v1 归档完毕，v2 新工程脚手架站立。
+
+| 任务 | 产出物 | 验收 |
+|---|---|---|
+| T0.1 v1 归档 | `legacy/` 目录包含原 `src/`、`frontend/`、`docs/`、`deploy/`、老配置文件 | 根目录除文档外仅剩 `backend/`、`web/`、`legacy/`、`deploy/` |
+| T0.2 Git tag | `git tag legacy/v1-final && git tag v2-start` | `git tag -l` 看到两个 tag |
+| T0.3 删除 v1 AI 上下文 | 删 `GEMINI.md`、`.windsurfrules`、`.windsurf/`、`TODO.md`、根目录 `backend.log`、`frontend/dev*.log` | `git status` 不再含上述文件 |
+| T0.4 创建 v2 骨架 | `backend/` Hono 工程 + `web/` Vite 工程 + `deploy/` 简化版 + 三份新文档 | `npm run dev` 在两个子目录都能起来 |
+| T0.5 写 README.md | 重写根 README，只保留 v2 信息 | README 不再提 Spring/MySQL/FM 评分 |
+
+**Phase 0 Gate**：
+- ✅ `legacy/` 完整，可被独立 checkout 使用
+- ✅ `backend/`、`web/` 两个空工程都能 `npm run dev` 启动并打印 hello
+- ✅ 根目录无任何 v1 残留运行时文件
+
+---
+
+### 2.2 Phase 1 · MVP 在线版（W2-W4，约 28-32 小时）
+
+**目标**：单设备、在线、能完整跑完"建活动 → 选队伍 → 开赛 → 记进球 → 出战报"闭环。
+
+> 这是项目的灵魂阶段。Phase 1 通过 = 你已经可以带着这工具去球场用了（只是离线/Watch/海报后面再加）。
+
+#### 任务分解
+
+**T1.1 数据库与迁移**（参见 `ARCHITECTURE_V2.md` §3）
+- 5 张表 DDL：`event`、`team`、`roster`、`game`、`game_event`
+- Drizzle schema 定义 + 初始 migration
+- 启动时自动 migrate
+
+**T1.2 后端 API（在线版，无离线队列）**
+- `POST /api/events` 创建活动 → 返回 `{id, shortCode, adminToken}`
+- `GET /api/events/:shortCode` 只读活动详情
+- `POST /api/events/:id/teams` 创建队伍
+- `POST /api/teams/:id/roster` 加人（数组）
+- `POST /api/events/:id/games` 创建场次（指定 A/B 两队）
+- `POST /api/games/:id/start` 开始（写 `actualStartTime`）
+- `POST /api/games/:id/pause` / `resume` / `finish`
+- `POST /api/games/:id/events` 写入事件（GOAL/ASSIST/OWN_GOAL）
+- `DELETE /api/games/:id/events/:eventId` 撤销事件
+- `GET /api/games/:id/state` 返回当前比分 + 计时
+
+> 所有写入接口校验 `Authorization: Bearer <adminToken>` 或 `?pin=XXXXXX`。具体认证流见 `ARCHITECTURE_V2.md` §5。
+
+**T1.3 前端页面（移动竖屏优先）**
+1. `/`：最近活动列表 + [+] 新建
+2. `/events/new`：3 步表单（名字 → 队伍数 → 队伍名）
+3. `/events/:shortCode`：活动主页（卡片：每场比赛比分 + 进度）
+4. `/events/:shortCode/setup`：队伍配置（每队点击添加队员名字）
+5. `/games/new?eventId=...`：选两个队 → 开战
+6. `/games/:id/record`：录入页（大按钮 GOAL/ASSIST/UNDO，顶部计时）
+7. `/games/:id`：只读详情（事件流 + 比分）
+
+**T1.4 计时器（服务器权威）**
+- 后端：`game.start_time` (DB) + Hono 路由 `GET /api/time` 返回 `{serverNow}` (ISO 8601 UTC)
+- 前端：启动时计算 `clientOffset = serverNow - clientNow`，显示时 `elapsed = now() + clientOffset - startTime`
+- 暂停/恢复：维护 `totalPausedMs` 字段
+
+**T1.5 实时推送（SSE）**
+- `GET /api/games/:id/stream` (SSE)
+- 任何事件写入后 broadcast `{type, gameEvent, scoreA, scoreB}`
+- 前端 EventSource 订阅，自动重连
+
+**T1.6 后端测试（核心 60% 门禁）**
+- `game.service.test.ts`：事件流 → 比分派生（GOAL/OWN_GOAL/UNDO 各场景）
+- `timer.service.test.ts`：start/pause/resume/finish 计时
+- `event.service.test.ts`：建活动 + 加队员 + 唯一 shortCode
+
+#### Phase 1 Gate（缺一不可）
+
+- ✅ 浏览器开 `localhost:5173`，1 分钟内完成：建活动 → 配 2 队各 5 人 → 选队开赛 → 记 3 个进球 → 看到比分实时变化
+- ✅ 另一个浏览器开同一个 `shortCode`，进球后 ≤ 2 秒看到分数同步
+- ✅ 后端 `npm test` 全绿，覆盖率 ≥ 60%（核心 services）
+- ✅ 关掉所有终端后再起，数据完整保留（SQLite 文件持久化验证）
+
+---
+
+### 2.3 Phase 2 · 离线 + 战报（W5-W6，约 22-26 小时）
+
+**目标**：球场 Wi-Fi 烂也不影响记录；活动结束一键出战报。
+
+#### 任务分解
+
+**T2.1 PWA 基础设施**
+- `vite-plugin-pwa` 配置：manifest + service worker
+- 添加到主屏图标 + 离线兜底页
+- App Shell 缓存策略（HTML/JS/CSS stale-while-revalidate）
+
+**T2.2 本地事件队列（核心难点）**
+- IndexedDB 表 `outbox`：`{id, gameId, type, payload, clientTs, status}`
+- 录入页所有写操作：先写 outbox（立即 UI 响应）→ 后台 worker 推送 API
+- 网络恢复检测 → 自动 flush
+- 冲突策略：见 `ARCHITECTURE_V2.md` §6
+
+**T2.3 服务端 replay 接口**
+- `POST /api/games/:id/events/batch`：接收 `[{type, payload, clientTs}]`，按 clientTs 排序后写入
+- 幂等保证：每条事件携带客户端生成的 `clientEventId` (UUID)，服务端 unique 约束
+
+**T2.4 战报：图片**
+- 安装 `satori` + `@resvg/resvg-js`
+- `GET /api/events/:id/poster.png` 服务端渲染 1080x1920 PNG
+- 模板设计见 `ARCHITECTURE_V2.md` §7
+
+**T2.5 战报：H5**
+- `/events/:shortCode/report` 路由
+- 显示全部场次、事件流、Top 进球/助攻、MVP（=进球+助攻最高分球员）
+
+**T2.6 分享集成**
+- Web Share API：图片 + 文案 + H5 链接（fallback 复制链接到剪贴板）
+
+#### Phase 2 Gate
+
+- ✅ 飞行模式下：录入 5 个进球 + 1 个撤销，UI 全部即时响应
+- ✅ 恢复网络 10 秒内，服务端能查到全部事件且顺序正确
+- ✅ 同一事件重复提交（模拟弱网重试）只生效 1 次（幂等）
+- ✅ 活动主页点击"出战报" → 3 秒内显示图片 + H5 链接
+
+---
+
+### 2.4 Phase 3 · 上线（W7-W8，约 12-16 小时）
+
+**目标**：朋友能通过 IP 或域名访问；7×24 稳定 1 周以上。
+
+| 任务 | 产出物 |
+|---|---|
+| T3.1 部署脚本 | `deploy/scripts/install.sh` 一键装 Node + systemd + Caddy + SQLite |
+| T3.2 配置 systemd | `pitchmaster-v2.service` 自启动、日志走 journald |
+| T3.3 Caddy 自动 HTTPS | 即使先用 IP，也用 Caddy 自签证书避免浏览器警告 |
+| T3.4 备份脚本 | `deploy/scripts/backup.sh` 定时 `cp pitchmaster.db pitchmaster-YYYYMMDD.db` |
+| T3.5 监控（极简） | `/healthz` 端点 + uptime 监控（用 UptimeRobot 免费版） |
+| T3.6 上线灰度 | 邀请 3-5 人内部测试 2 周，记录 bug 到 `docs/issues-tracking.md` |
+
+#### Phase 3 Gate
+
+- ✅ 远程访问可用，HTTPS 工作
+- ✅ 数据库每日备份且可被恢复（演练一次）
+- ✅ 内测期间无数据丢失，关键路径 bug ≤ 3 个
+
+---
+
+### 2.5 Phase 4 · Apple Watch（可选 · 待启动）
+
+**触发条件**：Phase 1-3 全部跑顺 + 用户确认 Apple Developer 账号到位 + 真实需要在球场用 Watch 而不是手机。
+
+**预估投入**：3-4 周 Swift 学习曲线 + 实施。本文件不展开，待启动时单独写 `WATCH_PLAN.md`。
+
+---
+
+## 3. 风险登记册
+
+| ID | 风险 | 等级 | 缓解 |
+|---|---|---|---|
+| R1 | 离线队列冲突合并复杂度高（多设备同时录入同一场比赛） | 高 | Phase 1 仅允许"管理员设备"录入，多端只读；Phase 2 离线也按这个前提 |
+| R2 | satori 中文字体支持需要打包字体文件 | 中 | 预先打包 Noto Sans SC subset (~200KB)，写入 `backend/assets/fonts/` |
+| R3 | SQLite 在并发写入 > 100 QPS 时会阻塞 | 低 | 玩具场景永远到不了；如真触发就加 WAL 模式（已默认开启） |
+| R4 | 用户更换设备导致 adminToken 丢失，PIN 也忘 | 中 | UI 强提示"截图保存 PIN"；后台保留管理员后门：知道活动 ID 的人 + 物理访问服务器可恢复 |
+| R5 | Caddy 自签证书在 iOS 上"不受信任" | 中 | Phase 3 中期决定是否买域名；自签 + 信任证书的引导文档备好 |
+| R6 | 我（执笔人）若中途退出，接手者能否跑通 | 高 | 三份文档（PLAN/AGENTS/ARCH）必须做到"读完就能开工"，每个 Phase Gate 都附自检清单 |
+
+---
+
+## 4. 待决事项（每次阶段评审更新）
+
+| ID | 事项 | 待决方 | 截止 |
+|---|---|---|---|
+| O1 | 是否买域名 + 备案 | 需求方 | Phase 3 中期 |
+| O2 | 球场 GPS 自动识别活动地点？ | 需求方 | Phase 2 评审 |
+| O3 | 战报海报视觉风格（极简文字版 vs 装饰图形版）需要给 2 个 mock | 执笔人 | Phase 2 开始前 |
+| O4 | 黑/白色主题切换是否必要？ | 需求方 | Phase 1 评审 |
+
+---
+
+## 5. 阶段实施日志（执行时由开发者追加）
+
+> 模板（每次 commit 后更新一段）：
+>
+> ```
+> ## YYYY-MM-DD · Phase X · 完成项
+> - [x] T1.1 数据库与迁移（commit: abc1234）
+> - [ ] T1.2 后端 API 进行中，已完成 events/teams，roster 中
+>
+> ### 遇到的困难
+> - SQLite WAL 模式在 systemd 下需要给 data 目录写权限……
+>
+> ### 计划变更
+> - 原 T1.5 SSE 推送提前到 T1.3 完成（前端调试更方便）
+> ```
+
+### 2026-MM-DD · Phase 0 · 开工
+
+- 待执行
+
+---
+
+## 6. 签署
+
+- [ ] 需求方已阅读并同意 §0 决策矩阵
+- [ ] 需求方已阅读并同意 §1 范围界定
+- [ ] 需求方已阅读并同意 §2 阶段计划
+- [ ] 需求方已确认 §3 风险与 §4 待决事项
+
+签署日期：____________
