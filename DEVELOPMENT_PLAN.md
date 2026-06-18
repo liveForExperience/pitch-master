@@ -327,9 +327,14 @@
 | 端口 3306 | 监听 | 无监听 | 释放 |
 | 端口 80 | Nginx + v1 site | Nginx 仅默认 | 保留供 v2 |
 
-注意事项：
-- 端口 9000 上发现 `webhook` 进程（非 v1），未动。如不需要请人工确认。
-- ECS 上仍残留 `~/.bash_history`（含 v1 部署历史，无敏感信息）、`/var/backups/pitchmaster-v1/`（含 env 明文密码）。备份目录建议在确认本地归档完整后人工删除：`sudo rm -rf /var/backups/pitchmaster-v1/`
+收尾清理（同日完成）：
+- 删除 `/var/backups/pitchmaster-v1/`（含 env 明文密码的服务器侧备份，本地仓库已归档）
+- 调查发现 :9000 端口的 `webhook` 进程实为 v1 部署自动化工具（[adnanh/webhook](https://github.com/adnanh/webhook)），配置 hook `pitchmaster-deploy` 指向已删除的 `/root/projects/deploy-wrapper.sh`，且 `hooks.json` 使用默认密钥 `your-secret-token`，存在轻微安全隐患
+- 完整卸载 webhook：stop + disable + rm webhook.service + rm /etc/webhook + rm /usr/local/bin/webhook，释放 23 MB 内存
+- 服务器最终监听端口：22 (sshd) + 80 (nginx，无 site) + 111/5355 (系统服务) + 127.0.0.1:42819 (阿里云监控)
+
+残留（保持原样）：
+- `/root/.bash_history` 含 v1 部署命令历史，无敏感信息
 
 ---
 
