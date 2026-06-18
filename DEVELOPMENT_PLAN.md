@@ -85,17 +85,18 @@
 | T0.1 v1 归档 | `legacy/` 目录包含原 `src/`、`frontend/`、`docs/`、`deploy/`、老配置文件 | 根目录除文档外仅剩 `backend/`、`web/`、`legacy/`、`deploy/` |
 | T0.2 Git tag | `git tag legacy/v1-final && git tag v2-start` | `git tag -l` 看到两个 tag |
 | T0.3 删除 v1 AI 上下文 | 删 `GEMINI.md`、`.windsurfrules`、`.windsurf/`、`TODO.md`、根目录 `backend.log`、`frontend/dev*.log` | `git status` 不再含上述文件 |
-| T0.4 创建 v2 骨架 | `backend/` Hono 工程 + `web/` Vite 工程 + `deploy/` 简化版 + 三份新文档 | `npm run dev` 在两个子目录都能起来 |
+| T0.4 创建 v2 骨架 | `backend/` Hono 工程 + `web/` Vite 工程 + 根 `package.json`（npm workspaces） + `bin/dev.sh` 一键启动 + `docs/DEPLOYMENT.md` 草案 | `npm install` 在根目录一次装好；`npm run dev:backend` 和 `npm run dev:web` 都能起来；`GET /api/health` 返回 ok；vite 反代 `/api/*` 通 |
 | T0.5 写 README.md | 重写根 README，只保留 v2 信息 | README 不再提 Spring/MySQL/FM 评分 |
 | T0.6 v1 运行时下线 + 数据归档 | `deploy/scripts/legacy-shutdown.sh` + `docs/LEGACY_SHUTDOWN.md` + `legacy/db-dump/pitch_master-*.sql.gz` | ECS 上 systemd/MySQL/Java/Maven 全部卸载，端口 8080/3306 释放；MySQL dump 已归档进仓库（或 LFS / 本地保管） |
 
 **Phase 0 Gate**：
 - ✅ `legacy/` 完整，可被独立 checkout 使用
-- ✅ `backend/`、`web/` 两个空工程都能 `npm run dev` 启动并打印 hello
+- ✅ `backend/`、`web/` 两个工程都能 `npm run dev:backend|web` 启动，前端经 vite proxy 拉到后端 `/api/health` 返回 200
 - ✅ 根目录无任何 v1 残留运行时文件
 - ✅ v1 ECS 已下线（`systemctl status pitchmaster` → Unit not found）
 - ✅ MySQL dump 已归档（仓库 `legacy/db-dump/` 或本地受控位置）
 - ✅ ECS 上 `mysql --version` / `java -version` 均报 not found（资源已让出）
+- ✅ 部署方案已成文（`docs/DEPLOYMENT.md`，待 Phase 3 实施）
 
 ---
 
@@ -335,6 +336,27 @@
 
 残留（保持原样）：
 - `/root/.bash_history` 含 v1 部署命令历史，无敏感信息
+
+### 2026-06-19 · Phase 0 · T0.4 v2 脚手架（已完成）
+
+实施过程：
+
+| 步骤 | 动作 | 结果 |
+|---|---|---|
+| 1 | 建 `backend/`（Hono + @hono/node-server + tsx + vitest + TS strict） | health 路由 + Hono request 测试通过 |
+| 2 | 建 `web/`（Vite 6 + React 18 + TS + Tailwind 3 + Zustand） | 首屏调用 `/api/health` 渲染 backend metadata |
+| 3 | 引入 npm workspaces（root `package.json`） | 解决 npm 11 找不到 sub-package.json 的问题，且让 `npm install` 一次装好两端 |
+| 4 | `bin/dev.sh` 一键并发启动两端，子进程同生共死 | trap INT/TERM 同步清理 |
+| 5 | `.nvmrc` 锁 Node 20 | 与 ARCHITECTURE_V2 §10.2 / DEPLOYMENT 一致 |
+| 6 | 同时把 `docs/DEPLOYMENT.md` 草案落盘（GitHub Actions → ECS deploy key + symlink 切换 + 失败回滚） | Phase 3 实施前定稿，本阶段不动手 |
+| 7 | 联调验收 | backend `:3000/api/health` 直连 + 经 vite `:5173` 反代均返回 `{status:"ok",...}` ✓；vitest 2/2 通过 ✓；两端 typecheck 全绿 ✓ |
+
+技术决策：
+- **npm workspaces vs 各自独立** —— 选 workspaces。npm 11 在子目录跑 `npm install` 时会向上回溯找 prefix，若仓库根没有 `package.json` 就 ENOENT；workspaces 顺道把"一键 install + 一键 dev"打通，零成本。生产部署沿用 root npm ci 后再 build 各 workspace。
+- **backend 端口 3000** —— 与 ARCHITECTURE_V2 §10.3 Caddyfile `reverse_proxy localhost:3000` 严格对齐。
+- **vite 反代 `/api/*` → :3000** —— 开发期前后端同源，无需 CORS 临时配置；生产期由 Caddy 同样的 path 规则反代，前端代码零修改。
+
+下一步：进入 Phase 1。先实现 T1.1（Drizzle schema + 5 张表 + 迁移）打地基。
 
 ---
 

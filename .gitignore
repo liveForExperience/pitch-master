@@ -6,6 +6,9 @@ build/
 *.log
 .DS_Store
 
+# TypeScript incremental build outputs
+*.tsbuildinfo
+
 # v2 数据库（本地开发）
 *.db
 *.db-journal

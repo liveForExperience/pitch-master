@@ -32,6 +32,24 @@ PitchMaster v2 是为业余足球小圈子（自己 + 朋友 1-2 个俱乐部，
 
 ---
 
+## 快速上手（本地）
+
+```bash
+nvm use            # 读取 .nvmrc (Node 20)
+bash bin/dev.sh    # 一键启动 backend(:3000) + web(:5173)
+```
+
+浏览器打开 <http://localhost:5173>，首屏会显示 backend 健康检查结果。
+
+或分别启动：
+
+```bash
+(cd backend && npm install && npm run dev)   # → :3000/api/health
+(cd web     && npm install && npm run dev)   # → :5173
+```
+
+---
+
 ## 仓库结构
 
 ```
@@ -39,14 +57,17 @@ PitchMaster v2 是为业余足球小圈子（自己 + 朋友 1-2 个俱乐部，
 ├── AGENTS.md                 # AI 编码代理上下文（唯一）
 ├── DEVELOPMENT_PLAN.md       # 当前开发路线 + 阶段计划 + 验收门禁
 ├── README.md                 # 本文件
+├── .nvmrc                    # Node 20
+├── bin/dev.sh                # 一键启动两端
 ├── docs/
 │   ├── ARCHITECTURE_V2.md    # 技术蓝图（DDL / API / 算法）
 │   └── DECISIONS.md          # ADR 决策记录
 ├── legacy/                   # v1 归档（已废弃）
-├── backend/                  # v2 Node + Hono 后端（Phase 0 后创建）
-├── web/                      # v2 React + Vite PWA 前端（Phase 0 后创建）
-└── deploy/                   # v2 部署脚本（Phase 0 后创建）
+├── backend/                  # v2 Node + Hono 后端
+└── web/                      # v2 React + Vite PWA 前端
 ```
+
+> `deploy/` 目录会在 Phase 3 部署阶段创建。
 
 ---
 
@@ -54,8 +75,7 @@ PitchMaster v2 是为业余足球小圈子（自己 + 朋友 1-2 个俱乐部，
 
 参见 [`DEVELOPMENT_PLAN.md §5 阶段实施日志`](./DEVELOPMENT_PLAN.md#5-阶段实施日志执行时由开发者追加)。
 
-- [x] Phase 0：v1 归档完成、新文档体系建立
-- [ ] Phase 0：v2 backend/web 脚手架（待启动）
+- [x] Phase 0：v1 归档完成、文档体系建立、v1 运行时彻底下线、v2 脚手架就绪
 - [ ] Phase 1：MVP 在线版（待启动）
 - [ ] Phase 2：离线 + 战报（待启动）
 - [ ] Phase 3：上线（待启动）
