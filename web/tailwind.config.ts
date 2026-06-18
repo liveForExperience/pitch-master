@@ -5,23 +5,28 @@ export default {
   theme: {
     extend: {
       colors: {
-        pitch: {
-          bg: '#0B0F14',
-          surface: '#111720',
-          line: '#1F2937',
-          accent: '#22C55E',
-          danger: '#EF4444',
-          muted: '#9CA3AF',
-        },
+        primary: '#10b981',
+        primaryDk: '#059669',
+        danger: '#ef4444',
+        warning: '#f59e0b',
+        surface: '#ffffff',
+        elevated: '#f8fafc',
+        border: '#e2e8f0',
+        textPri: '#0f172a',
+        textSec: '#64748b',
+        textInv: '#ffffff',
+        chipBg: '#f1f5f9',
+      },
+      fontSize: {
+        tap: ['1.75rem', { lineHeight: '2.25rem', fontWeight: '700' }],
+        score: ['4rem', { lineHeight: '1', fontWeight: '800' }],
       },
       fontFamily: {
         sans: [
-          '-apple-system',
-          'BlinkMacSystemFont',
+          'ui-sans-serif',
+          'system-ui',
           '"PingFang SC"',
-          '"Noto Sans SC"',
-          '"Helvetica Neue"',
-          'Arial',
+          '"Microsoft YaHei"',
           'sans-serif',
         ],
       },

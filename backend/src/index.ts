@@ -1,13 +1,13 @@
 import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
-import { createDbConnection, resolveDbFile } from './db/client.js';
+import { bootstrapDb, resolveDbFile } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
 
 const port = Number(process.env.PORT) || 3000;
 const host = process.env.HOST || '0.0.0.0';
 
 const dbFile = resolveDbFile();
-const { db, sqlite } = createDbConnection(dbFile);
+const { db, sqlite } = bootstrapDb(dbFile);
 runMigrations(db, sqlite);
 console.log(`[pitchmaster-backend] database ready at ${dbFile}`);
 

@@ -56,6 +56,11 @@ export function createTestDb(): { db: AppDb; sqlite: Database.Database } {
   return { db, sqlite };
 }
 
+export function useDbConnection(conn: { db: AppDb; sqlite: Database.Database }): void {
+  if (singleton) singleton.sqlite.close();
+  singleton = conn;
+}
+
 export function resetDbForTests(): void {
   if (singleton) {
     singleton.sqlite.close();

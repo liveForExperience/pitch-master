@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
 import { getDb } from '../db/client.js';
-import { requireEventAdmin, parseAdminCredentials } from '../lib/admin-auth.js';
+import { requireEventAdmin } from '../lib/admin-auth.js';
 import { fail, ok } from '../lib/api-response.js';
+import { readJson } from '../lib/http.js';
 import { createEvent } from '../services/event.service.js';
 import {
-  ConflictError,
   NotFoundError,
   ValidationError,
   createGame,
@@ -15,7 +15,7 @@ import {
 export const eventsRoute = new Hono();
 
 eventsRoute.post('/events', async (c) => {
-  const body = await c.req.json<{ name?: string }>().catch(() => ({}));
+  const body = await readJson<{ name?: string }>(c);
   if (!body.name?.trim()) return fail(c, 'validation_error', 'name is required', 400);
   const db = getDb();
   const data = await createEvent(db, body.name.trim());
@@ -39,18 +39,13 @@ eventsRoute.post('/events/:id/teams', async (c) => {
   const auth = await requireEventAdmin(c, db, eventId);
   if (auth instanceof Response) return auth;
 
-  const body = await c.req.json<{ name?: string; colorHex?: string }>().catch(() => ({}));
+  const body = await readJson<{ name?: string; colorHex?: string }>(c);
   if (!body.name?.trim()) return fail(c, 'validation_error', 'name is required', 400);
 
-  try {
-    const data = await createTeam(db, eventId, { name: body.name.trim(), colorHex: body.colorHex });
-    const res = ok(c, data, 201);
-    if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
-    return res;
-  } catch (err) {
-    if (err instanceof NotFoundError) return fail(c, 'not_found', err.message, 404);
-    throw err;
-  }
+  const data = await createTeam(db, eventId, { name: body.name.trim(), colorHex: body.colorHex });
+  const res = ok(c, data, 201);
+  if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
+  return res;
 });
 
 eventsRoute.post('/events/:id/games', async (c) => {
@@ -59,9 +54,11 @@ eventsRoute.post('/events/:id/games', async (c) => {
   const auth = await requireEventAdmin(c, db, eventId);
   if (auth instanceof Response) return auth;
 
-  const body = await c.req
-    .json<{ teamAId?: string; teamBId?: string; plannedDurationMs?: number }>()
-    .catch(() => ({}));
+  const body = await readJson<{
+    teamAId?: string;
+    teamBId?: string;
+    plannedDurationMs?: number;
+  }>(c);
   if (!body.teamAId || !body.teamBId) {
     return fail(c, 'validation_error', 'teamAId and teamBId are required', 400);
   }
@@ -81,7 +78,6 @@ eventsRoute.post('/events/:id/games', async (c) => {
   }
 });
 
-// PIN restore endpoint for frontend
 eventsRoute.post('/events/:id/restore-token', async (c) => {
   const eventId = c.req.param('id');
   const db = getDb();

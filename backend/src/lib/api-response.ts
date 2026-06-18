@@ -1,4 +1,5 @@
 import type { Context } from 'hono';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 
 export type ApiErrorBody = {
   ok: false;
@@ -10,10 +11,10 @@ export type ApiSuccessBody<T> = {
   data: T;
 };
 
-export function ok<T>(c: Context, data: T, status: 200 | 201 = 200) {
+export function ok<T>(c: Context, data: T, status: ContentfulStatusCode = 200) {
   return c.json({ ok: true, data } satisfies ApiSuccessBody<T>, status);
 }
 
-export function fail(c: Context, code: string, message: string, status = 400) {
+export function fail(c: Context, code: string, message: string, status: ContentfulStatusCode = 400) {
   return c.json({ ok: false, error: { code, message } } satisfies ApiErrorBody, status);
 }

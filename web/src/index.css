@@ -9,9 +9,8 @@ body,
 }
 
 body {
-  background: #0b0f14;
-  color: #fff;
+  background: #f8fafc;
+  color: #0f172a;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: none;
 }

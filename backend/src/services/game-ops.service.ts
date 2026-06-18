@@ -338,6 +338,29 @@ export async function getGameDetail(db: AppDb, gameId: string) {
   const timer = buildTimerState(game, nowMs());
   const [teamA] = await db.select().from(teams).where(eq(teams.id, game.teamAId)).limit(1);
   const [teamB] = await db.select().from(teams).where(eq(teams.id, game.teamBId)).limit(1);
+  const rosterA = teamA
+    ? await db.select().from(rosters).where(eq(rosters.teamId, teamA.id))
+    : [];
+  const rosterB = teamB
+    ? await db.select().from(rosters).where(eq(rosters.teamId, teamB.id))
+    : [];
+
+  const mapTeam = (
+    team: typeof teamA | undefined,
+    roster: typeof rosterA,
+  ) =>
+    team
+      ? {
+          id: team.id,
+          name: team.name,
+          colorHex: team.colorHex,
+          roster: roster.map((r) => ({
+            id: r.id,
+            name: r.name,
+            jerseyNumber: r.jerseyNumber,
+          })),
+        }
+      : undefined;
 
   return {
     game: {
@@ -352,8 +375,8 @@ export async function getGameDetail(db: AppDb, gameId: string) {
       pausedDurationMs: game.pausedDurationMs,
       pauseStartedAt: game.pauseStartedAt,
     },
-    teamA,
-    teamB,
+    teamA: mapTeam(teamA, rosterA),
+    teamB: mapTeam(teamB, rosterB),
     events: rows,
     scoreA: score.scoreA,
     scoreB: score.scoreB,

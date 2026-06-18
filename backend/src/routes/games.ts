@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { getDb } from '../db/client.js';
 import { requireGameAdmin } from '../lib/admin-auth.js';
 import { fail, ok } from '../lib/api-response.js';
+import { readJson } from '../lib/http.js';
 import {
   ConflictError,
   NotFoundError,
@@ -110,16 +111,14 @@ gamesRoute.post('/games/:id/events', async (c) => {
   const auth = await requireGameAdmin(c, db, gameId);
   if (auth instanceof Response) return auth;
 
-  const body = await c.req
-    .json<{
-      clientEventId?: string;
-      type?: 'GOAL' | 'OWN_GOAL' | 'ASSIST';
-      teamSide?: 'A' | 'B';
-      scorerRosterId?: string;
-      assistantRosterId?: string;
-      clientTs?: number;
-    }>()
-    .catch(() => ({}));
+  const body = await readJson<{
+    clientEventId?: string;
+    type?: 'GOAL' | 'OWN_GOAL' | 'ASSIST';
+    teamSide?: 'A' | 'B';
+    scorerRosterId?: string;
+    assistantRosterId?: string;
+    clientTs?: number;
+  }>(c);
 
   if (!body.clientEventId || !body.type || body.clientTs == null) {
     return fail(c, 'validation_error', 'clientEventId, type, clientTs required', 400);
