@@ -1,0 +1,9 @@
+# 安全：禁止任何环境文件（含明文密码）误提交
+*.env
+*.env.*
+pitchmaster.env*
+
+# 禁止任何超大文件（> 10MB）直接进仓库 —— 走 git-lfs 或本地保管
+# 该规则由开发者执行 `git status` 时人工把关；如需 LFS 跟踪，参考：
+#   git lfs track "legacy/db-dump/*.sql.gz"
+#   git add .gitattributes

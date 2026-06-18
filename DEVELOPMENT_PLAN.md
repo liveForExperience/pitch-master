@@ -87,11 +87,15 @@
 | T0.3 删除 v1 AI 上下文 | 删 `GEMINI.md`、`.windsurfrules`、`.windsurf/`、`TODO.md`、根目录 `backend.log`、`frontend/dev*.log` | `git status` 不再含上述文件 |
 | T0.4 创建 v2 骨架 | `backend/` Hono 工程 + `web/` Vite 工程 + `deploy/` 简化版 + 三份新文档 | `npm run dev` 在两个子目录都能起来 |
 | T0.5 写 README.md | 重写根 README，只保留 v2 信息 | README 不再提 Spring/MySQL/FM 评分 |
+| T0.6 v1 运行时下线 + 数据归档 | `deploy/scripts/legacy-shutdown.sh` + `docs/LEGACY_SHUTDOWN.md` + `legacy/db-dump/pitch_master-*.sql.gz` | ECS 上 systemd/MySQL/Java/Maven 全部卸载，端口 8080/3306 释放；MySQL dump 已归档进仓库（或 LFS / 本地保管） |
 
 **Phase 0 Gate**：
 - ✅ `legacy/` 完整，可被独立 checkout 使用
 - ✅ `backend/`、`web/` 两个空工程都能 `npm run dev` 启动并打印 hello
 - ✅ 根目录无任何 v1 残留运行时文件
+- ✅ v1 ECS 已下线（`systemctl status pitchmaster` → Unit not found）
+- ✅ MySQL dump 已归档（仓库 `legacy/db-dump/` 或本地受控位置）
+- ✅ ECS 上 `mysql --version` / `java -version` 均报 not found（资源已让出）
 
 ---
 
