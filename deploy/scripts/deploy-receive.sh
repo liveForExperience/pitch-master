@@ -49,24 +49,17 @@ mkdir -p "$RELEASE_DIR"
 tar -xzf "$TARBALL" -C "$RELEASE_DIR"
 rm -f "$TARBALL"
 
-log "[2/6] 链接 shared/ 资产"
+log "[2/6] 链接 shared/ 资产 + 安装生产依赖"
 mkdir -p "${SHARED}"
 touch "${SHARED}/.env"
-# .env 与 data.db 链接到 release 根
 ln -sfn "${SHARED}/.env" "${RELEASE_DIR}/.env"
 
-# 生产依赖：第一次或 package-lock 变了就重装；否则复用 shared/node_modules
-if [[ ! -f "${SHARED}/package-lock.json" ]] \
-   || ! cmp -s "${RELEASE_DIR}/package-lock.json" "${SHARED}/package-lock.json"; then
-  log "[2.1] package-lock 变化，重建生产 node_modules"
-  cp "${RELEASE_DIR}/package-lock.json" "${SHARED}/package-lock.json"
-  cp "${RELEASE_DIR}/package.json"      "${SHARED}/package.json"
-  (
-    cd "${SHARED}"
-    npm ci --omit=dev --no-audit --no-fund
-  )
-fi
-ln -sfn "${SHARED}/node_modules" "${RELEASE_DIR}/node_modules"
+# npm workspaces 必须在 release 目录内安装（需 backend/ + web/ 的 package.json）
+log "[2.1] npm ci --omit=dev（在 release 目录，含 workspace 结构）"
+(
+  cd "${RELEASE_DIR}"
+  npm ci --omit=dev --no-audit --no-fund
+)
 
 log "[3/6] 原子切换 current → ${RELEASE_ID}"
 ln -sfn "${RELEASE_DIR}" "${CURRENT}"

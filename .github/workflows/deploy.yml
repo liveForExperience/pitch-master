@@ -57,6 +57,7 @@ jobs:
           cp backend/package.json release/backend/package.json
           cp -r backend/dist     release/backend/dist
           mkdir -p release/web
+          cp web/package.json    release/web/package.json
           cp -r web/dist         release/web/dist
           tar -czf release.tar.gz -C release .
           ls -lh release.tar.gz
