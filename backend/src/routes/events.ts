@@ -10,6 +10,7 @@ import {
   createTeam,
   getEventByShortCode,
 } from '../services/game-ops.service.js';
+import { getEventReport } from '../services/report.service.js';
 
 export const eventsRoute = new Hono();
 
@@ -25,6 +26,18 @@ eventsRoute.get('/events/:shortCode', async (c) => {
   const db = getDb();
   try {
     const data = await getEventByShortCode(db, c.req.param('shortCode'));
+    return ok(c, data);
+  } catch (err) {
+    const mapped = mapServiceError(c, err);
+    if (mapped) return mapped;
+    throw err;
+  }
+});
+
+eventsRoute.get('/events/:id/report', async (c) => {
+  const db = getDb();
+  try {
+    const data = await getEventReport(db, c.req.param('id'));
     return ok(c, data);
   } catch (err) {
     const mapped = mapServiceError(c, err);

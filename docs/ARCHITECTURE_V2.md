@@ -247,13 +247,13 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | POST | `/api/games/:id/resume` | Admin | 恢复 |
 | POST | `/api/games/:id/finish` | Admin | 结束 |
 | POST | `/api/games/:id/events` | Admin | 单条事件（`PLAYING`/`PAUSED`/`FINISHED` 均可，用于赛后补录） |
-| POST | `/api/games/:id/events/batch` | Admin | **未实现**（Phase 2 离线 replay，见 PLAN T2.3） |
+| POST | `/api/games/:id/events/batch` | Admin | 离线 outbox 批量 replay（按 `clientTs` 排序，幂等） |
 | DELETE | `/api/games/:id/events/:eventId` | Admin | 撤销事件（写入 UNDO；`FINISHED` 亦可，用于赛后修正） |
 | GET | `/api/games/:id/stream` | 公开 | SSE 订阅 |
-| GET | `/api/games/:id/report` | 公开 | **未实现**（Phase 2 战报 JSON） |
-| GET | `/api/games/:id/poster.png` | 公开 | **未实现**（Phase 2 单场海报 PNG） |
-| GET | `/api/events/:id/report?topN=5` | 公开 | **未实现**（Phase 2 活动战报 JSON） |
-| GET | `/api/events/:id/poster.png?topN=5` | 公开 | **未实现**（Phase 2 活动海报 PNG） |
+| GET | `/api/games/:id/report` | 公开 | 单场战报 JSON |
+| GET | `/api/games/:id/poster.png` | 公开 | 单场海报 PNG |
+| GET | `/api/events/:id/report?topN=5` | 公开 | 活动战报 JSON（`:id` 可为 event id 或 shortCode） |
+| GET | `/api/events/:id/poster.png?topN=5` | 公开 | 活动海报 PNG（60s 内存缓存） |
 | GET | `/api/health` | 公开 | 健康检查 `{status, service, version, uptimeSeconds, serverTime}` |
 
 ### 4.3 关键请求/响应样例
@@ -334,11 +334,19 @@ data: {"elapsedMs":830000,"status":"PLAYING"}
 IndexedDB store `outbox`：
 ```ts
 interface OutboxItem {
-  id: string;              // uuid v4
+  id: string;              // uuid v4（outbox 行主键）
   gameId: string;
-  endpoint: string;        // 'POST /api/games/xxx/events'
-  payload: any;            // 业务 body
-  clientTs: number;        // 写入时的客户端 ms
+  eventId: string;         // 父活动 id，flush 时解析 adminToken
+  payload: {
+    clientEventId: string;
+    type: 'GOAL' | 'UNDO';
+    teamSide?: 'A' | 'B';
+    scorerRosterId?: string;
+    assistantRosterId?: string;
+    undoTargetEventId?: string;
+    undoTargetClientEventId?: string;
+  };
+  clientTs: number;        // 写入时的客户端 ms（已含 server offset）
   status: 'PENDING' | 'SENDING' | 'FAILED';
   retryCount: number;
   lastError?: string;
@@ -662,7 +670,7 @@ H5 复用 satori 模板的同一套 React 组件（`PosterCard`、`StandingsTabl
 
 ## 8. 前端关键模块
 
-> **PWA 分期（C4 已决 2026-06-19）**：Phase 1 已落地 `vite-plugin-pwa`（manifest + Service Worker 注册 + 图标）；IndexedDB outbox、离线兜底页、后台 sync 在 Phase 2（见 PLAN T2.1–T2.2）。
+> **PWA（C4 已决 2026-06-19）**：Phase 1 = manifest + SW 注册；Phase 2 T2.1 = `injectManifest` 自定义 SW（App Shell 预缓存、`/api/*` NetworkOnly、`offline.html` 兜底）、Background Sync 标签 `outbox-flush` 与客户端 flush 联动、`/api/health` 主动探测 + 顶栏离线/待同步状态。
 
 ### 8.1 状态管理（Zustand）
 
@@ -679,7 +687,8 @@ H5 复用 satori 模板的同一套 React 组件（`PosterCard`、`StandingsTabl
 /events/new                                创建活动（4 步：含 PIN 凭证确认）
 /events/:shortCode                         活动主页（adminToken 管理 + 手动结束活动）
 /events/:shortCode/setup                   配置队伍与队员（仅 adminToken）
-/events/:shortCode/report                  战报 H5（Phase 2，未实现）
+/events/:shortCode/report                  战报 H5
+/games/:id/report                          单场战报 H5
 /games/new?eventId=...                     新建场次（仅 adminToken）
 /games/:id/record                          录入页（仅 adminToken）
 /games/:id                                 场次只读详情（SSE 实时）

@@ -20,6 +20,10 @@ export default {
       fontSize: {
         tap: ['1.75rem', { lineHeight: '2.25rem', fontWeight: '700' }],
         score: ['4rem', { lineHeight: '1', fontWeight: '800' }],
+        h1: ['1.875rem', { lineHeight: '2.25rem', fontWeight: '700' }],
+        h2: ['1.25rem', { lineHeight: '1.75rem', fontWeight: '700' }],
+        body: ['1rem', { lineHeight: '1.5rem', fontWeight: '400' }],
+        caption: ['0.75rem', { lineHeight: '1rem', fontWeight: '400' }],
       },
       fontFamily: {
         sans: [

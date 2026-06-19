@@ -273,9 +273,31 @@ export async function recordGameEvent(db: AppDb, gameId: string, input: RecordEv
   return { event: row, scoreA: score.scoreA, scoreB: score.scoreB, idempotent: false };
 }
 
-export async function undoGameEvent(db: AppDb, gameId: string, targetEventId: string) {
+export async function undoGameEvent(
+  db: AppDb,
+  gameId: string,
+  targetEventId: string,
+  opts?: { clientEventId?: string; clientTs?: number },
+) {
   const game = await loadGame(db, gameId);
   if (game.status === 'READY') throw new ConflictError('Cannot undo events before game starts');
+
+  const clientEventId = opts?.clientEventId ?? `undo-${targetEventId}-${nowMs()}`;
+
+  const existingByClient = await db
+    .select()
+    .from(gameEvents)
+    .where(and(eq(gameEvents.gameId, gameId), eq(gameEvents.clientEventId, clientEventId)))
+    .limit(1);
+  if (existingByClient[0]) {
+    const score = deriveScore(mapScoreEvents(await loadGameEvents(db, gameId)));
+    return {
+      event: existingByClient[0],
+      scoreA: score.scoreA,
+      scoreB: score.scoreB,
+      idempotent: true as const,
+    };
+  }
 
   const [target] = await db
     .select()
@@ -285,7 +307,6 @@ export async function undoGameEvent(db: AppDb, gameId: string, targetEventId: st
   if (!target) throw new NotFoundError('Event not found');
   if (target.type === 'UNDO') throw new ValidationError('Cannot undo an UNDO event');
 
-  const clientEventId = `undo-${targetEventId}-${nowMs()}`;
   const existingUndo = await db
     .select()
     .from(gameEvents)
@@ -293,7 +314,7 @@ export async function undoGameEvent(db: AppDb, gameId: string, targetEventId: st
     .limit(1);
   if (existingUndo[0]) {
     const score = deriveScore(mapScoreEvents(await loadGameEvents(db, gameId)));
-    return { event: existingUndo[0], scoreA: score.scoreA, scoreB: score.scoreB };
+    return { event: existingUndo[0], scoreA: score.scoreA, scoreB: score.scoreB, idempotent: true as const };
   }
 
   const id = newId();
@@ -307,14 +328,14 @@ export async function undoGameEvent(db: AppDb, gameId: string, targetEventId: st
     scorerRosterId: null,
     assistantRosterId: null,
     undoTargetEventId: targetEventId,
-    clientTs: serverTs,
+    clientTs: opts?.clientTs ?? serverTs,
     serverTs,
   };
   await db.insert(gameEvents).values(row);
 
   const score = deriveScore(mapScoreEvents(await loadGameEvents(db, gameId)));
   await emitGameUpdate(db, gameId, 'UNDO', { gameEvent: row });
-  return { event: row, scoreA: score.scoreA, scoreB: score.scoreB };
+  return { event: row, scoreA: score.scoreA, scoreB: score.scoreB, idempotent: false as const };
 }
 
 export async function getGameDetail(db: AppDb, gameId: string) {

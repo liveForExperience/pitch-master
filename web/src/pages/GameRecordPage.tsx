@@ -1,23 +1,23 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { newClientEventId } from '../api/client';
 import {
   fetchGame,
   finishGame,
   pauseGame,
-  recordGoal,
   resumeGame,
   startGame,
-  undoEvent,
 } from '../api/events';
-import { newClientEventId } from '../api/client';
 import type { GameDetail } from '../api/types';
 import { GameEventFeed } from '../components/GameEventFeed';
 import { GoalPickPanel, type PickPhase } from '../components/GoalPickPanel';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
+import { mergeGameWithOutbox, resolveUndoTarget } from '../lib/outbox/merge-game';
 import { formatMs } from '../lib/time-format';
 import { useGameStream } from '../lib/use-game-stream';
 import { useLiveGameTimer, useServerOffset } from '../lib/use-live-game-timer';
 import { getAdminToken } from '../lib/storage';
+import { useOutboxStore } from '../stores/outbox';
 import { useSessionStore } from '../stores/session';
 
 type EditingGoal = { eventId: string; side: 'A' | 'B' };
@@ -25,10 +25,21 @@ type EditingGoal = { eventId: string; side: 'A' | 'B' };
 export function GameRecordPage() {
   const { id = '' } = useParams();
   const nav = useNavigate();
-  const [game, setGame] = useState<GameDetail | null>(null);
+  const [serverGame, setServerGame] = useState<GameDetail | null>(null);
   const [error, setError] = useState('');
   const [pick, setPick] = useState<PickPhase>(null);
   const [editing, setEditing] = useState<EditingGoal | null>(null);
+
+  const outboxItems = useOutboxStore((s) => s.items);
+  const enqueue = useOutboxStore((s) => s.enqueue);
+  const pendingForGame = useMemo(
+    () => outboxItems.filter((i) => i.gameId === id),
+    [outboxItems, id],
+  );
+  const game = useMemo(
+    () => (serverGame ? mergeGameWithOutbox(serverGame, pendingForGame) : null),
+    [serverGame, pendingForGame],
+  );
 
   const recentEvents = useSessionStore((s) => s.recentEvents);
   const token = game ? getAdminToken(game.game.eventId) : null;
@@ -38,7 +49,7 @@ export function GameRecordPage() {
 
   const reload = useCallback(async () => {
     const detail = await fetchGame(id);
-    setGame(detail);
+    setServerGame(detail);
   }, [id]);
 
   useEffect(() => {
@@ -51,7 +62,7 @@ export function GameRecordPage() {
     void reload().catch((err: Error) => setError(err.message));
   }, [reload]);
 
-  useGameStream(id, () => void reload(), Boolean(game));
+  useGameStream(id, () => void reload(), Boolean(serverGame));
 
   const timer = useLiveGameTimer(game);
   const serverOffset = useServerOffset();
@@ -83,39 +94,63 @@ export function GameRecordPage() {
   };
 
   const submitGoal = async (side: 'A' | 'B', scorerId: string, assistantId?: string) => {
-    if (!token) return;
+    if (!token || !serverGame) return;
+    const clientTs = Date.now() + serverOffset;
     try {
       if (editing) {
-        await undoEvent(id, editing.eventId, token);
+        const undoTarget = resolveUndoTarget(
+          editing.eventId,
+          serverGame.events,
+          pendingForGame,
+        );
+        await enqueue(
+          id,
+          serverGame.game.eventId,
+          {
+            clientEventId: newClientEventId(),
+            type: 'UNDO',
+            ...undoTarget,
+          },
+          clientTs - 1,
+        );
         setEditing(null);
       }
-      await recordGoal(
+      await enqueue(
         id,
+        serverGame.game.eventId,
         {
           clientEventId: newClientEventId(),
+          type: 'GOAL',
           teamSide: side,
           scorerRosterId: scorerId,
           assistantRosterId: assistantId,
-          clientTs: Date.now() + serverOffset,
         },
-        token,
+        clientTs,
       );
       setPick(null);
-      await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : '操作失败');
     }
   };
 
   const onDeleteGoal = async (eventId: string) => {
-    if (!token) return;
+    if (!token || !serverGame) return;
     try {
-      await undoEvent(id, eventId, token);
+      const undoTarget = resolveUndoTarget(eventId, serverGame.events, pendingForGame);
+      await enqueue(
+        id,
+        serverGame.game.eventId,
+        {
+          clientEventId: newClientEventId(),
+          type: 'UNDO',
+          ...undoTarget,
+        },
+        Date.now() + serverOffset,
+      );
       if (editing?.eventId === eventId) {
         setEditing(null);
         setPick(null);
       }
-      await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败');
     }
@@ -150,6 +185,7 @@ export function GameRecordPage() {
 
   const finished = game.game.status === 'FINISHED';
   const inProgress = game.game.status === 'PLAYING' || game.game.status === 'PAUSED';
+  const hasPending = pendingForGame.length > 0;
 
   return (
     <PageShell
@@ -157,6 +193,9 @@ export function GameRecordPage() {
       backTo={eventShortCode ? `/events/${eventShortCode}` : '/'}
     >
       {error && <p className="text-sm text-danger">{error}</p>}
+      {hasPending && (
+        <p className="text-xs text-warning">有 {pendingForGame.length} 条记录待同步…</p>
+      )}
       <Card className="text-center">
         <div className="font-score tabular-nums text-score text-textPri">
           {game.scoreA} : {game.scoreB}
