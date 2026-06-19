@@ -35,16 +35,33 @@ jobs:
           cache: 'npm'
 
       - name: Install
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund --prefer-offline
 
-      - name: Typecheck
-        run: npm run typecheck
+      # Build 与 Test 互不依赖；在同一 runner 内后台并行。
+      # 注：backend `build` = `tsc -p ...`，web `build` = `tsc -b && vite build`，
+      # 两者本身已做完整类型检查，因此无需独立的 typecheck step。
+      - name: Build + Test (parallel)
+        run: |
+          set -euo pipefail
+          npm run build > build.log 2>&1 &
+          BUILD_PID=$!
+          npm test > test.log 2>&1 &
+          TEST_PID=$!
 
-      - name: Test
-        run: npm test
+          BUILD_RC=0
+          TEST_RC=0
+          wait $BUILD_PID || BUILD_RC=$?
+          wait $TEST_PID  || TEST_RC=$?
 
-      - name: Build (backend + web)
-        run: npm run build
+          echo "===== build.log ====="
+          cat build.log
+          echo "===== test.log ====="
+          cat test.log
+
+          if [ $BUILD_RC -ne 0 ] || [ $TEST_RC -ne 0 ]; then
+            echo "✘ build_rc=$BUILD_RC test_rc=$TEST_RC"
+            exit 1
+          fi
 
       - name: Verify release artifacts
         run: |
@@ -110,14 +127,16 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
-          for i in $(seq 1 10); do
-            if curl -fsS --max-time 5 "http://${DEPLOY_HOST}/api/health"; then
+          # 指数退避：前几次紧凑探测，命中即返回；累计上限 ~21s。
+          delays=(0 1 1 2 2 3 3 4 5)
+          for d in "${delays[@]}"; do
+            sleep "$d"
+            if curl -fsS --max-time 3 "http://${DEPLOY_HOST}/api/health"; then
               echo
               echo "✅ Public health check OK"
               exit 0
             fi
-            echo "  retry $i..."
-            sleep 2
+            echo "  retry after ${d}s..."
           done
           echo "✘ Public health check failed"
           exit 1
