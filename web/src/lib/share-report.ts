@@ -52,14 +52,43 @@ export async function fetchPosterBlob(
   return res.blob();
 }
 
+function copyWithExecCommand(text: string): boolean {
+  if (typeof document === 'undefined') return false;
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, text.length);
+
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } finally {
+    document.body.removeChild(textarea);
+  }
+  return ok;
+}
+
 export async function copyToClipboard(
   text: string,
   t: T = defaultT,
 ): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // HTTP 等非安全上下文可能暴露 API 但调用失败，继续走 execCommand。
+    }
   }
+
+  if (copyWithExecCommand(text)) return;
+
   throw new Error(t('common.error.clipboard'));
 }
 
