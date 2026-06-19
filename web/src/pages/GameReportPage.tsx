@@ -5,8 +5,10 @@ import { fetchGameReport } from '../api/reports';
 import type { GameReport } from '../api/types';
 import { GameReportView } from '../components/report/GameReportView';
 import { PageShell } from '../components/ui/layout';
+import { useT } from '../i18n';
 
 export function GameReportPage() {
+  const t = useT();
   const { id = '' } = useParams();
   const [report, setReport] = useState<GameReport | null>(null);
   const [eventShortCode, setEventShortCode] = useState<string | null>(null);
@@ -34,10 +36,10 @@ export function GameReportPage() {
       : '/';
 
   return (
-    <PageShell title="单场战报" backTo={backTo}>
+    <PageShell title={t('reports.gameTitle')} backTo={backTo} forceLight>
       {error && <p className="text-sm text-danger">{error}</p>}
       {report && <GameReportView report={report} eventShortCode={eventShortCode} />}
-      {!report && !error && <p className="text-sm text-textSec">加载中…</p>}
+      {!report && !error && <p className="text-sm text-textSec">{t('common.loading')}</p>}
     </PageShell>
   );
 }

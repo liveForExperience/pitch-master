@@ -1,3 +1,5 @@
+import { t as defaultT } from '../i18n';
+
 export type ShareReportInput = {
   title: string;
   text: string;
@@ -7,8 +9,14 @@ export type ShareReportInput = {
 
 export type ShareReportResult = 'shared' | 'copied';
 
-export function buildEventShareText(name: string, shortCode: string): string {
-  return `${name} 活动战报 · 分享码 ${shortCode}`;
+type T = (key: string, params?: Record<string, string | number>) => string;
+
+export function buildEventShareText(
+  name: string,
+  shortCode: string,
+  t: T = defaultT,
+): string {
+  return t('share.event.copy', { name, code: shortCode });
 }
 
 export function buildGameShareText(
@@ -16,8 +24,9 @@ export function buildGameShareText(
   teamB: string,
   scoreA: number,
   scoreB: number,
+  t: T = defaultT,
 ): string {
-  return `${teamA} ${scoreA}:${scoreB} ${teamB} · 单场战报`;
+  return t('share.game.copy', { teamA, teamB, scoreA, scoreB });
 }
 
 export function reportPageUrl(path: string, origin = ''): string {
@@ -34,23 +43,30 @@ export function gameReportPath(gameId: string): string {
   return `/games/${encodeURIComponent(gameId)}/report`;
 }
 
-export async function fetchPosterBlob(posterUrl: string): Promise<Blob> {
+export async function fetchPosterBlob(
+  posterUrl: string,
+  t: T = defaultT,
+): Promise<Blob> {
   const res = await fetch(posterUrl);
-  if (!res.ok) throw new Error('海报加载失败');
+  if (!res.ok) throw new Error(t('common.error.posterLoad'));
   return res.blob();
 }
 
-export async function copyToClipboard(text: string): Promise<void> {
+export async function copyToClipboard(
+  text: string,
+  t: T = defaultT,
+): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
     return;
   }
-  throw new Error('当前环境无法复制到剪贴板');
+  throw new Error(t('common.error.clipboard'));
 }
 
 export async function shareReport(
   input: ShareReportInput,
   origin = '',
+  t: T = defaultT,
 ): Promise<ShareReportResult> {
   const url = reportPageUrl(input.url, origin);
   const message = `${input.text}\n${url}`;
@@ -58,7 +74,7 @@ export async function shareReport(
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
       if (input.posterUrl && typeof navigator.canShare === 'function') {
-        const blob = await fetchPosterBlob(input.posterUrl);
+        const blob = await fetchPosterBlob(input.posterUrl, t);
         const file = new File([blob], 'pitchmaster-report.png', {
           type: blob.type || 'image/png',
         });
@@ -84,6 +100,6 @@ export async function shareReport(
     }
   }
 
-  await copyToClipboard(message);
+  await copyToClipboard(message, t);
   return 'copied';
 }

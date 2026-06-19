@@ -2,16 +2,11 @@ import { type ReactNode } from 'react';
 import { Eyebrow } from './layout';
 import { ShareReportButton } from './ShareReportButton';
 import type { ShareReportInput } from '../../lib/share-report';
+import { useT } from '../../i18n';
 import { cn } from '../../lib/cn';
 
 /**
  * Editorial hero for both `/events/:code/report` and `/games/:id/report`.
- *
- * Layout:
- *   eyebrow (mono caps) — date / shortcode / game number
- *   title (sans bold tight tracking, optional sub)
- *   stat strip (3 columns, mono numerals, hairline divider)
- *   primary share CTA (above the fold; replaces page-bottom button)
  */
 export function ReportHero({
   eyebrow,
@@ -19,7 +14,7 @@ export function ReportHero({
   subtitle,
   stats,
   share,
-  shareLabel = '分享战报',
+  shareLabel,
   children,
 }: {
   eyebrow: string;
@@ -30,6 +25,9 @@ export function ReportHero({
   shareLabel?: string;
   children?: ReactNode;
 }) {
+  const t = useT();
+  const effectiveLabel = shareLabel ?? t('share.label');
+
   return (
     <header className="space-y-5">
       <Eyebrow>{eyebrow}</Eyebrow>
@@ -70,7 +68,7 @@ export function ReportHero({
           share={share}
           variant="primary"
           className="pt-1"
-          label={shareLabel}
+          label={effectiveLabel}
         />
       )}
     </header>

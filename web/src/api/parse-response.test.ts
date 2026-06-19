@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { ApiError, parseApiFailure, parseApiResponse } from './parse-response';
+import { __resetLocaleForTests } from '../i18n';
+
+beforeAll(() => __resetLocaleForTests('zh'));
 
 describe('parseApiResponse', () => {
   it('returns data on ok envelope', () => {

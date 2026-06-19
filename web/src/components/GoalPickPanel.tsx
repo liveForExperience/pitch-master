@@ -1,4 +1,5 @@
 import { Card, PrimaryButton } from './ui/layout';
+import { useT } from '../i18n';
 
 type RosterMember = { id: string; name: string };
 
@@ -23,13 +24,14 @@ export function GoalPickPanel({
   onCancel,
   onBackToScorerList,
 }: Props) {
+  const t = useT();
   if (!pick) return null;
 
   if (!('scorerId' in pick)) {
     return (
       <Card>
         <p className="mb-2 text-sm text-textSec">
-          {editing ? '修改进球：重新选择球员' : `选择进球球员 (${pick.side} 队)`}
+          {editing ? t('pick.scorerEdit') : t('pick.scorerSide', { side: pick.side })}
         </p>
         <div className="grid grid-cols-2 gap-2">
           {rosterForSide(pick.side).map((p) => (
@@ -44,7 +46,7 @@ export function GoalPickPanel({
           ))}
         </div>
         <button type="button" className="mt-2 text-sm text-textSec" onClick={onCancel}>
-          取消
+          {t('common.cancel')}
         </button>
       </Card>
     );
@@ -53,10 +55,11 @@ export function GoalPickPanel({
   return (
     <Card>
       <p className="mb-1 text-sm font-medium">
-        {editing ? '修改' : ''}
-        {pick.scorerName} 进球
+        {editing
+          ? t('pick.scoredByEdit', { name: pick.scorerName })
+          : t('pick.scoredBy', { name: pick.scorerName })}
       </p>
-      <p className="mb-2 text-xs text-textSec">可选助攻（同队，可不选）</p>
+      <p className="mb-2 text-xs text-textSec">{t('pick.assistHint')}</p>
       <div className="grid grid-cols-2 gap-2">
         {rosterForSide(pick.side)
           .filter((p) => p.id !== pick.scorerId)
@@ -67,20 +70,20 @@ export function GoalPickPanel({
               className="min-h-14 rounded-xl bg-chipBg px-2 py-2 text-sm font-semibold"
               onClick={() => onSubmitGoal(pick.side, pick.scorerId, p.id)}
             >
-              助攻 · {p.name}
+              {t('pick.assist', { name: p.name })}
             </button>
           ))}
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
         <PrimaryButton onClick={() => onSubmitGoal(pick.side, pick.scorerId)}>
-          {editing ? '确认修改' : '无助攻，确认进球'}
+          {editing ? t('pick.confirmEdit') : t('pick.confirmNoAssist')}
         </PrimaryButton>
         <button
           type="button"
           className="min-h-14 rounded-xl bg-chipBg text-sm font-medium"
           onClick={() => onBackToScorerList(pick.side)}
         >
-          返回改球员
+          {t('pick.backToScorer')}
         </button>
       </div>
     </Card>

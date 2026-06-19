@@ -10,9 +10,11 @@ import {
 } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
+import { useT } from '../i18n';
 import { rememberEvent, setAdminToken } from '../lib/storage';
 
 export function AdminRestorePage() {
+  const t = useT();
   const nav = useNavigate();
   const [searchParams] = useSearchParams();
   const [shortCode, setShortCode] = useState('');
@@ -38,7 +40,7 @@ export function AdminRestorePage() {
     const code = shortCode.trim().toUpperCase();
     const pinValue = pin.trim();
     if (code.length < 4 || pinValue.length !== 6) {
-      setError('请输入分享码和 6 位 PIN');
+      setError(t('restore.error.format'));
       return;
     }
 
@@ -48,7 +50,7 @@ export function AdminRestorePage() {
       const event = await fetchEvent(code);
       const result = await restoreAdminToken(event.id, pinValue);
       if (!result.restored || !result.adminToken) {
-        setError('未能恢复管理权限，请确认 PIN 是否正确');
+        setError(t('restore.error.wrongPin'));
         return;
       }
 
@@ -63,24 +65,24 @@ export function AdminRestorePage() {
       setRestoredEvent({ id: event.id, shortCode: event.shortCode, name: event.name });
       setSuccessOpen(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '恢复失败，请稍后再试');
+      setError(err instanceof ApiError ? err.message : t('restore.error.retry'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <PageShell title="找回管理权限" backTo={backTo}>
+    <PageShell title={t('restore.title')} backTo={backTo}>
       <Card>
         <p className="mb-4 text-sm text-textSec">
-          换手机或清过浏览器数据后，用创建活动时保存的 <strong>PIN</strong>
-          {prefilledCode ? ' 即可重新获得录入权限（分享码已自动填入）。' : ' 与分享码可重新获得录入权限。'}
+          {t('restore.hintBase')} <strong>PIN</strong>
+          {prefilledCode ? t('restore.hintWithPrefill') : t('restore.hintNoPrefill')}
         </p>
 
         <div className="space-y-4">
           <div>
             <Label htmlFor="restore-short-code" className="mb-2 block">
-              分享码
+              {t('restore.label.shortCode')}
             </Label>
             <input
               id="restore-short-code"
@@ -89,7 +91,7 @@ export function AdminRestorePage() {
               autoCapitalize="characters"
               autoComplete="off"
               maxLength={6}
-              placeholder="例如 A4F9KQ"
+              placeholder={t('restore.shortCodePlaceholder')}
               value={shortCode}
               onChange={(e) => setShortCode(e.target.value.toUpperCase())}
               readOnly={Boolean(prefilledCode)}
@@ -99,7 +101,7 @@ export function AdminRestorePage() {
 
           <div>
             <Label htmlFor="restore-pin" className="mb-2 block">
-              6 位 PIN
+              {t('restore.label.pin')}
             </Label>
             <input
               id="restore-pin"
@@ -107,7 +109,7 @@ export function AdminRestorePage() {
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
-              placeholder="创建活动时显示的 PIN"
+              placeholder={t('restore.pinPlaceholder')}
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
               className="field-select font-mono tracking-widest"
@@ -119,25 +121,25 @@ export function AdminRestorePage() {
 
         <div className="mt-4">
           <PrimaryButton disabled={loading} onClick={() => void submit()}>
-            {loading ? '验证中…' : '恢复管理权限'}
+            {loading ? t('restore.verifying') : t('restore.submit')}
           </PrimaryButton>
         </div>
       </Card>
 
       <p className="text-center text-xs text-textSec">
-        只有观看、不需要录入？{' '}
+        {t('restore.viewerHint')}{' '}
         <Link to="/" className="text-primary">
-          返回首页加入活动
+          {t('restore.viewerLink')}
         </Link>
       </p>
 
       <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
         <DialogContent>
-          <DialogTitle>已恢复管理权限</DialogTitle>
+          <DialogTitle>{t('restore.success.title')}</DialogTitle>
           <DialogDescription>
             {restoredEvent
-              ? `「${restoredEvent.name}」已可在本机录入比分与配置队员。`
-              : '本机已重新获得管理权限。'}
+              ? t('restore.success.desc', { name: restoredEvent.name })
+              : t('restore.success.descFallback')}
           </DialogDescription>
           <PrimaryButton
             className="mt-4"
@@ -146,7 +148,7 @@ export function AdminRestorePage() {
               else nav('/');
             }}
           >
-            进入活动
+            {t('restore.success.enter')}
           </PrimaryButton>
         </DialogContent>
       </Dialog>

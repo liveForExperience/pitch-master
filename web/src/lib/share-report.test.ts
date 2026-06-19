@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   buildEventShareText,
   buildGameShareText,
@@ -6,8 +6,11 @@ import {
   gameReportPath,
   reportPageUrl,
 } from './share-report';
+import { __resetLocaleForTests } from '../i18n';
 
 describe('share-report', () => {
+  beforeAll(() => __resetLocaleForTests('zh'));
+
   it('builds share copy', () => {
     expect(buildEventShareText('周末局', 'ABC123')).toBe('周末局 活动战报 · 分享码 ABC123');
     expect(buildGameShareText('红队', '蓝队', 2, 1)).toBe('红队 2:1 蓝队 · 单场战报');

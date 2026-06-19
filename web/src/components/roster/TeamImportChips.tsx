@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { importNamesAvailableForTeam } from '../../lib/roster-import';
+import { useT } from '../../i18n';
 
 type Props = {
   teamName: string;
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export function TeamImportChips({ teamName, pool, rosterNames, onAdd }: Props) {
+  const t = useT();
   const available = importNamesAvailableForTeam(pool, rosterNames);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -38,9 +40,11 @@ export function TeamImportChips({ teamName, pool, rosterNames, onAdd }: Props) {
 
   return (
     <div className="mb-3 border-t border-border pt-3">
-      <p className="mb-2 text-xs font-medium text-textSec">从导入名单添加到 {teamName}</p>
+      <p className="mb-2 text-xs font-medium text-textSec">
+        {t('chips.title', { team: teamName })}
+      </p>
       {available.length === 0 ? (
-        <p className="text-xs text-textSec">导入名单中的球员已全部在本队，或名单已空。</p>
+        <p className="text-xs text-textSec">{t('chips.allOnTeam')}</p>
       ) : (
         <>
           <div className="mb-2 flex flex-wrap gap-2">
@@ -69,7 +73,7 @@ export function TeamImportChips({ teamName, pool, rosterNames, onAdd }: Props) {
             onClick={() => void submit()}
             className="text-sm font-medium text-primary disabled:opacity-40"
           >
-            {busy ? '添加中…' : `添加选中的 ${selected.size} 人`}
+            {busy ? t('chips.adding') : t('chips.addSelected', { count: selected.size })}
           </button>
         </>
       )}

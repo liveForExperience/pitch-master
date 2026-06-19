@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { SettingsButton } from '../Settings';
+import { useT } from '../../i18n';
 
 export { Card } from './card';
 
@@ -6,21 +8,31 @@ export function PageShell({
   title,
   backTo,
   children,
+  forceLight = false,
 }: {
   title: string;
   backTo?: string;
   children: React.ReactNode;
+  /**
+   * Force light tokens for this entire shell. Used by H5 report pages so
+   * shareable artifacts always match the (light-only) poster output.
+   */
+  forceLight?: boolean;
 }) {
+  const t = useT();
   return (
-    <div className="mx-auto min-h-full max-w-md bg-elevated pb-8">
+    <div
+      className={`mx-auto min-h-full max-w-md bg-elevated pb-8${forceLight ? ' theme-light' : ''}`}
+    >
       <header className="sticky top-0 z-10 border-b border-border bg-surface px-4 py-3">
         <div className="flex items-center gap-3">
           {backTo && (
             <Link to={backTo} className="text-sm text-primary">
-              ← 返回
+              {t('shell.back')}
             </Link>
           )}
           <h1 className="flex-1 truncate text-lg font-bold text-textPri">{title}</h1>
+          <SettingsButton className="-mr-2" />
         </div>
       </header>
       <main className="space-y-4 p-4">{children}</main>

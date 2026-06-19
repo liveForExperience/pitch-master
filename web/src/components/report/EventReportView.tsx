@@ -18,6 +18,7 @@ import {
 import { PosterPreview } from './PosterPreview';
 import { getMatchResult } from '../../lib/report-display';
 import { formatMs } from '../../lib/time-format';
+import { useT } from '../../i18n';
 
 function MonthDay(epochMs: number): string {
   const d = new Date(epochMs);
@@ -25,15 +26,21 @@ function MonthDay(epochMs: number): string {
   return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function StandingsTable({ rows }: { rows: EventReport['standings'] }) {
+function StandingsTable({
+  rows,
+  t,
+}: {
+  rows: EventReport['standings'];
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
   return (
     <div className="border-t border-border">
       <div className="grid grid-cols-[1.75rem_4px_1fr_auto_auto] items-center gap-x-3 px-1 py-2 text-textSec">
         <span />
         <span />
-        <Eyebrow>队伍</Eyebrow>
-        <Eyebrow>进/失</Eyebrow>
-        <Eyebrow className="text-right">分</Eyebrow>
+        <Eyebrow>{t('reports.standingsHeader.team')}</Eyebrow>
+        <Eyebrow>{t('reports.standingsHeader.goals')}</Eyebrow>
+        <Eyebrow className="text-right">{t('reports.standingsHeader.points')}</Eyebrow>
       </div>
       {rows.map((row, i) => (
         <div
@@ -43,9 +50,7 @@ function StandingsTable({ rows }: { rows: EventReport['standings'] }) {
           <RankNumeral rank={row.rank} dim={row.rank > 3} />
           <TeamBar colorHex={row.colorHex} height={24} />
           <div className="min-w-0">
-            <p className="truncate text-body font-semibold text-textPri">
-              {row.teamName}
-            </p>
+            <p className="truncate text-body font-semibold text-textPri">{row.teamName}</p>
             <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-textSec">
               {row.wins}-{row.draws}-{row.losses}
             </p>
@@ -60,32 +65,18 @@ function StandingsTable({ rows }: { rows: EventReport['standings'] }) {
   );
 }
 
-function ZigzagLeaderboards({
-  scorers,
-  assists,
-}: {
-  scorers: EventReport['topScorers'];
-  assists: EventReport['topAssists'];
-}) {
-  const rows = Math.max(scorers.length, assists.length, 1);
-  return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
-      <LeaderColumn label="TOP SCORERS · 进球" rows={scorers} valueOf={(r) => r.goals} rowsCap={rows} />
-      <LeaderColumn label="TOP ASSISTS · 助攻" rows={assists} valueOf={(r) => r.assists} rowsCap={rows} />
-    </div>
-  );
-}
-
 function LeaderColumn<T extends { rosterId: string; name: string; teamName: string; colorHex: string }>({
   label,
   rows,
   valueOf,
   rowsCap,
+  emptyLabel,
 }: {
   label: string;
   rows: T[];
   valueOf: (row: T) => number;
   rowsCap: number;
+  emptyLabel: string;
 }) {
   return (
     <div>
@@ -93,7 +84,7 @@ function LeaderColumn<T extends { rosterId: string; name: string; teamName: stri
         <Eyebrow>{label}</Eyebrow>
       </div>
       {rows.length === 0 && (
-        <p className="py-3 text-caption text-textSec">暂无数据</p>
+        <p className="py-3 text-caption text-textSec">{emptyLabel}</p>
       )}
       {rows.map((row, i) => (
         <div
@@ -113,7 +104,43 @@ function LeaderColumn<T extends { rosterId: string; name: string; teamName: stri
   );
 }
 
-function GamesTimeline({ games }: { games: EventReport['games'] }) {
+function ZigzagLeaderboards({
+  scorers,
+  assists,
+  t,
+}: {
+  scorers: EventReport['topScorers'];
+  assists: EventReport['topAssists'];
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
+  const rows = Math.max(scorers.length, assists.length, 1);
+  return (
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
+      <LeaderColumn
+        label={t('reports.topScorers')}
+        rows={scorers}
+        valueOf={(r) => r.goals}
+        rowsCap={rows}
+        emptyLabel={t('reports.emptyLeader')}
+      />
+      <LeaderColumn
+        label={t('reports.topAssists')}
+        rows={assists}
+        valueOf={(r) => r.assists}
+        rowsCap={rows}
+        emptyLabel={t('reports.emptyLeader')}
+      />
+    </div>
+  );
+}
+
+function GamesTimeline({
+  games,
+  t,
+}: {
+  games: EventReport['games'];
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
   return (
     <div
       className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2"
@@ -126,16 +153,24 @@ function GamesTimeline({ games }: { games: EventReport['games'] }) {
             ? game.teamA.name
             : result === 'B_WIN'
               ? game.teamB.name
-              : result === 'DRAW'
-                ? '平'
-                : '未结束';
+              : null;
+        const verdict =
+          result === 'DRAW'
+            ? t('reports.fixtures.draw')
+            : result === 'PENDING'
+              ? t('reports.fixtures.pending')
+              : t('reports.fixtures.winner', { team: winner ?? '' });
         return (
           <Link
             key={game.id}
             to={`/games/${game.id}/report`}
             className="flex w-[220px] shrink-0 snap-start flex-col gap-3 rounded-xl border border-border bg-surface p-4 active:bg-elevated"
           >
-            <Eyebrow>{game.status === 'FINISHED' ? `用时 ${formatMs(game.durationMs)}` : '进行中'}</Eyebrow>
+            <Eyebrow>
+              {game.status === 'FINISHED'
+                ? t('reports.fixtures.elapsed', { elapsed: formatMs(game.durationMs) })
+                : t('reports.fixtures.inProgress')}
+            </Eyebrow>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 truncate">
                 <TeamBar colorHex={game.teamA.colorHex} height={16} />
@@ -150,7 +185,7 @@ function GamesTimeline({ games }: { games: EventReport['games'] }) {
               </div>
               <MonoNumber size="lg">{game.scoreB}</MonoNumber>
             </div>
-            <p className="text-caption text-textSec">{winner === '平' ? '平局' : winner === '未结束' ? '未结束' : `${winner} 胜`}</p>
+            <p className="text-caption text-textSec">{verdict}</p>
           </Link>
         );
       })}
@@ -159,11 +194,12 @@ function GamesTimeline({ games }: { games: EventReport['games'] }) {
 }
 
 export function EventReportView({ report }: { report: EventReport }) {
+  const t = useT();
   const finishedGames = report.games.filter((g) => g.status === 'FINISHED').length;
   const totalGoals = report.standings.reduce((acc, s) => acc + s.goalsFor, 0);
   const share: ShareReportInput = {
-    title: `${report.event.name} · 活动战报`,
-    text: buildEventShareText(report.event.name, report.event.shortCode),
+    title: `${report.event.name} · ${t('reports.eventTitle')}`,
+    text: buildEventShareText(report.event.name, report.event.shortCode, t),
     url: eventReportPath(report.event.shortCode),
     posterUrl: eventPosterUrl(report.event.shortCode),
   };
@@ -177,32 +213,39 @@ export function EventReportView({ report }: { report: EventReport }) {
         stats={[
           { label: 'GAMES', value: finishedGames },
           { label: 'GOALS', value: totalGoals },
-          { label: 'MVP', value: report.mvp ? <span className="font-sans text-2xl">{report.mvp.name}</span> : '—' },
+          {
+            label: 'MVP',
+            value: report.mvp ? (
+              <span className="font-sans text-2xl">{report.mvp.name}</span>
+            ) : (
+              '—'
+            ),
+          },
         ]}
       />
 
       {report.standings.length > 0 && (
-        <ReportSection title="STANDINGS · 积分榜">
-          <StandingsTable rows={report.standings} />
+        <ReportSection title={t('reports.standings')}>
+          <StandingsTable rows={report.standings} t={t} />
         </ReportSection>
       )}
 
       {(report.topScorers.length > 0 || report.topAssists.length > 0) && (
-        <ReportSection title="LEADERBOARDS · 个人榜">
-          <ZigzagLeaderboards
-            scorers={report.topScorers}
-            assists={report.topAssists}
-          />
+        <ReportSection title={t('reports.leaderboards')}>
+          <ZigzagLeaderboards scorers={report.topScorers} assists={report.topAssists} t={t} />
         </ReportSection>
       )}
 
       {report.games.length > 0 && (
-        <ReportSection title="FIXTURES · 场次结果" meta={`${finishedGames} 场已结束`}>
-          <GamesTimeline games={report.games} />
+        <ReportSection
+          title={t('reports.fixtures')}
+          meta={t('reports.fixturesMeta', { count: finishedGames })}
+        >
+          <GamesTimeline games={report.games} t={t} />
         </ReportSection>
       )}
 
-      <ReportSection title="POSTER · 海报版战报">
+      <ReportSection title={t('reports.poster')}>
         <PosterPreview
           src={eventPosterUrl(report.event.shortCode)}
           downloadName={`pitchmaster-${report.event.shortCode}-report.png`}
@@ -214,7 +257,7 @@ export function EventReportView({ report }: { report: EventReport }) {
         to={`/events/${report.event.shortCode}`}
         className="block border-t border-border pt-6 text-center text-caption uppercase tracking-[0.14em] text-textSec"
       >
-        ← 返回活动主页
+        {t('reports.backToEvent')}
       </Link>
     </ReportPageRoot>
   );

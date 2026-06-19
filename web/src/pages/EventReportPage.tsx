@@ -4,8 +4,10 @@ import { fetchEventReport } from '../api/reports';
 import type { EventReport } from '../api/types';
 import { EventReportView } from '../components/report/EventReportView';
 import { PageShell } from '../components/ui/layout';
+import { useT } from '../i18n';
 
 export function EventReportPage() {
+  const t = useT();
   const { shortCode = '' } = useParams();
   const [report, setReport] = useState<EventReport | null>(null);
   const [error, setError] = useState('');
@@ -24,10 +26,10 @@ export function EventReportPage() {
   }, [load]);
 
   return (
-    <PageShell title="活动战报" backTo={`/events/${code}`}>
+    <PageShell title={t('reports.eventTitle')} backTo={`/events/${code}`} forceLight>
       {error && <p className="text-sm text-danger">{error}</p>}
       {report && <EventReportView report={report} />}
-      {!report && !error && <p className="text-sm text-textSec">加载中…</p>}
+      {!report && !error && <p className="text-sm text-textSec">{t('common.loading')}</p>}
     </PageShell>
   );
 }

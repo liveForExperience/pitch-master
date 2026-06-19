@@ -663,25 +663,41 @@ H5 与海报**同源令牌**（`web/src/lib/tokens.ts`），布局在 `web/src/c
 
 #### 8.3.1 色板
 
-源文件：`web/src/lib/tokens.ts`（后端镜像 `backend/src/poster/tokens.ts` + `tailwind.config.ts` extend）
+源文件：`web/src/lib/tokens.ts`（PNG 海报常量）+ `web/src/index.css`（App / H5 CSS 变量）+ `tailwind.config.ts`（颜色映射到 `rgb(var(--*) / <alpha-value>)`）。
 
-```js
-// web/tailwind.config.ts → theme.extend.colors
-{
-  primary:    '#2E7D5B',   // 球场墨绿（主操作 / 前 3 名次 / 胜利）
-  primaryDk:  '#1E5A3F',
-  primaryPale:'#EDF3EC',
-  danger:     '#9F2F2D',   // 撤销、负标签
-  warning:    '#9F7B26',   // 暂停状态
-  surface:    '#FFFFFF',   // 主背景（暖白）
-  elevated:   '#FBFBFA',   // 次级区块底
-  border:     '#EAEAEA',   // hairline 分隔（取代 Card 阴影）
-  textPri:    '#1F2328',
-  textSec:    '#6B6B6B',
-  textInv:    '#FFFFFF',
-  chipBg:     '#F4F2EE',   // 可选行底（战报表格）
+```css
+/* web/src/index.css */
+:root, .theme-light {
+  --color-surface: 255 255 255;
+  --color-elevated: 251 251 250;
+  --color-chip-bg: 244 242 238;
+  --color-text-pri: 31 35 40;
+  --color-text-sec: 107 107 107;
+  --color-border: 234 234 234;
+  --color-primary: 46 125 91;
+  --color-primary-dk: 30 90 63;
+  --color-primary-pale: 237 243 236;
+  --color-danger: 159 47 45;
+  --color-warning: 159 123 38;
+}
+.dark {
+  --color-surface: 14 18 24;
+  --color-elevated: 22 27 35;
+  --color-chip-bg: 28 35 45;
+  --color-text-pri: 236 239 243;
+  --color-text-sec: 139 149 163;
+  --color-border: 42 50 61;
+  --color-primary: 79 180 139;   /* 加亮以在深色底保留对比 */
+  --color-primary-dk: 58 155 115;
+  --color-primary-pale: 30 46 42;
+  --color-danger: 226 91 89;
+  --color-warning: 217 169 81;
 }
 ```
+
+Tailwind 通过 `colors.primary = 'rgb(var(--color-primary) / <alpha-value>)'` 等映射，**同一份 class**（`bg-primary`、`text-textPri`、`border-border` 等）在亮/暗模式下自动取对应值；现有 `bg-primary/5`、`border-primary/30` 等 alpha 修饰符照常工作。
+
+**亮色不可被夜间影响的子树**：`.theme-light`（HTML 上同时存在 `.dark` 时仍然取亮色变量）。当前用法：`PageShell forceLight` → H5 战报页（`EventReportPage` / `GameReportPage`）。理由：战报是对外分享的视觉资产，必须与服务端 PNG 海报同色域。
 
 > 队伍颜色 `team.color_hex` 由用户在配置队伍时选；预置 8 色见 `tokens.ts` → `teamPalette`（brick / amber / ochre / sage / teal / cobalt / plum / rose）。
 
@@ -733,7 +749,7 @@ fontFamily: {
 - 所有数字（比分、积分、统计）必须 `tabular-nums` + `font-mono`（Geist Mono）
 - **hairline-first**：列表/战报优先用 `#EAEAEA` 分隔，不用 Card 阴影堆叠
 - 图标：`@phosphor-icons/react`；**禁止 emoji**（海报 / H5 / App 一致）
-- 浅色优先；深色模式若做须同步维护海报背景
+- **App 支持夜间模式**（见 §8.6）；H5 战报与 PNG 海报永远亮色，不跟随用户偏好
 
 ### 8.4 微信报名导入（S1 · 2026-06-19）
 
@@ -751,6 +767,41 @@ fontFamily: {
 `web/src/lib/new-game-teams.ts`：`teamOptionsForSide` / `resolveOtherTeamId` / `canCreateGame`——防止 A/B 选同一队。
 
 后端默认场次时长：`backend/src/lib/game-defaults.ts` → `DEFAULT_PLANNED_DURATION_MS`（15 分钟），`createGame` 未传 `plannedDurationMs` 时使用。
+
+### 8.6 i18n、主题与移动端缩放（2026-06-19）
+
+#### 8.6.1 模块
+
+| 模块 | 文件 | 说明 |
+|---|---|---|
+| i18n 字典 | `web/src/i18n/dict.ts` | `zh` / `en` 两份；key 按命名空间（`home.*`、`event.*`、`reports.*`…）；`{name}` 占位符运行时替换 |
+| i18n 引擎 | `web/src/i18n/index.ts` | `getLocale` / `setLocale` / `t` / `useT` / `useLocale`（基于 `useSyncExternalStore`）；持久化到 `localStorage:pm:locale`；首次启动按 `navigator.language` 兜底 |
+| 主题 | `web/src/lib/theme.ts` | `getTheme` / `setTheme` / `toggleTheme` / `useTheme`；持久化 `localStorage:pm:theme`；首次启动尊重 `prefers-color-scheme` |
+| 早期初始化 | `web/index.html` 内联 `<script>` | 首屏前把 `.dark` 类和 `<html lang>` 设好，杜绝 FOUC |
+| 偏好对话框 | `web/src/components/Settings.tsx` | PageShell 右上角齿轮按钮 → Radix Dialog → 语言 + 主题分段控件 |
+
+#### 8.6.2 翻译约定
+
+- 组件层：`const t = useT(); t('home.title')`；切换语言会自动触发组件重渲染。
+- 纯函数层（`share-report.ts` / `game-events.ts` / `report-display.ts` / `api/parse-response.ts`）：接受可选 `t` 参数，默认走 `import { t } from '../i18n'`（按当前 locale 解析）。测试通过 `__resetLocaleForTests('zh' | 'en')` 锁定预期。
+- 漏键策略：缺失键 → 退回英文 → 退回键名（避免空白，方便发现遗漏）。
+
+#### 8.6.3 移动端缩放禁用
+
+`web/index.html`：
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1.0,
+      maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+```
+
+配合 `body { touch-action: manipulation }` 同步关闭 iOS 双击缩放。理由：现场录入需要可预测的元素位置；放大会让 GOAL 按钮、计分 Hero 跑到视口外。
+
+#### 8.6.4 测试
+
+- `web/src/i18n/i18n.test.ts`：locale 切换、`localStorage` 持久化、占位符替换、漏键 fallback。
+- `web/src/lib/theme.test.ts`：toggle 行为、`.dark` class 应用、`localStorage` 持久化、同值短路。
+- 现有 `share-report.test.ts` / `report-display.test.ts` / `game-events.test.ts` 通过 `__resetLocaleForTests('zh')` 保持原断言；`report-display.test.ts` 同时覆盖 EN locale。
 
 ---
 

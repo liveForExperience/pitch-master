@@ -529,6 +529,22 @@ Gate 待人工验收（D6 / C6 已决，merge 前由需求方执行）：
 
 灾前快照留存：`/var/lib/pitchmaster/data.db.pre-drill-20260619185754`（可择机删除）。
 
+### 2026-06-19 · UX 优化：i18n + 夜间模式 + 禁止移动端缩放
+
+需求方提出三项 UX 优化，全部落地：
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| 中英双语 i18n | ✅ | `web/src/i18n/`（dict + 引擎）；右上角齿轮 → Settings 弹层切换；持久化 `pm:locale`；`navigator.language` 兜底 |
+| 夜间模式（用户偏好 + 系统 fallback） | ✅ | `web/src/lib/theme.ts` + Tailwind `darkMode: 'class'` + CSS 变量；持久化 `pm:theme`；`index.html` 早期脚本防 FOUC |
+| H5 战报 / 海报锁定亮色 | ✅ | `PageShell forceLight` + `.theme-light` 子树（独立 CSS 变量隔离）；战报对外资产视觉与 PNG 海报一致 |
+| 禁止移动端缩放 | ✅ | `index.html` viewport `user-scalable=no, maximum-scale=1.0`；`body { touch-action: manipulation }` 同步关 iOS 双击缩放 |
+| lib 层 locale 化 | ✅ | `share-report` / `game-events` / `report-display` / `api/parse-response` 接受可选 `t`；测试用 `__resetLocaleForTests` 锁 locale |
+| 测试 | ✅ | 新增 `i18n/i18n.test.ts`（6）+ `lib/theme.test.ts`（4）；web 全量 17 文件 / 73 用例绿；backend 11 文件 / 62 用例绿 |
+| 文档 | ✅ | `docs/ARCHITECTURE_V2.md §8.6` 新增 + §8.3.1 重写为 CSS 变量；README 主功能增列 |
+
+不在范围：海报 PNG 多语言（服务端固定中文，与 §1.3 Out-of-Scope 对齐；如需 EN 海报由后续阶段决策）。
+
 ---
 
 ## 6. 签署
