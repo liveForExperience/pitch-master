@@ -9,6 +9,7 @@ export function RestoreNavButton({ className }: { className?: string }) {
   return (
     <Link
       to="/admin/restore"
+      data-tour="nav-restore"
       aria-label={t('restore.openLabel')}
       title={t('restore.navTooltip')}
       className={cn(

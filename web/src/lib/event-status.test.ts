@@ -35,6 +35,8 @@ describe('isEventEnded', () => {
             startedAt: 1,
             finishedAt: 2,
             plannedDurationMs: 60_000,
+            scoreA: 2,
+            scoreB: 1,
           },
         ],
       }),

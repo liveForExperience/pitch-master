@@ -74,6 +74,21 @@ describe('game-ops guards', () => {
     await expect(getEventByShortCode(db, 'ZZZZZZ')).rejects.toBeInstanceOf(NotFoundError);
   });
 
+  it('includes derived scores in event games list', async () => {
+    const { db, game, pA, evt } = await seed();
+    await startGame(db, game.id);
+    await recordGameEvent(db, game.id, {
+      clientEventId: 'g-list',
+      type: 'GOAL',
+      teamSide: 'A',
+      scorerRosterId: pA.id,
+      clientTs: Date.now(),
+    });
+    const found = await getEventByShortCode(db, evt.shortCode);
+    expect(found.games).toHaveLength(1);
+    expect(found.games[0]).toMatchObject({ id: game.id, scoreA: 1, scoreB: 0 });
+  });
+
   it('rejects recording before start', async () => {
     const { db, game, pA } = await seed();
     await expect(

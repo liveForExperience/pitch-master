@@ -4,7 +4,7 @@ import { requireEventAdmin } from '../lib/admin-auth.js';
 import { fail, ok } from '../lib/api-response.js';
 import { readJson } from '../lib/http.js';
 import { applyNewAdminToken, mapServiceError } from '../lib/route-errors.js';
-import { createEvent, finishEvent } from '../services/event.service.js';
+import { createEvent, deleteEvent, finishEvent } from '../services/event.service.js';
 import {
   createGame,
   createTeam,
@@ -96,6 +96,22 @@ eventsRoute.post('/events/:id/finish', async (c) => {
 
   try {
     const data = await finishEvent(db, eventId);
+    return applyNewAdminToken(ok(c, data), auth.newAdminToken);
+  } catch (err) {
+    const mapped = mapServiceError(c, err);
+    if (mapped) return mapped;
+    throw err;
+  }
+});
+
+eventsRoute.delete('/events/:id', async (c) => {
+  const eventId = c.req.param('id');
+  const db = getDb();
+  const auth = await requireEventAdmin(c, db, eventId);
+  if (auth instanceof Response) return auth;
+
+  try {
+    const data = await deleteEvent(db, eventId);
     return applyNewAdminToken(ok(c, data), auth.newAdminToken);
   } catch (err) {
     const mapped = mapServiceError(c, err);

@@ -25,6 +25,8 @@ export type GameSummary = {
   startedAt: number | null;
   finishedAt: number | null;
   plannedDurationMs: number;
+  scoreA: number;
+  scoreB: number;
 };
 
 export type EventDetail = {
