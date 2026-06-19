@@ -1,4 +1,5 @@
 import { ApiError, parseApiResponse } from './parse-response';
+import { randomUUID } from '../lib/uuid';
 
 export { ApiError };
 
@@ -34,5 +35,5 @@ export async function apiRequest<T>(path: string, opts: RequestOpts = {}): Promi
 }
 
 export function newClientEventId(): string {
-  return crypto.randomUUID();
+  return randomUUID();
 }
