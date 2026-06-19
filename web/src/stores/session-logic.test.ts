@@ -6,6 +6,7 @@ import {
   rememberRecentEvent,
   removeStoredEvent,
   findStoredEventByShortCode,
+  unreadArchivedCount,
   type RecentEvent,
 } from './session-logic';
 
@@ -62,6 +63,12 @@ describe('session-logic', () => {
   it('findStoredEventByShortCode is case-insensitive on shortCode', () => {
     const active = [evt('ABC123', 'Test')];
     expect(findStoredEventByShortCode(active, [], 'abc123')?.name).toBe('Test');
+  });
+
+  it('unreadArchivedCount returns only archives since last visit', () => {
+    expect(unreadArchivedCount(3, 1)).toBe(2);
+    expect(unreadArchivedCount(1, 1)).toBe(0);
+    expect(unreadArchivedCount(0, 0)).toBe(0);
   });
 
   it('archived list respects ARCHIVED_LIMIT', () => {
