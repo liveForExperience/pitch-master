@@ -162,34 +162,34 @@ export function EventPage() {
             <EventSharePanel eventName={event.name} shortCode={event.shortCode} />
           )}
 
-          <Card>
+          <section className="border-t border-border pt-6">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-semibold">比赛列表</h2>
+              <p className="text-body font-bold text-textPri">比赛列表</p>
               <div className="flex items-center gap-3">
                 {event.games.length > 0 && (
                   <Link
                     to={`/events/${event.shortCode}/report`}
                     className="text-sm text-primary"
                   >
-                    战报
+                    分享战报
                   </Link>
                 )}
                 {isAdmin && !ended && (
                   <Link
                     to={`/games/new?eventId=${event.id}&shortCode=${event.shortCode}`}
-                    className="text-sm text-primary"
+                    className="text-sm font-semibold text-primary"
                   >
-                    + 新建
+                    新建场次
                   </Link>
                 )}
               </div>
             </div>
             {event.games.length === 0 ? (
               <p className="text-sm text-textSec">
-                {isAdmin ? '还没有比赛，点右上角新建。' : '还没有比赛。'}
+                {isAdmin ? '还没有比赛，点右上角新建场次。' : '还没有比赛。'}
               </p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="divide-y divide-border">
                 {event.games.map((g) => {
                   const a = event.teams.find((t) => t.id === g.teamAId)?.name ?? 'A';
                   const b = event.teams.find((t) => t.id === g.teamBId)?.name ?? 'B';
@@ -197,12 +197,12 @@ export function EventPage() {
                     <li key={g.id}>
                       <Link
                         to={isAdmin ? `/games/${g.id}/record` : `/games/${g.id}`}
-                        className="block rounded-xl bg-chipBg px-3 py-3"
+                        className="block py-3 active:bg-elevated"
                       >
-                        <div className="font-medium">
+                        <div className="font-medium text-textPri">
                           {a} vs {b}
                         </div>
-                        <div className="text-xs text-textSec">
+                        <div className="mt-0.5 text-xs text-textSec">
                           {g.status}
                           {isAdmin ? ' · 管理' : ' · 只读观看'}
                         </div>
@@ -212,7 +212,7 @@ export function EventPage() {
                 })}
               </ul>
             )}
-          </Card>
+          </section>
 
           {isAdmin && !ended ? (
             <>

@@ -63,14 +63,14 @@ export function NewGamePage() {
 
   if (!token) {
     return (
-      <PageShell title="新建比赛" backTo={`/events/${shortCode}`}>
+      <PageShell title="新建场次" backTo={`/events/${shortCode}`}>
         <p className="text-sm text-textSec">正在跳转…</p>
       </PageShell>
     );
   }
 
   return (
-    <PageShell title="新建比赛" backTo={`/events/${shortCode}`}>
+    <PageShell title="新建场次" backTo={`/events/${shortCode}`}>
       <Card>
         <label className="mb-2 block text-sm text-textSec">主队 (A)</label>
         <select

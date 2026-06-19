@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Warning } from '@phosphor-icons/react';
 import { newClientEventId } from '../api/client';
 import {
   fetchGame,
@@ -11,7 +12,7 @@ import {
 import type { GameDetail } from '../api/types';
 import { GameEventFeed } from '../components/GameEventFeed';
 import { GoalPickPanel, type PickPhase } from '../components/GoalPickPanel';
-import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
+import { PageShell, PrimaryButton } from '../components/ui/layout';
 import { mergeGameWithOutbox, resolveUndoTarget } from '../lib/outbox/merge-game';
 import { formatMs } from '../lib/time-format';
 import { useGameStream } from '../lib/use-game-stream';
@@ -21,6 +22,72 @@ import { useOutboxStore } from '../stores/outbox';
 import { useSessionStore } from '../stores/session';
 
 type EditingGoal = { eventId: string; side: 'A' | 'B' };
+
+function ScoreDiffChip({ diff }: { diff: number }) {
+  if (diff === 0) return null;
+  const positive = diff > 0;
+  return (
+    <span
+      className={`inline-flex min-h-7 items-center rounded-full px-2.5 font-mono text-xs font-medium tabular-nums ${
+        positive ? 'bg-primaryPale text-primary' : 'bg-danger/10 text-danger'
+      }`}
+    >
+      {positive ? `+${diff}` : String(diff)}
+    </span>
+  );
+}
+
+function RecordScoreHero({
+  game,
+  timer,
+}: {
+  game: GameDetail;
+  timer: ReturnType<typeof useLiveGameTimer>;
+}) {
+  const teamA = game.teamA ?? { name: 'A 队', colorHex: '#64748b' };
+  const teamB = game.teamB ?? { name: 'B 队', colorHex: '#64748b' };
+  const diff = game.scoreA - game.scoreB;
+  const finished = game.game.status === 'FINISHED';
+
+  const statusLine = finished
+    ? `FINISHED · ${formatMs(timer?.elapsedMs ?? 0)}`
+    : timer
+      ? `${formatMs(timer.elapsedMs)} · ${formatMs(timer.remainingMs)} LEFT · ${timer.status.toUpperCase()}`
+      : game.game.status.toUpperCase();
+
+  return (
+    <header className="flex min-h-[50vh] flex-col justify-center py-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span
+            className="h-10 w-1.5 shrink-0 rounded-sm"
+            style={{ backgroundColor: teamA.colorHex }}
+          />
+          <span className="truncate text-body font-bold text-textPri">{teamA.name}</span>
+          <ScoreDiffChip diff={diff} />
+        </div>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          <ScoreDiffChip diff={-diff} />
+          <span className="truncate text-body font-bold text-textPri">{teamB.name}</span>
+          <span
+            className="h-10 w-1.5 shrink-0 rounded-sm"
+            style={{ backgroundColor: teamB.colorHex }}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-4 py-6 font-mono tabular-nums tracking-[-0.04em]">
+        <span className="text-[168px] leading-none text-textPri">{game.scoreA}</span>
+        <span className="text-[72px] leading-none text-textSec">:</span>
+        <span className="text-[168px] leading-none text-textPri">{game.scoreB}</span>
+      </div>
+
+      <p className="text-center font-mono text-[11px] uppercase tracking-[0.14em] text-textSec">
+        {statusLine}
+      </p>
+    </header>
+  );
+}
 
 export function GameRecordPage() {
   const { id = '' } = useParams();
@@ -196,18 +263,8 @@ export function GameRecordPage() {
       {hasPending && (
         <p className="text-xs text-warning">有 {pendingForGame.length} 条记录待同步…</p>
       )}
-      <Card className="text-center">
-        <div className="font-score tabular-nums text-score text-textPri">
-          {game.scoreA} : {game.scoreB}
-        </div>
-        <p className="mt-2 text-sm text-textSec">
-          {finished
-            ? `已结束 · 用时 ${formatMs(timer?.elapsedMs ?? 0)}`
-            : timer
-              ? `${formatMs(timer.elapsedMs)} · 剩 ${formatMs(timer.remainingMs)} · ${timer.status}`
-              : ''}
-        </p>
-      </Card>
+
+      <RecordScoreHero game={game} timer={timer} />
 
       <div className="grid grid-cols-2 gap-2">
         {game.game.status === 'READY' && (
@@ -228,12 +285,15 @@ export function GameRecordPage() {
       </div>
 
       {finished && (
-        <Card className="border-warning/30 bg-warning/5">
-          <p className="text-sm font-medium text-textPri">赛后修正</p>
-          <p className="mt-1 text-xs text-textSec">
-            比赛已结束，可补录进球，或在事件流中修改/删除任意一条记录。
-          </p>
-        </Card>
+        <div className="flex items-start gap-3 border-y border-border py-4">
+          <Warning className="mt-0.5 shrink-0 text-warning" size={20} weight="duotone" />
+          <div>
+            <p className="text-sm font-medium text-textPri">赛后修正</p>
+            <p className="mt-1 text-xs text-textSec">
+              比赛已结束，可补录进球，或在下方修改/删除任意一条记录。
+            </p>
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
@@ -257,8 +317,7 @@ export function GameRecordPage() {
         onBackToScorerList={(side) => setPick({ side })}
       />
 
-      <Card>
-        <h2 className="mb-2 font-semibold">事件流</h2>
+      <section className="border-t border-border pt-4">
         <p className="mb-3 text-xs text-textSec">点击「修改」或「删除」可调整任意一条进球记录</p>
         <GameEventFeed
           game={game}
@@ -267,9 +326,9 @@ export function GameRecordPage() {
           onDelete={(e) => void onDeleteGoal(e.id)}
           onEdit={onEditGoal}
         />
-      </Card>
+      </section>
 
-      <Link to={`/games/${id}`} className="block text-center text-sm text-primary">
+      <Link to={`/games/${id}`} className="block border-t border-border pt-4 text-center text-sm text-primary">
         查看详情（只读链接可分享）
       </Link>
     </PageShell>
