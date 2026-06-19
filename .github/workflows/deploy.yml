@@ -53,6 +53,9 @@ jobs:
           test -f backend/dist/index.js
           test -f backend/dist/db/migrations/0000_initial.sql
           test -f backend/dist/assets/fonts/NotoSansSC-Regular-subset.woff
+          test -f backend/dist/assets/fonts/NotoSansSC-Bold-subset.woff
+          test -f backend/dist/assets/fonts/GeistMono-Medium-subset.woff
+          test -f backend/dist/assets/fonts/Newsreader-Italic-subset.woff
           test -f web/dist/index.html
           echo "✓ migrations + dist artifacts present"
 

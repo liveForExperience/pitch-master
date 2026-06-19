@@ -31,6 +31,8 @@
     "ulid": "^2.3.0"
   },
   "devDependencies": {
+    "@fontsource/geist-mono": "^5.2.8",
+    "@fontsource/newsreader": "^5.2.10",
     "@fontsource/noto-sans-sc": "^5.2.9",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^20.17.10",

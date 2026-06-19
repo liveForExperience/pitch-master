@@ -1,19 +1,33 @@
-/** Poster design tokens (ARCH §8.3 — keep in sync with web/src/lib/tokens.ts). */
+/**
+ * Poster design tokens — must stay in sync with [web/src/lib/tokens.ts].
+ * Notion-sports minimalist palette + Geist Mono numerals + Newsreader hero serif.
+ */
 export const colors = {
-  primary: '#10b981',
-  primaryDk: '#059669',
-  danger: '#ef4444',
-  warning: '#f59e0b',
-  surface: '#ffffff',
-  elevated: '#f8fafc',
-  border: '#e2e8f0',
-  textPri: '#0f172a',
-  textSec: '#64748b',
-  textInv: '#ffffff',
-  chipBg: '#f1f5f9',
+  surface: '#FFFFFF',
+  elevated: '#FBFBFA',
+  chipBg: '#F4F2EE',
+  textPri: '#1F2328',
+  textSec: '#6B6B6B',
+  textInv: '#FFFFFF',
+  border: '#EAEAEA',
+  primary: '#2E7D5B',
+  primaryDk: '#1E5A3F',
+  primaryPale: '#EDF3EC',
+  danger: '#9F2F2D',
+  warning: '#9F7B26',
 } as const;
 
+export const fonts = {
+  sans: 'NotoSC',
+  mono: 'GeistMono',
+  serif: 'Newsreader',
+} as const;
+
+// 4:5 IG/WeChat standard; activity poster may extend to 1620 (4:6 cap)
 export const posterWidth = 1080;
-export const gamePosterHeight = 1920;
-export const cardPadding = 24;
-export const cardGap = 16;
+export const posterHeight = 1350;
+export const posterHeightTall = 1620;
+export const gamePosterHeight = 1350;
+
+export const cardPadding = 56;
+export const cardGap = 32;

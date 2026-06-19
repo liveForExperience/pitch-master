@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { SoccerBall, Star, Trophy } from '@phosphor-icons/react';
 import type { EventReport } from '../../api/types';
 import { Card } from '../ui/card';
 import { RankBadge } from '../ui/rank-badge';
@@ -47,7 +48,7 @@ export function EventReportView({ report }: { report: EventReport }) {
 
       {report.standings.length > 0 && (
         <Card>
-          <Section title="积分榜" icon="🏆">
+          <Section title="积分榜" icon={<Trophy weight="duotone" />}>
             <div className="mb-2 grid grid-cols-[auto_1fr_repeat(3,minmax(0,auto))] gap-2 px-3 text-caption text-textSec">
               <span>#</span>
               <span>队伍</span>
@@ -64,7 +65,7 @@ export function EventReportView({ report }: { report: EventReport }) {
 
       {report.topScorers.length > 0 && (
         <Card>
-          <Section title="射手榜 Top 5" icon="⚽">
+          <Section title="射手榜 Top 5" icon={<SoccerBall weight="duotone" />}>
             {report.topScorers.map((row, i) => (
               <StatRow
                 key={row.rosterId}
@@ -83,7 +84,7 @@ export function EventReportView({ report }: { report: EventReport }) {
 
       {report.topAssists.length > 0 && (
         <Card>
-          <Section title="助攻榜 Top 5" icon="🎯">
+          <Section title="助攻榜 Top 5" icon={<Star weight="duotone" />}>
             {report.topAssists.map((row, i) => (
               <StatRow
                 key={row.rosterId}
@@ -102,7 +103,7 @@ export function EventReportView({ report }: { report: EventReport }) {
 
       {report.games.length > 0 && (
         <Card>
-          <Section title="场次结果" icon="📋">
+          <Section title="场次结果">
             <div className="space-y-3">
               {report.games.map((game) => {
                 const result = getMatchResult(game.scoreA, game.scoreB, game.status);

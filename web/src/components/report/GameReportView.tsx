@@ -53,7 +53,7 @@ export function GameReportView({
       </Card>
 
       <Card>
-        <Section title="进球流水" icon="⚽">
+        <Section title="进球流水">
           {report.goals.length === 0 ? (
             <p className="text-body text-textSec">暂无进球记录</p>
           ) : (
