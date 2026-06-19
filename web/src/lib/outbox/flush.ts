@@ -1,5 +1,6 @@
 import { batchGameEvents } from '../../api/events';
 import { getAdminToken } from '../storage';
+import { randomUUID } from '../uuid';
 import {
   addOutboxItem,
   listOutboxItems,
@@ -76,7 +77,7 @@ export async function enqueueGameEvent(
   clientTs: number,
 ): Promise<OutboxItem> {
   const item: OutboxItem = {
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     gameId,
     eventId,
     payload,
