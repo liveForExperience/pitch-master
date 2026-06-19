@@ -521,6 +521,33 @@ Gate 待人工验收（D6 / C6 已决，merge 前由需求方执行）：
 
 **分支**：`cursor/ui-phase4-app-ui`（含 UUID WebView 兼容 fix `d541100`）
 
+### 2026-06-19 · S1 微信报名导入 + Phase 3 部署补全
+
+| 任务 | 状态 | 说明 |
+|---|---|---|
+| S1 解析 + session 池 | ✔ | `roster-import.ts` / `roster-import-store.ts` + 单测 |
+| S1 UI（粘贴 + chip 分队） | ✔ | `RosterImportPanel` / `TeamImportChips`；结束活动清池 |
+| 默认场次 15 分钟 | ✔ | `game-defaults.ts`；`createGame` 显式默认 |
+| T3.1 install.sh | ✔ | bootstrap + Nginx + cron 备份 |
+| T3.4 backup.sh | ✔ | sqlite3 `.backup`，保留 30 天 |
+| T3.5 /api/healthz | ✔ | 与 `/api/health` 同载荷；Nginx 反代 |
+| T3.6 内测跟踪 | ✔ | `docs/issues-tracking.md` 模板 |
+| T3.3 HTTPS (Caddy) | ⬜ 暂缓 | `deploy/caddy/Caddyfile` 已备；**需求方决定暂不切换**，继续 Nginx HTTP |
+| Phase 3 Gate 人工项 | 🟡 | 备份恢复演练 ✅ 2026-06-19；内测 2 周待启动 |
+
+**2026-06-19 18:58 CST · ECS 备份恢复演练（Gate 7.15）**：
+
+| 步骤 | 结果 |
+|---|---|
+| `backup.sh` → `data-20260619.db` (76K) | ✅ sqlite3 `.backup` |
+| 停服 → 移走 `data.db` → 从备份恢复 | ✅ |
+| 启服后 `/api/health` | ✅ 第 3 次探活通过 |
+| 数据校验 | ✅ events=1 games=2，活动 `77WJEB / 周六夜场` 一致 |
+| 公网 `http://8.153.145.81/api/health` | ✅ |
+| 每日 cron | ✅ `/etc/cron.daily/pitchmaster-backup` 已安装 |
+
+灾前快照留存：`/var/lib/pitchmaster/data.db.pre-drill-20260619185754`（可择机删除）。
+
 ---
 
 ## 6. 签署

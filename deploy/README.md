@@ -5,8 +5,13 @@ PitchMaster v2 部署资源。
 | 文件 | 用途 |
 |---|---|
 | `systemd/pitchmaster-v2.service` | systemd unit，定义如何启动 backend |
-| `scripts/ecs-bootstrap.sh` | 一次性 ECS 初始化（装 Node 20 / 建目录 / 注册 deploy key / 装 unit） |
-| `scripts/deploy-receive.sh` | 由 GitHub Actions 远程触发，做 release 解包、symlink 切换、健康检查、失败回滚 |
+| `scripts/install.sh` | Phase 3 一键初始化（bootstrap + Nginx + 备份 cron） |
+| `scripts/ecs-bootstrap.sh` | 装 Node 20 / 建目录 / 注册 deploy key / 装 unit |
+| `scripts/deploy-receive.sh` | GitHub Actions 触发：解包、切换、健康检查、回滚 |
+| `scripts/backup.sh` | SQLite 每日备份（WAL 安全 `.backup`） |
+| `scripts/upgrade.sh` | 手工升级入口（转调 deploy-receive） |
+| `nginx/pitchmaster-v2.conf` | HTTP 反代 + `/api/healthz` |
+| `caddy/Caddyfile` | 可选 HTTPS（待域名） |
 
 > 完整设计与决策见 [`../docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md)。
 
@@ -92,5 +97,19 @@ journalctl -u pitchmaster-v2 -n 200 --no-pager   # 服务日志
 systemctl status pitchmaster-v2                  # 进程状态
 ls -la /opt/pitchmaster-v2/current               # 当前 release
 curl http://127.0.0.1:3000/api/health            # 本地直连
+curl http://127.0.0.1:3000/api/healthz         # Uptime 探活别名
 curl http://8.153.145.81/api/health              # 经 Nginx
+curl http://8.153.145.81/api/healthz
+```
+
+## 备份与恢复
+
+```bash
+sudo /opt/pitchmaster-v2/bin/backup.sh
+ls -la /var/lib/pitchmaster/backups/
+
+# 恢复演练
+sudo systemctl stop pitchmaster-v2
+sudo cp /var/lib/pitchmaster/backups/data-YYYYMMDD.db /var/lib/pitchmaster/data.db
+sudo systemctl start pitchmaster-v2
 ```

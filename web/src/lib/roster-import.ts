@@ -1,7 +1,7 @@
 /** Lines that are admin/meta, not player names. */
 const SKIP_LINE = /人满|截止|接龙|报名开始|报名结束|已满/i;
 
-const NUMBERED_LINE = /^\d+[\.\、\)]\s*(.+)$/;
+const NUMBERED_LINE = /^\d+[\.\、\)）]\s*(.+)$/;
 
 export type ParseSignupResult = {
   names: string[];

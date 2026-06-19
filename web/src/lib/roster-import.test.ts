@@ -37,6 +37,32 @@ describe('parseWechatSignupText', () => {
     expect(names).toEqual(['张三', '李四']);
     expect(duplicateNames).toEqual(['张三']);
   });
+
+  it('accepts Chinese enumeration separators', () => {
+    const { names } = parseWechatSignupText(`1、张三\n2）李四\n3)王五`);
+    expect(names).toEqual(['张三', '李四', '王五']);
+  });
+
+  it('treats unnumbered lines as player names', () => {
+    const { names } = parseWechatSignupText('陈越\n1. 张三');
+    expect(names).toEqual(['陈越', '张三']);
+  });
+
+  it('skips meta lines without consuming a player slot', () => {
+    const { names, skippedLines } = parseWechatSignupText(
+      '报名开始\n1. 张三\n已满员截止接龙',
+    );
+    expect(names).toEqual(['张三']);
+    expect(skippedLines).toEqual(['报名开始', '已满员截止接龙']);
+  });
+
+  it('returns empty result for blank paste', () => {
+    expect(parseWechatSignupText('  \n\n')).toEqual({
+      names: [],
+      skippedLines: [],
+      duplicateNames: [],
+    });
+  });
 });
 
 describe('importNamesAvailableForTeam', () => {
@@ -44,5 +70,9 @@ describe('importNamesAvailableForTeam', () => {
     expect(
       importNamesAvailableForTeam(['张三', '李四'], ['张三']),
     ).toEqual(['李四']);
+  });
+
+  it('trims roster names when comparing', () => {
+    expect(importNamesAvailableForTeam(['张三'], [' 张三 '])).toEqual([]);
   });
 });

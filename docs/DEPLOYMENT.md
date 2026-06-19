@@ -232,6 +232,27 @@ jobs:
 - [x] 7.9 手动 `workflow_dispatch` 干跑验证
 - [x] 7.10 push 到 main 自动触发全链路（PR #11 merge 后 run #27818078195 成功）
 - [ ] 7.11 故意改坏 health endpoint，验证回滚动作
+- [x] 7.12 `deploy/scripts/install.sh` + `backup.sh` + 每日 cron
+- [x] 7.13 `GET /api/healthz` 探活端点 + Nginx 反代
+- [x] 7.15 备份恢复演练（2026-06-19 ECS：`events=1 games=2` 恢复前后一致）
+- [ ] 7.14 HTTPS：暂缓（继续 Nginx HTTP，见 O1）
+- [x] 7.16 内测跟踪模板 `docs/issues-tracking.md`
+
+---
+
+## 9. HTTPS（可选 · 待 O1 域名决策）
+
+当前生产使用 **Nginx HTTP**（ADR-0007）。`deploy/caddy/Caddyfile` 已备好，域名到位后：
+
+```bash
+export DOMAIN=pitch.example.com
+dnf install -y caddy
+cp deploy/caddy/Caddyfile /etc/caddy/Caddyfile
+systemctl enable --now caddy
+# 停用 Nginx 80 监听或改 Caddy 独占 443
+```
+
+IP-only 自签证书在 iOS 需手动信任（见 PLAN §3 R5）。
 
 ---
 
@@ -246,6 +267,8 @@ jobs:
 - ✅ **merge → main 自动触发** Deploy（typecheck + 全量 test + build → scp → systemd restart）
 - ✅ 2026-06-19 PR #3 merge 部署失败：release 缺 `backend/dist/db/migrations/` → build 脚本已修复
 - ✅ PR #11 同步 backend lockfile（`@fontsource/*`）→ Deploy run #27818078195 成功
-- ⬜ HTTPS（Caddy auto TLS）与备份演练（Phase 3 剩余项）
+- ✅ 备份恢复演练（2026-06-19 ECS）
+- ⬜ HTTPS（暂缓，继续 Nginx HTTP）
+- ✅ `/api/healthz` + `backup.sh` + `install.sh` + 内测跟踪模板
 
 > ADR-0007（2026-06-19）决定将部署链路从 Phase 3 提前到 Phase 0 末实施。

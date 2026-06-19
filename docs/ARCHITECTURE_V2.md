@@ -105,13 +105,16 @@ pitch-master/
 │   ├── src/
 │   │   ├── main.tsx
 │   │   ├── App.tsx                 # react-router 路由表
-│   │   ├── components/
-│   │   │   ├── ui/                 # 基础 UI 组件
-│   │   │   └── report/             # 战报 H5 layout + Hero
 │   │   ├── lib/
 │   │   │   ├── tokens.ts           # 设计令牌（与 poster 同步）
 │   │   │   ├── uuid.ts             # randomUUID HTTP/WebView fallback
+│   │   │   ├── roster-import.ts    # 微信报名文本解析（S1）
+│   │   │   ├── roster-import-store.ts  # sessionStorage 导入池
 │   │   │   └── outbox/             # IndexedDB 队列
+│   │   ├── components/
+│   │   │   ├── ui/                 # 基础 UI 组件
+│   │   │   ├── roster/             # RosterImportPanel / TeamImportChips
+│   │   │   └── report/             # 战报 H5 layout + Hero
 │   │   ├── pages/
 │   │   ├── stores/                 # Zustand
 │   │   ├── api/                    # 调用后端
@@ -257,6 +260,7 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | GET | `/api/events/:id/report` | 公开 | 活动战报 JSON（`:id` 可为 event id 或 shortCode；Top 5 固定） |
 | GET | `/api/events/:id/poster.png` | 公开 | 活动海报 PNG 1080×1350（可扩至 1620；60s 内存缓存） |
 | GET | `/api/health` | 公开 | 健康检查 `{status, service, version, uptimeSeconds, serverTime}` |
+| GET | `/api/healthz` | 公开 | 同上（UptimeRobot 等探活别名，Phase 3 T3.5） |
 
 ### 4.3 关键请求/响应样例
 
@@ -737,6 +741,23 @@ fontFamily: {
 - 图标：`@phosphor-icons/react`；**禁止 emoji**（海报 / H5 / App 一致）
 - 浅色优先；深色模式若做须同步维护海报背景
 
+### 8.4 微信报名导入（S1 · 2026-06-19）
+
+| 模块 | 文件 | 说明 |
+|---|---|---|
+| 解析 | `web/src/lib/roster-import.ts` | `parseWechatSignupText`：每行序号后全文即球员名；跳过 meta 行 |
+| 会话池 | `web/src/lib/roster-import-store.ts` | `sessionStorage` 按 `eventId`；结束活动清空 |
+| 粘贴 UI | `web/src/components/roster/RosterImportPanel.tsx` | 解析预览 + 待分配名单 |
+| 分队 chip | `web/src/components/roster/TeamImportChips.tsx` | 多选 → `POST /api/teams/:id/roster` |
+
+生命周期：活动 `FINISHED` 或管理员手动结束活动时调用 `clearRosterImportPool`。
+
+### 8.5 新建场次选队
+
+`web/src/lib/new-game-teams.ts`：`teamOptionsForSide` / `resolveOtherTeamId` / `canCreateGame`——防止 A/B 选同一队。
+
+后端默认场次时长：`backend/src/lib/game-defaults.ts` → `DEFAULT_PLANNED_DURATION_MS`（15 分钟），`createGame` 未传 `plannedDurationMs` 时使用。
+
 ---
 
 ## 9. 后端关键模块
@@ -850,12 +871,15 @@ systemctl reload caddy
 
 ### 10.4 备份
 
+生产脚本：`deploy/scripts/backup.sh`（`sqlite3 .backup`，保留 30 天）。  
+`install.sh` 会注册 `/etc/cron.daily/pitchmaster-backup`。
+
 ```bash
-# /etc/cron.daily/pitchmaster-backup
-#!/bin/bash
-DATE=$(date +%Y%m%d)
-sqlite3 /var/lib/pitchmaster/data.db ".backup '/var/lib/pitchmaster/backups/data-${DATE}.db'"
-find /var/lib/pitchmaster/backups -name "data-*.db" -mtime +30 -delete
+sudo bash /opt/pitchmaster-v2/bin/backup.sh
+# 恢复演练：停服务 → cp 备份覆盖 data.db → 启动
+sudo systemctl stop pitchmaster-v2
+cp /var/lib/pitchmaster/backups/data-YYYYMMDD.db /var/lib/pitchmaster/data.db
+sudo systemctl start pitchmaster-v2
 ```
 
 ---
