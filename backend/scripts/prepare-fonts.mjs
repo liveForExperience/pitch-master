@@ -37,8 +37,9 @@ const CN_SUBSET = [
 // Latin-only subset for Geist Mono: digits + caps eyebrows + minimal punctuation
 const MONO_SUBSET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz :·.-/|+\'';
 
-// Latin-only italic subset for Newsreader: enough for "win/draw" verdict + hero serif accents
-const SERIF_SUBSET = 'WinDrawLossWeekendLeagueMatchabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789·.';
+// Latin italic subset for Newsreader: only the verdict words rendered in the poster.
+// Keep wide so future verdict copy edits do not re-trigger font budget review.
+const SERIF_SUBSET = 'winsDrawliveLossabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ ·.';
 
 const MAX_BYTES_PER_FILE = 250 * 1024;
 const TOTAL_BUDGET = 500 * 1024;

@@ -18,9 +18,12 @@ export const colors = {
 } as const;
 
 export const fonts = {
-  sans: 'NotoSC',
-  mono: 'GeistMono',
-  serif: 'Newsreader',
+  // PosterCJK is a dynamically-subsetted NotoSC slice that covers the
+  // event-specific CJK glyphs (event name, team names, player names). Satori
+  // falls back to the static NotoSC subset for any glyph PosterCJK lacks.
+  sans: 'PosterCJK, NotoSC',
+  mono: 'GeistMono, NotoSC',
+  serif: 'Newsreader, NotoSC',
 } as const;
 
 // 4:5 IG/WeChat standard; activity poster may extend to 1620 (4:6 cap)
