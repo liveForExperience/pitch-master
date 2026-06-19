@@ -62,3 +62,8 @@ export function findStoredEventByShortCode(
     archivedEvents.find((e) => e.shortCode === code)
   );
 }
+
+/** Archives added since the user last opened the archived list. */
+export function unreadArchivedCount(archivedCount: number, seenCount: number): number {
+  return Math.max(0, archivedCount - seenCount);
+}

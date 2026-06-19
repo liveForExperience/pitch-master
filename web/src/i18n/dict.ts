@@ -45,14 +45,15 @@ export const zh: Dict = {
   'settings.theme': '外观',
   'settings.theme.light': '亮色',
   'settings.theme.dark': '夜间',
-  'settings.openLabel': '打开设置',
-  'settings.navTooltip': '语言与外观会保存在本机。',
+  'settings.openLabel': '打开偏好设置',
+  'settings.navTooltip': '点击切换语言与深色/亮色外观',
 
   'archived.openLabel': '查看已归档活动',
-  'archived.navTooltip': '已结束的活动记录；手动「结束活动」后才会归档。',
+  'archived.navTooltip': '点击查看已结束的活动与历史比分',
+  'archived.navTooltipWithCount': '点击查看 {count} 个已归档活动与历史比分',
 
-  'restore.openLabel': '凭 PIN 恢复管理',
-  'restore.navTooltip': '换设备后输入分享码和 PIN，可重新获得录入与配置权限。',
+  'restore.openLabel': '凭 PIN 恢复管理权限',
+  'restore.navTooltip': '换设备后点此输入分享码和 PIN，重新获得录入与配置权限',
 
   // ── shell / nav ──────────────────────────────────────────────────────
   'shell.back': '← 返回',
@@ -360,16 +361,16 @@ export const en: Dict = {
   'settings.theme': 'Theme',
   'settings.theme.light': 'Light',
   'settings.theme.dark': 'Dark',
-  'settings.openLabel': 'Open settings',
-  'settings.navTooltip': 'Language and theme are saved on this device.',
+  'settings.openLabel': 'Open preferences',
+  'settings.navTooltip': 'Tap to change language and light/dark theme',
 
   'archived.openLabel': 'View archived events',
-  'archived.navTooltip':
-    'Records of finished events. They appear here after you end an event manually.',
+  'archived.navTooltip': 'Tap to browse finished events and past scores',
+  'archived.navTooltipWithCount': 'Tap to browse {count} archived events and past scores',
 
-  'restore.openLabel': 'Restore with PIN',
+  'restore.openLabel': 'Restore admin access with PIN',
   'restore.navTooltip':
-    'Switching devices? Enter the share code and PIN to regain recording rights.',
+    'New device? Tap to enter share code and PIN to record scores and edit teams again',
 
   // ── shell / nav ──────────────────────────────────────────────────────
   'shell.back': '← Back',

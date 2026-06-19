@@ -14,6 +14,8 @@ type SessionState = {
   adminTokens: Record<string, string>;
   recentEvents: RecentEvent[];
   archivedEvents: RecentEvent[];
+  /** archivedEvents.length when user last opened /archived */
+  archivedSeenCount: number;
   setAdminToken: (eventId: string, token: string) => void;
   getAdminToken: (eventId: string) => string | null;
   rememberEvent: (evt: Omit<RecentEvent, 'visitedAt'> & { visitedAt?: number }) => void;
@@ -21,6 +23,7 @@ type SessionState = {
   removeRecentEvent: (shortCode: string) => void;
   getRecentEvents: () => RecentEvent[];
   getArchivedEvents: () => RecentEvent[];
+  markArchivedSeen: () => void;
 };
 
 export const useSessionStore = create<SessionState>()(
@@ -29,6 +32,7 @@ export const useSessionStore = create<SessionState>()(
       adminTokens: {},
       recentEvents: [],
       archivedEvents: [],
+      archivedSeenCount: 0,
 
       setAdminToken: (eventId, token) =>
         set((s) => ({ adminTokens: { ...s.adminTokens, [eventId]: token } })),
@@ -51,17 +55,29 @@ export const useSessionStore = create<SessionState>()(
 
       getRecentEvents: () => get().recentEvents,
       getArchivedEvents: () => get().archivedEvents,
+      markArchivedSeen: () =>
+        set((s) => ({ archivedSeenCount: s.archivedEvents.length })),
     }),
     {
       name: 'pitchmaster-session',
-      version: 1,
+      version: 2,
       migrate: (persisted, version) => {
-        const state = persisted as SessionState & { archivedEvents?: RecentEvent[] };
+        const state = persisted as SessionState & {
+          archivedEvents?: RecentEvent[];
+          archivedSeenCount?: number;
+        };
         if (version < 1) {
           return {
             ...state,
             recentEvents: (state.recentEvents ?? []).slice(0, ACTIVE_LIMIT),
             archivedEvents: state.archivedEvents ?? [],
+            archivedSeenCount: state.archivedSeenCount ?? 0,
+          };
+        }
+        if (version < 2) {
+          return {
+            ...state,
+            archivedSeenCount: state.archivedSeenCount ?? state.archivedEvents?.length ?? 0,
           };
         }
         return state;

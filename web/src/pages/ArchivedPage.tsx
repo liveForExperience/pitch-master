@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageShell } from '../components/ui/layout';
 import { EventListItem } from '../components/EventListItem';
 import { useT } from '../i18n';
@@ -19,8 +19,13 @@ function filterArchivedEvents(
 export function ArchivedPage() {
   const t = useT();
   const archived = useSessionStore((s) => s.archivedEvents);
+  const markArchivedSeen = useSessionStore((s) => s.markArchivedSeen);
   const [query, setQuery] = useState('');
   useSyncArchivedEvents();
+
+  useEffect(() => {
+    markArchivedSeen();
+  }, [archived.length, markArchivedSeen]);
 
   const filtered = useMemo(() => filterArchivedEvents(archived, query), [archived, query]);
 
