@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { fetchGame } from '../api/events';
 import type { GameDetail } from '../api/types';
@@ -6,7 +6,6 @@ import { GameEventFeed } from '../components/GameEventFeed';
 import { Card, PageShell } from '../components/ui/layout';
 import { ShareReportButton } from '../components/report/ShareReportButton';
 import { useT } from '../i18n';
-import { formatDeviceTail, getOrCreateDeviceId } from '../lib/device-id';
 import { gamePosterUrl } from '../lib/poster-url';
 import { buildGameShareText, gameReportPath } from '../lib/share-report';
 import { useGameStream } from '../lib/use-game-stream';
@@ -16,21 +15,20 @@ import { formatMs } from '../lib/time-format';
 export function GameDetailPage() {
   const t = useT();
   const { id = '' } = useParams();
-  const deviceId = useMemo(() => getOrCreateDeviceId(), []);
   const [game, setGame] = useState<GameDetail | null>(null);
   const [error, setError] = useState('');
 
   const reload = useCallback(() => {
-    fetchGame(id, deviceId)
+    fetchGame(id)
       .then(setGame)
       .catch((err: Error) => setError(err.message));
-  }, [id, deviceId]);
+  }, [id]);
 
   useEffect(() => {
     reload();
   }, [reload]);
 
-  useGameStream(id, reload, Boolean(game), reload);
+  useGameStream(id, reload, Boolean(game));
 
   const timer = useLiveGameTimer(game);
   const backTo = game?.eventShortCode ? `/events/${game.eventShortCode}` : '/';
@@ -46,13 +44,6 @@ export function GameDetailPage() {
             </div>
             <p className="mt-2 text-sm text-textSec">
               {game.teamA?.name} vs {game.teamB?.name} · {timer.status}
-            </p>
-            <p className="mt-1 text-xs text-textSec">
-              {game.editor?.deviceId
-                ? t('detail.editor.active', {
-                    tail: formatDeviceTail(game.editor.deviceId),
-                  })
-                : t('detail.editor.none')}
             </p>
             <p className="text-xs text-textSec">
               {timer.status === 'FINISHED'

@@ -209,13 +209,6 @@ export const zh: Dict = {
   'record.feedHint': '点击「修改」或「删除」可调整任意一条进球记录',
   'record.viewDetail': '查看详情（只读链接可分享）',
   'record.error.delete': '删除失败',
-  'record.editor.holding': '你正在控制计时（设备 {tail}）· 记球无需独占',
-  'record.editor.other': '设备 {tail} 正在控制计时 · 你仍可记球',
-  'record.editor.readonly': '申请计时控制权后可开始/暂停；记球随时可用',
-  'record.editor.claim': '申请计时控制',
-  'record.editor.force': '接管计时',
-  'record.editor.release': '释放计时控制',
-  'record.editor.forceConfirm': '确定接管计时？原设备将无法开始/暂停。',
 
   // ── goal pick panel ──────────────────────────────────────────────────
   'pick.scorerEdit': '修改进球：重新选择球员',
@@ -251,8 +244,6 @@ export const zh: Dict = {
 
   // ── game detail ──────────────────────────────────────────────────────
   'detail.title': '比赛详情',
-  'detail.editor.active': '计时设备 {tail}',
-  'detail.editor.none': '暂无设备录入',
   'detail.finished': '已结束 · 用时 {elapsed}',
   'detail.elapsed': '已用 {elapsed} / {planned}',
   'detail.eventStream': '事件流',
@@ -525,14 +516,6 @@ export const en: Dict = {
   'record.feedHint': 'Tap "Edit" or "Delete" to adjust any goal',
   'record.viewDetail': 'Open detail (shareable read-only)',
   'record.error.delete': 'Delete failed',
-  'record.editor.holding': 'You control the timer ({tail}) · scoring is shared',
-  'record.editor.other': 'Device {tail} controls the timer · you can still score',
-  'record.editor.readonly': 'Claim the timer to start/pause; scoring is always available',
-  'record.editor.claim': 'Claim timer',
-  'record.editor.force': 'Take timer',
-  'record.editor.release': 'Release timer',
-  'record.editor.forceConfirm':
-    'Take over the timer? The other device will not be able to start/pause.',
 
   // ── goal pick panel ──────────────────────────────────────────────────
   'pick.scorerEdit': 'Edit goal: pick scorer again',
@@ -568,8 +551,6 @@ export const en: Dict = {
 
   // ── game detail ──────────────────────────────────────────────────────
   'detail.title': 'Game detail',
-  'detail.editor.active': 'Timer · device {tail}',
-  'detail.editor.none': 'No active recorder',
   'detail.finished': 'Finished · {elapsed}',
   'detail.elapsed': '{elapsed} / {planned}',
   'detail.eventStream': 'Event stream',

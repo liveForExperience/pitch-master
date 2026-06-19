@@ -1,6 +1,5 @@
 import { apiRequest } from './client';
-import type { CreatedEvent, EditorState, EventDetail, GameDetail } from './types';
-import { getOrCreateDeviceId } from '../lib/device-id';
+import type { CreatedEvent, EventDetail, GameDetail } from './types';
 
 export const fetchServerTime = () => apiRequest<{ serverNow: number }>('/api/time');
 
@@ -56,100 +55,24 @@ export const finishEvent = (eventId: string, adminToken: string) =>
     adminToken,
   });
 
-type GameRequestOpts = { adminToken?: string; deviceId?: string };
-
-function gameDeviceId(deviceId?: string) {
-  return deviceId ?? getOrCreateDeviceId();
-}
-
-export const fetchGame = (gameId: string, deviceId?: string) =>
-  apiRequest<GameDetail>(`/api/games/${gameId}`, {
-    deviceId: gameDeviceId(deviceId),
-  });
+export const fetchGame = (gameId: string) => apiRequest<GameDetail>(`/api/games/${gameId}`);
 
 export const fetchGameState = (gameId: string) =>
   apiRequest<{ scoreA: number; scoreB: number; timer: GameDetail['timer']; status: string }>(
     `/api/games/${gameId}/state`,
   );
 
-export const claimEditorLease = (
-  gameId: string,
-  adminToken: string,
-  opts?: { force?: boolean; deviceId?: string },
-) =>
-  apiRequest<{ deviceId: string; expiresAt: number }>(`/api/games/${gameId}/editor`, {
-    method: 'POST',
-    body: JSON.stringify({
-      deviceId: gameDeviceId(opts?.deviceId),
-      force: Boolean(opts?.force),
-    }),
-    adminToken,
-    deviceId: gameDeviceId(opts?.deviceId),
-  });
+export const startGame = (gameId: string, adminToken: string) =>
+  apiRequest<unknown>(`/api/games/${gameId}/start`, { method: 'POST', adminToken });
 
-export const releaseEditorLease = (
-  gameId: string,
-  adminToken: string,
-  deviceId?: string,
-) => {
-  const id = gameDeviceId(deviceId);
-  return apiRequest<{ released: boolean }>(
-    `/api/games/${gameId}/editor?deviceId=${encodeURIComponent(id)}`,
-    {
-      method: 'DELETE',
-      adminToken,
-      deviceId: id,
-    },
-  );
-};
+export const pauseGame = (gameId: string, adminToken: string) =>
+  apiRequest<unknown>(`/api/games/${gameId}/pause`, { method: 'POST', adminToken });
 
-export const startGame = (
-  gameId: string,
-  adminToken: string,
-  opts?: GameRequestOpts & { version?: number },
-) =>
-  apiRequest<unknown>(`/api/games/${gameId}/start`, {
-    method: 'POST',
-    body: JSON.stringify({ version: opts?.version }),
-    adminToken,
-    deviceId: gameDeviceId(opts?.deviceId),
-  });
+export const resumeGame = (gameId: string, adminToken: string) =>
+  apiRequest<unknown>(`/api/games/${gameId}/resume`, { method: 'POST', adminToken });
 
-export const pauseGame = (
-  gameId: string,
-  adminToken: string,
-  opts?: GameRequestOpts & { version?: number },
-) =>
-  apiRequest<unknown>(`/api/games/${gameId}/pause`, {
-    method: 'POST',
-    body: JSON.stringify({ version: opts?.version }),
-    adminToken,
-    deviceId: gameDeviceId(opts?.deviceId),
-  });
-
-export const resumeGame = (
-  gameId: string,
-  adminToken: string,
-  opts?: GameRequestOpts & { version?: number },
-) =>
-  apiRequest<unknown>(`/api/games/${gameId}/resume`, {
-    method: 'POST',
-    body: JSON.stringify({ version: opts?.version }),
-    adminToken,
-    deviceId: gameDeviceId(opts?.deviceId),
-  });
-
-export const finishGame = (
-  gameId: string,
-  adminToken: string,
-  opts?: GameRequestOpts & { version?: number },
-) =>
-  apiRequest<unknown>(`/api/games/${gameId}/finish`, {
-    method: 'POST',
-    body: JSON.stringify({ version: opts?.version }),
-    adminToken,
-    deviceId: gameDeviceId(opts?.deviceId),
-  });
+export const finishGame = (gameId: string, adminToken: string) =>
+  apiRequest<unknown>(`/api/games/${gameId}/finish`, { method: 'POST', adminToken });
 
 export const recordGoal = (
   gameId: string,
@@ -161,25 +84,17 @@ export const recordGoal = (
     clientTs: number;
   },
   adminToken: string,
-  deviceId?: string,
 ) =>
   apiRequest<{ scoreA: number; scoreB: number }>(`/api/games/${gameId}/events`, {
     method: 'POST',
     body: JSON.stringify({ ...payload, type: 'GOAL' }),
     adminToken,
-    deviceId: gameDeviceId(deviceId),
   });
 
-export const undoEvent = (
-  gameId: string,
-  eventId: string,
-  adminToken: string,
-  deviceId?: string,
-) =>
+export const undoEvent = (gameId: string, eventId: string, adminToken: string) =>
   apiRequest<{ scoreA: number; scoreB: number }>(`/api/games/${gameId}/events/${eventId}`, {
     method: 'DELETE',
     adminToken,
-    deviceId: gameDeviceId(deviceId),
   });
 
 export type BatchReplayResult = {
@@ -202,13 +117,9 @@ export const batchGameEvents = (
     clientTs: number;
   }>,
   adminToken: string,
-  deviceId?: string,
 ) =>
   apiRequest<BatchReplayResult>(`/api/games/${gameId}/events/batch`, {
     method: 'POST',
     body: JSON.stringify({ events }),
     adminToken,
-    deviceId: gameDeviceId(deviceId),
   });
-
-export type { EditorState };

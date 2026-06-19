@@ -42,7 +42,6 @@ function outboxToSyntheticEvents(items: OutboxItem[]): GameDetail['events'] {
     if (payload.type === 'GOAL') {
       return {
         id: payload.clientEventId,
-        clientEventId: payload.clientEventId,
         type: 'GOAL' as const,
         teamSide: payload.teamSide ?? null,
         scorerRosterId: payload.scorerRosterId ?? null,
@@ -55,7 +54,6 @@ function outboxToSyntheticEvents(items: OutboxItem[]): GameDetail['events'] {
       payload.undoTargetEventId ?? payload.undoTargetClientEventId ?? null;
     return {
       id: payload.clientEventId,
-      clientEventId: payload.clientEventId,
       type: 'UNDO' as const,
       teamSide: null,
       scorerRosterId: null,

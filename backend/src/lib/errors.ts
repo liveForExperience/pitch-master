@@ -25,18 +25,3 @@ export class AuthError extends Error {
     this.name = 'AuthError';
   }
 }
-
-export type EditorLeaseConflictData = {
-  holderDeviceId: string | null;
-  expiresAt: number | null;
-};
-
-export class EditorLeaseError extends Error {
-  readonly data: EditorLeaseConflictData;
-
-  constructor(message: string, data: EditorLeaseConflictData) {
-    super(message);
-    this.name = 'EditorLeaseError';
-    this.data = data;
-  }
-}
