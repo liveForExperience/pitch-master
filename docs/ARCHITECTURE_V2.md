@@ -80,7 +80,9 @@ pitch-master/
 │   │   │   ├── game.service.ts
 │   │   │   ├── timer.service.ts
 │   │   │   ├── outbox.service.ts
-│   │   │   └── poster.service.ts
+│   │   │   ├── poster.service.ts
+│   │   │   └── poster-font.ts      # 运行时 PosterCJK 子集
+│   │   ├── poster/                 # satori 模板 + layout + tokens
 │   │   ├── db/
 │   │   │   ├── schema.ts           # Drizzle schema
 │   │   │   ├── client.ts           # better-sqlite3 实例
@@ -90,8 +92,7 @@ pitch-master/
 │   │   │   ├── short-code.ts       # 6 位 base32 生成
 │   │   │   └── auth.ts             # adminToken / PIN 校验
 │   │   └── assets/
-│   │       └── fonts/
-│   │           └── NotoSansSC-subset.ttf
+│   │       └── fonts/              # NotoSC + GeistMono + Newsreader woff 子集
 │   ├── tests/
 │   │   ├── game.service.test.ts
 │   │   ├── timer.service.test.ts
@@ -103,18 +104,19 @@ pitch-master/
 ├── web/                            # v2 React + Vite + PWA 前端
 │   ├── src/
 │   │   ├── main.tsx
-│   │   ├── App.tsx
-│   │   ├── routes/                 # React Router v6
+│   │   ├── App.tsx                 # react-router 路由表
 │   │   ├── components/
-│   │   │   ├── ui/                 # radix-based 基础组件
-│   │   │   └── ...
+│   │   │   ├── ui/                 # 基础 UI 组件
+│   │   │   └── report/             # 战报 H5 layout + Hero
+│   │   ├── lib/
+│   │   │   ├── tokens.ts           # 设计令牌（与 poster 同步）
+│   │   │   ├── uuid.ts             # randomUUID HTTP/WebView fallback
+│   │   │   └── outbox/             # IndexedDB 队列
 │   │   ├── pages/
 │   │   ├── stores/                 # Zustand
 │   │   ├── api/                    # 调用后端
-│   │   ├── outbox/                 # IndexedDB 队列
-│   │   ├── pwa/                    # SW 钩子
-│   │   └── styles/
-│   ├── public/
+│   │   └── sw.ts                   # 自定义 SW（injectManifest）
+│   ├── public/fonts/               # 自托管 Geist Mono + Newsreader
 │   ├── index.html
 │   ├── vite.config.ts
 │   └── package.json
@@ -252,8 +254,8 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | GET | `/api/games/:id/stream` | 公开 | SSE 订阅 |
 | GET | `/api/games/:id/report` | 公开 | 单场战报 JSON |
 | GET | `/api/games/:id/poster.png` | 公开 | 单场海报 PNG |
-| GET | `/api/events/:id/report?topN=5` | 公开 | 活动战报 JSON（`:id` 可为 event id 或 shortCode） |
-| GET | `/api/events/:id/poster.png?topN=5` | 公开 | 活动海报 PNG（60s 内存缓存） |
+| GET | `/api/events/:id/report` | 公开 | 活动战报 JSON（`:id` 可为 event id 或 shortCode；Top 5 固定） |
+| GET | `/api/events/:id/poster.png` | 公开 | 活动海报 PNG 1080×1350（可扩至 1620；60s 内存缓存） |
 | GET | `/api/health` | 公开 | 健康检查 `{status, service, version, uptimeSeconds, serverTime}` |
 
 ### 4.3 关键请求/响应样例
@@ -406,7 +408,7 @@ worker.flush():
 - H5 只读页面（路由：`/events/:shortCode/report`、`/games/:id/report`）
 - PNG 海报（API：`/api/events/:id/poster.png`、`/api/games/:id/poster.png`）
 
-`topN` 由 admin 在"分享活动战报"时通过 query 选择（默认 5、范围 1-20）。前端 UI 提供下拉选择器。
+射手榜 / 助攻榜固定 **Top 5**（`REPORT_TOP_N = 5`，见 `report.service.ts`）。2026-06 UI 升级后已移除 `?topN=` query 与前端选择器，响应 `meta.topN` 恒为 5。
 
 ### 7.2 数据派生算法
 
@@ -462,7 +464,7 @@ function computeStandings(event): TeamStanding[] {
 - 按 `scorer_roster_id` group by，count desc
 - 同分按"首次进球时间"升序（先进者靠前）
 - 关联 `roster.name` + `team.name` + `team.color_hex`
-- 截断至 `topN`
+- 截断至 `REPORT_TOP_N`（5）
 
 **助攻榜（top assists）**：
 - 统计所有 `FINISHED` 场次中、未被 `UNDO` 且 `assistant_roster_id` 非空的事件
@@ -476,7 +478,7 @@ function computeStandings(event): TeamStanding[] {
 
 ### 7.3 数据契约（API 返回）
 
-**`GET /api/events/:id/report?topN=5`**
+**`GET /api/events/:id/report`**
 ```ts
 interface EventReport {
   event: { id, shortCode, name, createdAt, finishedAt? }
@@ -520,25 +522,16 @@ interface GameReport {
 // backend/src/services/poster.service.ts
 import satori from 'satori'
 import { Resvg } from '@resvg/resvg-js'
+import { loadPosterFonts } from './poster-font.js'   // 静态 + 运行时 PosterCJK 子集
 
-const fontRegular = fs.readFileSync('./assets/fonts/NotoSansSC-Regular-subset.ttf')
-const fontBold    = fs.readFileSync('./assets/fonts/NotoSansSC-Bold-subset.ttf')
-
-export async function renderEventPoster(
-  eventId: string, opts: { topN?: number } = {}
-): Promise<Buffer> {
-  const data = await reportService.buildEvent(eventId, { topN: opts.topN ?? 5 })
-
-  // 长图：根据榜单实际行数动态计算高度
-  const height = estimateEventPosterHeight(data)   // 通常 2400-3000
+export async function renderEventPoster(eventId: string): Promise<Buffer> {
+  const data = await reportService.buildEvent(eventId)  // REPORT_TOP_N = 5
+  const height = estimateEventPosterHeight(data)        // 1350 或 1620（固定契约）
 
   const svg = await satori(<EventPosterTemplate {...data} />, {
     width: 1080,
     height,
-    fonts: [
-      { name: 'NotoSC', data: fontRegular, weight: 400 },
-      { name: 'NotoSC', data: fontBold,    weight: 700 },
-    ],
+    fonts: await loadPosterFonts(data),  // NotoSC + GeistMono + Newsreader + PosterCJK
   })
   return new Resvg(svg, { background: '#ffffff' }).render().asPng()
 }
@@ -547,113 +540,84 @@ export async function renderGamePoster(gameId: string): Promise<Buffer> {
   const data = await reportService.buildGame(gameId)
   const svg = await satori(<GamePosterTemplate {...data} />, {
     width: 1080,
-    height: 1920,
-    fonts: [...]
+    height: 1350,
+    fonts: await loadPosterFonts(data),
   })
   return new Resvg(svg, { background: '#ffffff' }).render().asPng()
 }
 ```
 
-字体子集化（Phase 0 完成）：
-- 使用 [`subset-font`](https://github.com/papandreou/subset-font) 仅保留常用 CJK 子集（GB2312 + 数字 + 字母 + 标点 + emoji 映射）
-- Regular + Bold 各约 ~250KB
-- 文件位置：`backend/src/assets/fonts/`
+字体（`backend/scripts/prepare-fonts.mjs` + `poster-font.ts`）：
+- **静态子集**（构建时）：NotoSC Regular/Bold + Geist Mono + Newsreader Italic，合计约 ~72KB woff
+- **PosterCJK**：渲染时按本场/本次活动出现的 CJK 字形动态子集，family 名 `PosterCJK`（fallback 到 NotoSC）
+- 文件位置：`backend/src/assets/fonts/`（build 复制到 `dist/assets/fonts/`）
 
 ### 7.5 模板：活动战报（EventPosterTemplate）
 
-风格 **B · 卡片浅底长图**（已锁定）。版面（自上而下）：
+风格 **Notion-体育 minimalist · 4:5 编辑级版面**（2026-06 UI 升级锁定）。画布 **1080×1350**（内容过多时固定扩至 **1620**，由 `estimateEventPosterHeight()` 契约）。
+
+版面（自上而下，**hairline-only、无 emoji、无静态阴影**）：
 
 ```
 ┌──────────────────────────────────────┐
-│   [Header]                            │
-│   🏆  {event.name}                    │
-│   {YYYY-MM-DD HH:mm}                  │
+│  eyebrow: PitchMaster · {shortCode}   │
+│  {event.name}                         │
+│  {date}                               │
+├──────────────────────────────────────┤  ← hairline #EAEAEA
+│  场次 pills（横滚摘要）                │
+├──────────────────────────────────────┤
+│  积分榜（tabular，队色条）             │
+├──────────────────────────────────────┤
+│  射手 Top 5 · 助攻 Top 5（双栏）       │
+├──────────────────────────────────────┤
+│  MVP · Newsreader Italic verdict      │
 └──────────────────────────────────────┘
-
-╭───── [Card] 场次结果 ────────────────╮
-│   ▮ TeamA  3                          │
-│                              ◀ 胜    │
-│   ▮ TeamB  2                          │
-│   ─────────────────                   │
-│   ...每场一组...                       │
-╰───────────────────────────────────────╯
-
-╭───── [Card] 🏅 积分榜 ───────────────╮
-│   排名  队伍   场 胜 平 负 净胜 积分   │
-│    1   ▮红队   2  2  0  0  +3   6    │
-│    ...                                │
-╰───────────────────────────────────────╯
-
-╭───── [Card] 👟 射手榜 (Top N) ──────╮
-│   1. 陈宇    ▮ 红队        3 球       │
-│   ...                                  │
-╰───────────────────────────────────────╯
-
-╭───── [Card] 🅰 助攻榜 (Top N) ──────╮
-│   1. 陈宇    ▮ 红队        2 助       │
-│   ...                                  │
-╰───────────────────────────────────────╯
-
-╭───── [Card] ⭐ 活动 MVP ────────────╮
-│                                        │
-│        陈宇 · 红队 · 3G / 2A           │
-│                                        │
-╰───────────────────────────────────────╯
-
-   [Footer] PitchMaster · {shortCode}
 ```
 
-**视觉规则**（与 §8 设计令牌严格对应）：
-- 整体背景 `bg-surface`（#ffffff）
-- 卡片背景 `bg-elevated`（#f8fafc）+ `rounded-2xl`（16px）+ `shadow-sm`
-- 卡片间距 `gap-4`（16px）；卡片内边距 `p-6`（24px）
-- 标题字号 `text-lg font-bold`（18/700）；数据行 `text-base tabular-nums`（16）
-- 队名前色条：`w-1.5 h-full rounded-full bg-[team.colorHex]`
-- 名次徽章：圆形 `w-7 h-7 bg-primary text-white`（前 3 名）/ `bg-slate-200 text-slate-700`（4+）
-- "胜/平/负"小标签：`text-xs px-2 py-0.5 rounded-full`，胜 = primary 绿、平 = slate、负 = danger 红
+**视觉规则**（与 §8.3 设计令牌严格对应）：
+- 背景 `surface`（#FFFFFF）；区块分隔仅用 1px `border`（#EAEAEA）
+- 比分 / 统计数字：`Geist Mono` + `tabular-nums`
+- 活动 MVP 一句评价：`Newsreader Italic`
+- 中文正文 / 队名：`PosterCJK` → fallback `NotoSC`
+- 队色条：`team.colorHex`（预置 8 色，见 §8.3.1）
+- 名次：前 3 `primary` 绿圆点，4+ 灰字
 
 ### 7.6 模板：单场战报（GamePosterTemplate）
 
-固定 1080×1920，单页版面：
+固定 **1080×1350**，单页版面：
 
 ```
 ┌──────────────────────────────────────┐
-│   PitchMaster                          │
-│   {event.name} · 第 {n} 场             │
-│   2026-06-18                           │
+│  PitchMaster · 第 {n} 场              │
+│  {event.name}                         │
+├──────────────────────────────────────┤
+│         3  —  2                       │  ← Geist Mono 240px Hero
+│    ▮红队          ▮蓝队               │
+│         50:00 · 已结束                │
+├──────────────────────────────────────┤
+│  进球流水（按队分组，分钟 + 助攻）      │
+├──────────────────────────────────────┤
+│  本场 MVP · Newsreader Italic         │
 └──────────────────────────────────────┘
-
-╭───── [Card] 比分 ──────────────────╮
-│                                       │
-│   ▮ 红队           3   -   2  ▮ 蓝队 │
-│                                       │
-│         全场 50:00 · 已结束           │
-╰───────────────────────────────────────╯
-
-╭───── [Card] ⚽ 进球流水 ───────────╮
-│  ▮ 红队                                │
-│   12'  陈宇                            │
-│   33'  王勇  (助攻: 陈宇)              │
-│   47'  陈宇                            │
-│  ▮ 蓝队                                │
-│   08'  李雷                            │
-│   29'  韩梅梅  (助攻: 李雷)            │
-╰───────────────────────────────────────╯
-
-╭───── [Card] ⭐ 本场 MVP ───────────╮
-│        陈宇 · 红队 · 2G / 1A          │
-╰───────────────────────────────────────╯
-
-   [Footer] PitchMaster · {shortCode}
 ```
 
 视觉规则同 §7.5；进球时间 = `(goal.serverTs - game.startedAt - 暂停期内)` / 60000，向下取整为分钟。
 
 ### 7.7 H5 战报页面
 
-H5 复用 satori 模板的同一套 React 组件（`PosterCard`、`StandingsTable`、`ScorerRow` 等），仅在外层容器加 PWA 安全区域、可点击交互（如点击场次跳到 `/games/:id`）和"分享"按钮。
+H5 与海报**同源令牌**（`web/src/lib/tokens.ts`），布局在 `web/src/components/report/`：
 
-**关键加成（§p6 决策）**：H5 头部固定一个 CTA：`"想下次也来踢吗？→ 进活动主页"`，链接到 `/events/:shortCode`。
+| 模块 | 文件 | 说明 |
+|---|---|---|
+| 布局原语 | `layout.tsx` | `ReportSection`、`Hairline`、`ReportTable` 等 hairline 容器 |
+| Hero | `ReportHero.tsx` | 大比分 + verdict 衬线句 |
+| 活动战报 | `EventReportView.tsx` | Hero → 积分榜 bento → 射手/助攻 zigzag → 场次横滚 pills |
+| 单场战报 | `GameReportView.tsx` | Hero → 进球流水 → MVP |
+| 分享 | `PosterPreview.tsx` | 顶部 CTA + 点击海报触发 Web Share |
+
+图标使用 `@phosphor-icons/react`（已移除 emoji）。
+
+**关键加成（§p6 决策）**：H5 头部固定 CTA：`"想下次也来踢吗？→ 进活动主页"`，链接到 `/events/:shortCode`。
 
 ---
 
@@ -663,8 +627,8 @@ H5 复用 satori 模板的同一套 React 组件（`PosterCard`、`StandingsTabl
 |---|---|
 | satori 不支持某些 CSS 特性（grid、transform 等） | 在 `PosterTemplate` 组件内严格使用 satori 支持的子集（flex、border、border-radius、shadow 简化版）；本地单测 `assets/snapshots/` 比对 PNG |
 | 字体文件过大拖累构建 | 子集化到 ≤250KB 单字重；CI 检查字体文件大小 |
-| 长图高度估算偏差导致内容被裁切 | `estimateEventPosterHeight()` 取保守值（按最大行数计算），底部留 100px 空白兜底 |
-| 海报渲染响应慢 | 后端缓存：activity-level 海报按 `(eventId, topN, lastEventTs)` 缓存 60s；live 活动也能接受 |
+| 长图高度估算偏差导致内容被裁切 | 活动海报高度固定为 1350 或 1620（`estimateEventPosterHeight` 单测契约）；不再用动态长图 |
+| 海报渲染响应慢 | 后端缓存：activity-level 海报按 `v2:{eventId}:5:{lastEventTs}` 内存缓存 60s |
 
 ---
 
@@ -701,79 +665,77 @@ H5 复用 satori 模板的同一套 React 组件（`PosterCard`、`StandingsTabl
 
 #### 8.3.1 色板
 
+源文件：`web/src/lib/tokens.ts`（后端镜像 `backend/src/poster/tokens.ts` + `tailwind.config.ts` extend）
+
 ```js
-// web/tailwind.config.js
-extend: {
-  colors: {
-    primary:   '#10b981',   // 翠绿（球场，主操作 / 名次徽章前 3 / 胜利标签）
-    primaryDk: '#059669',   // primary 按下/hover
-    danger:    '#ef4444',   // 撤销、负标签、错误
-    warning:   '#f59e0b',   // 暂停状态
-    surface:   '#ffffff',   // 主背景（浅色优先）
-    elevated:  '#f8fafc',   // 卡片背景
-    border:    '#e2e8f0',   // 分隔线、卡片边框
-    textPri:   '#0f172a',   // 主文本
-    textSec:   '#64748b',   // 次要文本
-    textInv:   '#ffffff',   // 反色文本（按钮上字）
-    chipBg:    '#f1f5f9',   // tabular row 斑马底
-  },
+// web/tailwind.config.ts → theme.extend.colors
+{
+  primary:    '#2E7D5B',   // 球场墨绿（主操作 / 前 3 名次 / 胜利）
+  primaryDk:  '#1E5A3F',
+  primaryPale:'#EDF3EC',
+  danger:     '#9F2F2D',   // 撤销、负标签
+  warning:    '#9F7B26',   // 暂停状态
+  surface:    '#FFFFFF',   // 主背景（暖白）
+  elevated:   '#FBFBFA',   // 次级区块底
+  border:     '#EAEAEA',   // hairline 分隔（取代 Card 阴影）
+  textPri:    '#1F2328',
+  textSec:    '#6B6B6B',
+  textInv:    '#FFFFFF',
+  chipBg:     '#F4F2EE',   // 可选行底（战报表格）
 }
 ```
 
-> 队伍颜色 `team.color_hex` 由用户在配置队伍时选；预置 8 色调色板：`['#ef4444','#f59e0b','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899']`。
+> 队伍颜色 `team.color_hex` 由用户在配置队伍时选；预置 8 色见 `tokens.ts` → `teamPalette`（brick / amber / ochre / sage / teal / cobalt / plum / rose）。
 
 #### 8.3.2 字号 / 字重
 
 ```js
 fontSize: {
-  // 应用层
-  'tap':    ['1.75rem', { lineHeight: '2.25rem', fontWeight: '700' }],  // 大按钮（GOAL）
-  'score':  ['4rem',    { lineHeight: '1',       fontWeight: '800' }],  // 比分数字
-
-  // 战报海报 / H5 共用
-  'h1':     ['1.875rem', { lineHeight: '2.25rem', fontWeight: '700' }], // 海报顶部活动名
-  'h2':     ['1.25rem',  { lineHeight: '1.75rem', fontWeight: '700' }], // 卡片标题
-  'body':   ['1rem',     { lineHeight: '1.5rem',  fontWeight: '400' }], // 列表正文
-  'caption':['0.75rem',  { lineHeight: '1rem',    fontWeight: '400' }], // 次要说明
+  'tap':    ['1.75rem', { lineHeight: '2.25rem', fontWeight: '700' }],
+  'score':  ['4rem',    { lineHeight: '1',       fontWeight: '600' }],  // 录入页 Hero；海报 240px mono
+  'h1':     ['1.875rem', { lineHeight: '2.25rem', fontWeight: '700' }],
+  'h2':     ['1.25rem',  { lineHeight: '1.75rem', fontWeight: '700' }],
+  'body':   ['1rem',     { lineHeight: '1.5rem',  fontWeight: '400' }],
+  'caption':['0.75rem',  { lineHeight: '1rem',    fontWeight: '400' }],
 },
 fontFamily: {
-  sans: ['ui-sans-serif', 'system-ui', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'],
-  // 数字对齐：所有数据行加 class="tabular-nums"
+  sans:  ['ui-sans-serif', 'system-ui', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'],
+  mono:  ['"Geist Mono"', 'ui-monospace', 'monospace'],           // 比分 / 统计
+  serif: ['Newsreader', 'ui-serif', 'Georgia', 'serif'],           // Hero verdict
 },
 ```
+
+自托管字体：`web/public/fonts/` + `web/src/index.css` `@font-face`（Geist Mono、Newsreader Italic 子集）。
 
 #### 8.3.3 间距 / 圆角 / 阴影
 
 | Token | 值 | 用途 |
 |---|---|---|
-| `space-card-gap` | 16px (`gap-4`) | 卡片之间 |
-| `space-card-padding` | 24px (`p-6`) | 卡片内边距 |
+| `space-card-gap` | 16px (`gap-4`) | 区块之间 |
+| `space-card-padding` | 24px (`p-6`) | 区块内边距 |
 | `space-row-gap` | 8px (`gap-2`) | 行内元素间距 |
-| `radius-card` | 16px (`rounded-2xl`) | 所有卡片 |
-| `radius-pill` | 9999px (`rounded-full`) | 名次徽章、状态 chip |
-| `shadow-card` | `0 1px 3px rgba(15,23,42,.04), 0 1px 2px rgba(15,23,42,.06)` | 卡片浅阴影 |
+| `radius-card` | 12px (`rounded-xl`) | 可点击卡片 / pill 按钮 |
+| `radius-pill` | 9999px (`rounded-full`) | 主 CTA、状态 chip |
+| `shadow` | 静态 `none`；hover `0 2px 8px rgba(0,0,0,.04)` | 仅交互态，战报/海报无阴影 |
 
-#### 8.3.4 组件清单（与战报共用，放 `web/src/components/ui/`）
+#### 8.3.4 组件清单
 
-| 组件 | 用途 | 应用页面 | 海报模板 |
-|---|---|---|---|
-| `Card` | 圆角+阴影容器 | 所有页面 | ✓ |
-| `Section` | 卡片内顶部带图标的标题区 | 所有页面 | ✓ |
-| `TeamBadge` | 队伍色条 + 队名 | 录入页、详情页 | ✓ |
-| `RankBadge` | 名次徽章（1-3 绿色 / 4+ 灰色） | 战报、积分榜 | ✓ |
-| `StatusChip` | 胜/平/负 / 暂停/进行中 等小标签 | 录入页、战报 | ✓ |
-| `StatRow` | 一行：左侧名次+人名+队伍 / 右侧数字 | 战报榜单 | ✓ |
-| `ScoreBoard` | 大比分显示 | 录入页、单场战报 | ✓ |
+| 组件 | 路径 | 用途 |
+|---|---|---|
+| `Card` / `Section` / `TeamBadge` / `RankBadge` / `StatusChip` / `StatRow` / `ScoreBoard` | `web/src/components/ui/` | App 通用 |
+| `ReportSection` / `ReportHero` / `Hairline` 等 | `web/src/components/report/` | H5 战报专用 layout |
+| `PosterRow` / `PosterHero` 等 | `backend/src/poster/layout.tsx` | satori 海报（inline style，令牌同源） |
 
-> 这些组件先开发为 React 组件（应用内），再被 satori 直接复用（仅替换 Tailwind class 为 satori 兼容 inline style）。两边样式由共享的 `tokens.ts` 派生，**不允许任何一处 hardcode 颜色/字号**。
+> App / H5 消费 Tailwind class；海报消费 `tokens.ts` 数值 + satori inline style。**不允许 hardcode 颜色**。
 
 #### 8.3.5 交互硬性规范
 
 - 任何可点击元素最小命中区 ≥ 56×56px（拇指可达性）
 - 主操作按钮（GOAL）一律 ≥ 屏宽 80% × 高度 25vh
-- 所有数字（比分、积分、统计）必须 `tabular-nums`
-- 所有列表带斑马底（奇数行 `bg-chipBg/50`）提升可读性
-- 浅色优先，未来如做深色模式必须同时维护两套海报背景
+- 所有数字（比分、积分、统计）必须 `tabular-nums` + `font-mono`（Geist Mono）
+- **hairline-first**：列表/战报优先用 `#EAEAEA` 分隔，不用 Card 阴影堆叠
+- 图标：`@phosphor-icons/react`；**禁止 emoji**（海报 / H5 / App 一致）
+- 浅色优先；深色模式若做须同步维护海报背景
 
 ---
 
