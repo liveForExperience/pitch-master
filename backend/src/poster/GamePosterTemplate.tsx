@@ -1,20 +1,234 @@
 import type { GameReport } from '../services/report.service.js';
 import {
-  PosterCard,
-  PosterMuted,
+  Eyebrow,
+  MonoNumeral,
+  PosterFooter,
+  PosterHeader,
   PosterRoot,
-  PosterTitle,
-  TeamDot,
-  ZebraRow,
+  Section,
+  SerifVerdict,
+  TeamBar,
 } from './layout.js';
-import { colors, gamePosterHeight, posterWidth } from './tokens.js';
-import { formatDurationMs, formatPosterDate } from './utils.js';
+import { colors, fonts, gamePosterHeight, posterWidth } from './tokens.js';
+import { formatHeaderDate } from './utils.js';
 
 export type GamePosterContext = {
   eventName: string;
   shortCode: string;
   gameNumber: number;
 };
+
+function verdictLabel(
+  scoreA: number,
+  scoreB: number,
+  status: string,
+  teamA: string,
+  teamB: string,
+): { eyebrow: string; serif: string } {
+  if (status !== 'FINISHED') return { eyebrow: 'IN PROGRESS', serif: 'live' };
+  if (scoreA > scoreB) return { eyebrow: 'WINNER', serif: `${teamA} wins` };
+  if (scoreA < scoreB) return { eyebrow: 'WINNER', serif: `${teamB} wins` };
+  return { eyebrow: 'RESULT', serif: 'Draw' };
+}
+
+function HeroScore({
+  scoreA,
+  scoreB,
+  teamA,
+  teamB,
+  status,
+}: {
+  scoreA: number;
+  scoreB: number;
+  teamA: { name: string; colorHex: string };
+  teamB: { name: string; colorHex: string };
+  status: string;
+}) {
+  const verdict = verdictLabel(scoreA, scoreB, status, teamA.name, teamB.name);
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        paddingTop: 40,
+        paddingBottom: 56,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingBottom: 24,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          <TeamBar colorHex={teamA.colorHex} width={6} height={56} />
+          <span
+            style={{
+              display: 'flex',
+              fontSize: 40,
+              fontWeight: 700,
+              color: colors.textPri,
+            }}
+          >
+            {teamA.name}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          <span
+            style={{
+              display: 'flex',
+              fontSize: 40,
+              fontWeight: 700,
+              color: colors.textPri,
+            }}
+          >
+            {teamB.name}
+          </span>
+          <TeamBar colorHex={teamB.colorHex} width={6} height={56} />
+        </div>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 56,
+          paddingTop: 24,
+          paddingBottom: 24,
+        }}
+      >
+        <span
+          style={{
+            display: 'flex',
+            fontFamily: fonts.mono,
+            fontSize: 240,
+            lineHeight: 1,
+            color: colors.textPri,
+            letterSpacing: '-0.04em',
+          }}
+        >
+          {String(scoreA)}
+        </span>
+        <span
+          style={{
+            display: 'flex',
+            fontFamily: fonts.mono,
+            fontSize: 96,
+            lineHeight: 1,
+            color: colors.textSec,
+          }}
+        >
+          :
+        </span>
+        <span
+          style={{
+            display: 'flex',
+            fontFamily: fonts.mono,
+            fontSize: 240,
+            lineHeight: 1,
+            color: colors.textPri,
+            letterSpacing: '-0.04em',
+          }}
+        >
+          {String(scoreB)}
+        </span>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+          paddingTop: 16,
+        }}
+      >
+        <Eyebrow text={verdict.eyebrow} muted />
+        <SerifVerdict text={verdict.serif} size={64} />
+      </div>
+    </div>
+  );
+}
+
+function TimelineRow({
+  side,
+  minute,
+  scorer,
+  assistant,
+  own,
+  teamA,
+  teamB,
+  last,
+}: {
+  side: 'A' | 'B';
+  minute: number;
+  scorer: string;
+  assistant?: string;
+  own?: boolean;
+  teamA: { colorHex: string };
+  teamB: { colorHex: string };
+  last: boolean;
+}) {
+  const isA = side === 'A';
+  const teamColor = isA ? teamA.colorHex : teamB.colorHex;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        height: 64,
+        borderBottom: last ? 'none' : `1px solid ${colors.border}`,
+      }}
+    >
+      <MonoNumeral text={`${minute}'`} size={20} color={colors.textSec} width={72} />
+      <div
+        style={{
+          display: 'flex',
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: isA ? 'flex-start' : 'flex-end',
+          gap: 12,
+        }}
+      >
+        {isA && <TeamBar colorHex={teamColor} width={4} height={32} />}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: isA ? 'flex-start' : 'flex-end',
+            gap: 2,
+          }}
+        >
+          <span
+            style={{
+              display: 'flex',
+              fontSize: 24,
+              fontWeight: 600,
+              color: colors.textPri,
+            }}
+          >
+            {scorer}
+            {own ? '（乌龙）' : ''}
+          </span>
+          {assistant && (
+            <span
+              style={{
+                display: 'flex',
+                fontSize: 16,
+                color: colors.textSec,
+              }}
+            >
+              助攻 · {assistant}
+            </span>
+          )}
+        </div>
+        {!isA && <TeamBar colorHex={teamColor} width={4} height={32} />}
+      </div>
+    </div>
+  );
+}
 
 export function GamePosterTemplate({
   report,
@@ -25,107 +239,86 @@ export function GamePosterTemplate({
 }) {
   const teamA = report.game.teamA ?? { name: 'A 队', colorHex: colors.textSec };
   const teamB = report.game.teamB ?? { name: 'B 队', colorHex: colors.textSec };
-  const goalsA = report.goals.filter((g) => g.teamSide === 'A');
-  const goalsB = report.goals.filter((g) => g.teamSide === 'B');
+  const headerTs = report.game.finishedAt ?? report.game.startedAt ?? report.meta.generatedAt;
+  const headerEyebrow = `${formatHeaderDate(headerTs)} · GAME ${String(context.gameNumber).padStart(2, '0')}`;
+  const visibleGoals = report.goals.slice(0, 9);
 
   return (
     <PosterRoot width={posterWidth} height={gamePosterHeight}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ fontSize: 28, fontWeight: 700 }}>PitchMaster</div>
-        <PosterMuted>{`${context.eventName} · 第 ${context.gameNumber} 场`}</PosterMuted>
-        <PosterMuted>
-          {report.game.finishedAt
-            ? formatPosterDate(report.game.finishedAt).slice(0, 10)
-            : formatPosterDate(report.meta.generatedAt).slice(0, 10)}
-        </PosterMuted>
-      </div>
+      <PosterHeader eyebrow={headerEyebrow} shortCode={context.shortCode} />
 
-      <PosterCard>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: 280 }}>
-            <TeamDot colorHex={teamA.colorHex} />
-            <span style={{ fontSize: 22, fontWeight: 700 }}>{teamA.name}</span>
-          </div>
-          <div style={{ fontSize: 56, fontWeight: 800, display: 'flex' }}>
-            {`${report.game.scoreA} - ${report.game.scoreB}`}
-          </div>
-          <div
+      <HeroScore
+        scoreA={report.game.scoreA}
+        scoreB={report.game.scoreB}
+        teamA={teamA}
+        teamB={teamB}
+        status={report.game.status}
+      />
+
+      <Section title="GOALS">
+        {report.goals.length === 0 ? (
+          <span
             style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              width: 280,
-              justifyContent: 'flex-end',
+              fontSize: 18,
+              color: colors.textSec,
             }}
           >
-            <span style={{ fontSize: 22, fontWeight: 700 }}>{teamB.name}</span>
-            <TeamDot colorHex={teamB.colorHex} />
-          </div>
-        </div>
-        <div style={{ fontSize: 14, color: colors.textSec, textAlign: 'center' }}>
-          {report.game.status === 'FINISHED'
-            ? `全场 ${formatDurationMs(report.game.durationMs)} · 已结束`
-            : `状态 ${report.game.status}`}
-        </div>
-      </PosterCard>
-
-      <PosterCard>
-        <PosterTitle text="进球流水" />
-        <GoalGroup teamName={teamA.name} colorHex={teamA.colorHex} goals={goalsA} />
-        <GoalGroup teamName={teamB.name} colorHex={teamB.colorHex} goals={goalsB} />
-        {report.goals.length === 0 && <PosterMuted>暂无进球</PosterMuted>}
-      </PosterCard>
+            暂无进球
+          </span>
+        ) : (
+          visibleGoals.map((g, i) => (
+            <TimelineRow
+              key={`${g.minute}-${g.scorerName}-${i}`}
+              side={g.teamSide}
+              minute={g.minute}
+              scorer={g.scorerName}
+              assistant={g.assistantName}
+              own={g.type === 'OWN_GOAL'}
+              teamA={teamA}
+              teamB={teamB}
+              last={i === visibleGoals.length - 1}
+            />
+          ))
+        )}
+      </Section>
 
       {report.gameMvp && (
-        <PosterCard>
-          <PosterTitle text="本场 MVP" />
+        <Section title="MATCH MVP">
           <div
             style={{
-              fontSize: 24,
-              fontWeight: 700,
-              textAlign: 'center',
-              padding: 12,
               display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
             }}
           >
-            {`${report.gameMvp.name} · ${report.gameMvp.teamName} · ${report.gameMvp.goals}G / ${report.gameMvp.assists}A`}
+            <span
+              style={{
+                display: 'flex',
+                fontSize: 56,
+                fontWeight: 700,
+                color: colors.textPri,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {report.gameMvp.name}
+            </span>
+            <span
+              style={{
+                display: 'flex',
+                fontFamily: fonts.mono,
+                fontSize: 22,
+                color: colors.textSec,
+                letterSpacing: '0.04em',
+              }}
+            >
+              {report.gameMvp.goals} G / {report.gameMvp.assists} A · {report.gameMvp.teamName}
+            </span>
           </div>
-        </PosterCard>
+        </Section>
       )}
 
-      <div style={{ fontSize: 14, color: colors.textSec, textAlign: 'center', marginTop: 'auto', display: 'flex' }}>
-        {`PitchMaster · ${context.shortCode}`}
-      </div>
+      <PosterFooter shortCode={context.shortCode} />
     </PosterRoot>
-  );
-}
-
-function GoalGroup({
-  teamName,
-  colorHex,
-  goals,
-}: {
-  teamName: string;
-  colorHex: string;
-  goals: GameReport['goals'];
-}) {
-  if (goals.length === 0) return null;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <TeamDot colorHex={colorHex} />
-        <span style={{ fontSize: 16, fontWeight: 700 }}>{teamName}</span>
-      </div>
-      {goals.map((goal, i) => (
-        <ZebraRow key={`${goal.minute}-${goal.scorerName}-${i}`} zebra={i % 2 === 0}>
-          <span style={{ width: 48, fontSize: 14, color: colors.textSec, display: 'flex' }}>
-            {`${goal.minute}'`}
-          </span>
-          <span style={{ fontSize: 16, fontWeight: 600, display: 'flex' }}>
-            {`${goal.scorerName}${goal.type === 'OWN_GOAL' ? '（乌龙）' : ''}${goal.assistantName ? ` · 助攻 ${goal.assistantName}` : ''}`}
-          </span>
-        </ZebraRow>
-      ))}
-    </div>
   );
 }

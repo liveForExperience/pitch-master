@@ -42,7 +42,7 @@ describe('poster.service', () => {
     return { db, evt, game };
   }
 
-  it('estimateEventPosterHeight grows with content rows', () => {
+  it('estimateEventPosterHeight returns fixed 4:5 by default and 4:6 when data is heavy', () => {
     const base = {
       event: { id: 'e', shortCode: 'ABC', name: '测试', createdAt: 1, finishedAt: null },
       games: [],
@@ -51,15 +51,21 @@ describe('poster.service', () => {
       topAssists: [],
       meta: { topN: 5, generatedAt: 1 },
     };
-    const empty = estimateEventPosterHeight(base);
-    const full = estimateEventPosterHeight({
+    const lean = estimateEventPosterHeight(base);
+    const heavy = estimateEventPosterHeight({
       ...base,
-      games: [{ id: 'g', teamA: { id: 'a', name: 'A', colorHex: '#f00' }, teamB: { id: 'b', name: 'B', colorHex: '#00f' }, scoreA: 1, scoreB: 0, status: 'FINISHED', durationMs: 1000 }],
-      standings: [{ teamId: 'a', teamName: 'A', colorHex: '#f00', played: 1, wins: 1, draws: 0, losses: 0, goalsFor: 1, goalsAgainst: 0, goalDiff: 1, points: 3, rank: 1 }],
-      topScorers: [{ rosterId: 'p', name: '陈', teamId: 'a', teamName: 'A', colorHex: '#f00', goals: 1, firstGoalAt: 1 }],
-      mvp: { rosterId: 'p', name: '陈', teamName: 'A', colorHex: '#f00', goals: 1, assists: 0 },
+      topScorers: Array.from({ length: 5 }).map((_, i) => ({
+        rosterId: `p${i}`,
+        name: `球员${i}`,
+        teamId: 'a',
+        teamName: 'A',
+        colorHex: '#f00',
+        goals: 20,
+        firstGoalAt: 1,
+      })),
     });
-    expect(full).toBeGreaterThan(empty);
+    expect(lean).toBe(1350);
+    expect(heavy).toBe(1620);
   });
 
   it('renders event and game poster PNG buffers', async () => {

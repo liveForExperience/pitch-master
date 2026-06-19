@@ -11,11 +11,14 @@ import { EventPosterTemplate, estimateEventPosterHeight } from '../poster/EventP
 import { GamePosterTemplate } from '../poster/GamePosterTemplate.js';
 import { gamePosterHeight, posterWidth } from '../poster/tokens.js';
 import {
+  type EventReport,
+  type GameReport,
   getEventReport,
   getGameReport,
   REPORT_TOP_N,
   resolveEventId,
 } from './report.service.js';
+import { buildDynamicCjkSubset } from './poster-font.js';
 
 export { estimateEventPosterHeight };
 
@@ -43,21 +46,72 @@ export function resetPosterFontsForTests(): void {
   fonts = null;
 }
 
-const satoriFonts = () => {
-  const f = loadFonts();
-  return [
-    { name: 'NotoSC', data: f.regular, weight: 400 as const, style: 'normal' as const },
-    { name: 'NotoSC', data: f.bold, weight: 700 as const, style: 'normal' as const },
-    { name: 'GeistMono', data: f.mono, weight: 500 as const, style: 'normal' as const },
-    { name: 'Newsreader', data: f.serifItalic, weight: 500 as const, style: 'italic' as const },
-  ];
+type SatoriFont = {
+  name: string;
+  data: Buffer;
+  weight: 400 | 500 | 700;
+  style: 'normal' | 'italic';
 };
 
-async function renderSvg(element: ReactElement, width: number, height: number): Promise<string> {
+function staticSatoriFonts(): SatoriFont[] {
+  const f = loadFonts();
+  return [
+    { name: 'NotoSC', data: f.regular, weight: 400, style: 'normal' },
+    { name: 'NotoSC', data: f.bold, weight: 700, style: 'normal' },
+    { name: 'GeistMono', data: f.mono, weight: 500, style: 'normal' },
+    { name: 'Newsreader', data: f.serifItalic, weight: 500, style: 'italic' },
+  ];
+}
+
+function collectEventCjkTexts(report: EventReport): string[] {
+  const out: string[] = [report.event.name];
+  for (const g of report.games) {
+    out.push(g.teamA.name, g.teamB.name);
+  }
+  for (const s of report.standings) out.push(s.teamName);
+  for (const r of report.topScorers) out.push(r.name, r.teamName);
+  for (const r of report.topAssists) out.push(r.name, r.teamName);
+  if (report.mvp) out.push(report.mvp.name, report.mvp.teamName);
+  return out;
+}
+
+function collectGameCjkTexts(report: GameReport): string[] {
+  const out: string[] = [];
+  if (report.game.teamA) out.push(report.game.teamA.name);
+  if (report.game.teamB) out.push(report.game.teamB.name);
+  for (const g of report.goals) {
+    out.push(g.scorerName);
+    if (g.assistantName) out.push(g.assistantName);
+  }
+  if (report.gameMvp) out.push(report.gameMvp.name, report.gameMvp.teamName);
+  return out;
+}
+
+async function buildFontsForTexts(texts: string[]): Promise<SatoriFont[]> {
+  const base = staticSatoriFonts();
+  const dyn = await buildDynamicCjkSubset(texts);
+  if (!dyn) return base;
+  // Dynamic subset is registered under its own family name so templates can
+  // declare `fontFamily: 'PosterCJK, NotoSC, ...'` and Satori will inter-family
+  // fallback to the static NotoSC buffers for any non-name glyphs (e.g. the
+  // hard-coded "助攻" / "乌龙" / business keywords).
+  return [
+    { name: 'PosterCJK', data: dyn, weight: 400, style: 'normal' },
+    { name: 'PosterCJK', data: dyn, weight: 700, style: 'normal' },
+    ...base,
+  ];
+}
+
+async function renderSvg(
+  element: ReactElement,
+  width: number,
+  height: number,
+  cjkTexts: string[],
+): Promise<string> {
   return satori(element, {
     width,
     height,
-    fonts: satoriFonts(),
+    fonts: await buildFontsForTexts(cjkTexts),
   });
 }
 
@@ -107,14 +161,20 @@ export async function renderEventPosterPng(
 ): Promise<Buffer> {
   const eventId = await resolveEventId(db, idOrShortCode);
   const lastEventTs = await getLastEventTs(db, eventId);
-  const cacheKey = `${eventId}:${REPORT_TOP_N}:${lastEventTs}`;
+  // v2 prefix forces invalidation of phase-1 era cached PNGs after the redesign
+  const cacheKey = `v2:${eventId}:${REPORT_TOP_N}:${lastEventTs}`;
 
   const cached = getPosterCache(cacheKey);
   if (cached) return cached;
 
   const report = await getEventReport(db, idOrShortCode);
   const height = estimateEventPosterHeight(report);
-  const svg = await renderSvg(createElement(EventPosterTemplate, { report }), posterWidth, height);
+  const svg = await renderSvg(
+    createElement(EventPosterTemplate, { report }),
+    posterWidth,
+    height,
+    collectEventCjkTexts(report),
+  );
   const png = svgToPng(svg);
   setPosterCache(cacheKey, png);
   return png;
@@ -127,6 +187,7 @@ export async function renderGamePosterPng(db: AppDb, gameId: string): Promise<Bu
     createElement(GamePosterTemplate, { report, context }),
     posterWidth,
     gamePosterHeight,
+    [...collectGameCjkTexts(report), context.eventName],
   );
   return svgToPng(svg);
 }
