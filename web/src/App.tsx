@@ -5,6 +5,7 @@ import { EventPage } from './pages/EventPage';
 import { EventSetupPage } from './pages/EventSetupPage';
 import { NewGamePage } from './pages/NewGamePage';
 import { GameRecordPage } from './pages/GameRecordPage';
+import { AdminRestorePage } from './pages/AdminRestorePage';
 import { GameDetailPage } from './pages/GameDetailPage';
 
 export function App() {
@@ -12,6 +13,7 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/admin/restore" element={<AdminRestorePage />} />
         <Route path="/events/new" element={<NewEventPage />} />
         <Route path="/events/:shortCode" element={<EventPage />} />
         <Route path="/events/:shortCode/setup" element={<EventSetupPage />} />

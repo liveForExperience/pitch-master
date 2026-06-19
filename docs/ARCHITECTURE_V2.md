@@ -233,7 +233,9 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | GET | `/api/time` | 公开 | 返回 `{serverNow: 1718712345678}` 用于时钟校准 |
 | POST | `/api/events` | 公开 | 创建活动；返回 `{id, shortCode, adminToken, pin}` |
 | GET | `/api/events/:shortCode` | 公开 | 获取活动详情（含 teams + games 列表，不含 adminToken） |
-| PATCH | `/api/events/:id` | Admin | 更新名字 / 标记结束 |
+| PATCH | `/api/events/:id` | Admin | **未实现**；结束活动用 `POST /api/events/:id/finish` |
+| POST | `/api/events/:id/finish` | Admin | 手动结束活动 → `{eventId, finishedAt}`；归档唯一触发源 |
+| POST | `/api/events/:id/restore-token?pin=` | 公开（PIN） | PIN 正确时轮换 adminToken → `{restored, adminToken?}` |
 | POST | `/api/events/:id/teams` | Admin | 创建队伍 `{name, colorHex?}` |
 | PATCH | `/api/teams/:id` | Admin | 更新 |
 | DELETE | `/api/teams/:id` | Admin | 删除（队伍下无场次时允许） |
@@ -672,15 +674,15 @@ H5 复用 satori 模板的同一套 React 组件（`PosterCard`、`StandingsTabl
 ### 8.2 路由
 
 ```
-/                                          首页（活动列表）
-/events/new                                创建活动
-/events/:shortCode                         活动主页（分享码只读 + adminToken 管理）
+/                                          首页（新建 / 加入 / 找回 / 进行中 / 已归档）
+/events/new                                创建活动（4 步：含 PIN 凭证确认）
+/events/:shortCode                         活动主页（adminToken 管理 + 手动结束活动）
 /events/:shortCode/setup                   配置队伍与队员（仅 adminToken）
 /events/:shortCode/report                  战报 H5（Phase 2，未实现）
 /games/new?eventId=...                     新建场次（仅 adminToken）
 /games/:id/record                          录入页（仅 adminToken）
 /games/:id                                 场次只读详情（SSE 实时）
-/admin/restore                             凭 PIN 找回 adminToken（**未实现**，见 PLAN §4）
+/admin/restore?code=                       凭 PIN 找回 adminToken（分享码可预填）
 ```
 
 ### 8.3 UI 设计系统（与战报严格同源）

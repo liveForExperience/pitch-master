@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createEvent, createTeam } from '../api/events';
+import type { CreatedEvent } from '../api/types';
+import { EventCredentialsCard } from '../components/EventCredentialsCard';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
 import { rememberEvent, setAdminToken } from '../lib/storage';
 
@@ -12,6 +14,7 @@ export function NewEventPage() {
   const [teamNames, setTeamNames] = useState<string[]>(['红队', '蓝队']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [created, setCreated] = useState<CreatedEvent | null>(null);
 
   const syncTeamNames = (count: number) => {
     setTeamNames((prev) => {
@@ -21,27 +24,40 @@ export function NewEventPage() {
     });
   };
 
-  const submit = async () => {
+  const createActivity = async () => {
     setLoading(true);
     setError('');
     try {
-      const created = await createEvent(name.trim());
-      setAdminToken(created.id, created.adminToken);
+      const result = await createEvent(name.trim());
+      setAdminToken(result.id, result.adminToken);
       rememberEvent({
-        id: created.id,
-        shortCode: created.shortCode,
+        id: result.id,
+        shortCode: result.shortCode,
         name: name.trim(),
-        pin: created.pin,
+        pin: result.pin,
+        createdAt: result.createdAt,
       });
+      setCreated(result);
+      setStep(4);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '创建失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const finishSetup = async () => {
+    if (!created) return;
+    setLoading(true);
+    setError('');
+    try {
       for (let i = 0; i < teamCount; i++) {
         const label = teamNames[i]?.trim() || `队伍 ${i + 1}`;
         await createTeam(created.id, label, created.adminToken);
       }
-
       nav(`/events/${created.shortCode}/setup`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建失败');
+      setError(err instanceof Error ? err.message : '创建队伍失败');
     } finally {
       setLoading(false);
     }
@@ -102,11 +118,21 @@ export function NewEventPage() {
           </div>
           {error && <p className="mt-3 text-sm text-danger">{error}</p>}
           <div className="mt-4">
-            <PrimaryButton disabled={loading} onClick={submit}>
-              {loading ? '创建中…' : '创建并开始配置'}
+            <PrimaryButton disabled={loading} onClick={() => void createActivity()}>
+              {loading ? '创建中…' : '创建活动'}
             </PrimaryButton>
           </div>
         </Card>
+      )}
+
+      {step === 4 && created && (
+        <>
+          <EventCredentialsCard shortCode={created.shortCode} pin={created.pin} />
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <PrimaryButton disabled={loading} onClick={() => void finishSetup()}>
+            {loading ? '配置队伍中…' : '已截图保存，继续配置队员'}
+          </PrimaryButton>
+        </>
       )}
     </PageShell>
   );

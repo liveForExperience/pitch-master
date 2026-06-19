@@ -43,6 +43,18 @@ export const createGame = (
     adminToken,
   });
 
+export const restoreAdminToken = (eventId: string, pin: string) =>
+  apiRequest<{ restored: boolean; adminToken?: string }>(
+    `/api/events/${eventId}/restore-token?pin=${encodeURIComponent(pin)}`,
+    { method: 'POST' },
+  );
+
+export const finishEvent = (eventId: string, adminToken: string) =>
+  apiRequest<{ eventId: string; finishedAt: number }>(`/api/events/${eventId}/finish`, {
+    method: 'POST',
+    adminToken,
+  });
+
 export const fetchGame = (gameId: string) => apiRequest<GameDetail>(`/api/games/${gameId}`);
 
 export const fetchGameState = (gameId: string) =>

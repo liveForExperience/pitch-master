@@ -12,8 +12,9 @@
   },
   "scripts": {
     "dev": "bash bin/dev.sh",
-    "dev:backend": "npm run dev -w pitchmaster-backend",
-    "dev:web": "npm run dev -w pitchmaster-web",
+    "dev:stop": "bash bin/dev-stop.sh",
+    "dev:backend": "bash bin/dev-backend.sh",
+    "dev:web": "bash bin/dev-web.sh",
     "build": "npm run build -w pitchmaster-backend && npm run build -w pitchmaster-web",
     "typecheck": "npm run typecheck -w pitchmaster-backend && npm run typecheck -w pitchmaster-web",
     "test": "npm run test -w pitchmaster-backend && npm run test -w pitchmaster-web"

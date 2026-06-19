@@ -114,8 +114,10 @@
 - 启动时自动 migrate
 
 **T1.2 后端 API（在线版，无离线队列）**
-- `POST /api/events` 创建活动 → 返回 `{id, shortCode, adminToken}`
+- `POST /api/events` 创建活动 → 返回 `{id, shortCode, adminToken, pin, createdAt}`
 - `GET /api/events/:shortCode` 只读活动详情
+- `POST /api/events/:id/finish` 手动结束活动（Admin）
+- `POST /api/events/:id/restore-token?pin=` PIN 找回 adminToken
 - `POST /api/events/:id/teams` 创建队伍
 - `POST /api/teams/:id/roster` 加人（数组）
 - `POST /api/events/:id/games` 创建场次（指定 A/B 两队）
@@ -128,13 +130,14 @@
 > 所有写入接口校验 `Authorization: Bearer <adminToken>` 或 `?pin=XXXXXX`。具体认证流见 `ARCHITECTURE_V2.md` §5。
 
 **T1.3 前端页面（移动竖屏优先）**
-1. `/`：最近活动列表 + [+] 新建
-2. `/events/new`：3 步表单（名字 → 队伍数 → 队伍名）
-3. `/events/:shortCode`：活动主页（卡片：每场比赛比分 + 进度）
-4. `/events/:shortCode/setup`：队伍配置（每队点击添加队员名字）
-5. `/games/new?eventId=...`：选两个队 → 开战
-6. `/games/:id/record`：录入页（大按钮 GOAL/ASSIST/UNDO，顶部计时）
-7. `/games/:id`：只读详情（事件流 + 比分）
+1. `/`：新建 → 加入活动 → 找回管理 → 进行中活动 → 已归档
+2. `/events/new`：4 步表单（名字 → 队伍数 → 队伍名 → **PIN 凭证确认**）
+3. `/events/:shortCode`：活动主页（凭证卡片 / 比赛列表 / **手动结束活动**）
+4. `/events/:shortCode/setup`：队伍配置
+5. `/admin/restore?code=`：PIN 找回（分享码可预填）
+6. `/games/new?eventId=...`：选两个队 → 开战
+7. `/games/:id/record`：录入页
+8. `/games/:id`：只读详情（SSE）
 
 **T1.4 计时器（服务器权威）**
 - 后端：`game.start_time` (DB) + Hono 路由 `GET /api/time` 返回 `{serverNow}` (ISO 8601 UTC)
@@ -166,10 +169,9 @@
 
 #### 任务分解
 
-**T2.1 PWA 基础设施**
-- `vite-plugin-pwa` 配置：manifest + service worker
-- 添加到主屏图标 + 离线兜底页
-- App Shell 缓存策略（HTML/JS/CSS stale-while-revalidate）
+**T2.1 PWA 离线增强**（基础 manifest + SW 已在 Phase 1 落地，见 §5 2026-06-19 决策）
+- 离线兜底页与 App Shell 缓存策略调优
+- 与 T2.2 outbox 联动的后台 sync worker
 
 **T2.2 本地事件队列（核心难点）**
 - IndexedDB 表 `outbox`：`{id, gameId, type, payload, clientTs, status}`
@@ -267,6 +269,23 @@
 | O2 | 球场 GPS 自动识别活动地点？ | 需求方 | Phase 2 评审 |
 | ~~O3~~ | ~~战报海报视觉风格~~ | ~~已决~~ | **已决 2026-06-18：风格 B 卡片浅底长图，详见 ADR-0005** |
 | O4 | 黑/白色主题切换是否必要？ | 需求方 | Phase 1 评审 |
+| ~~D1~~ | ~~`/admin/restore` PIN 找回页~~ | ~~已决~~ | **已决 2026-06-19：Phase 1 实现** |
+| ~~D2~~ | ~~Radix UI + PWA 基础~~ | ~~已决~~ | **已决 2026-06-19：Phase 1 实现（Radix Dialog/Label；vite-plugin-pwa manifest+SW）** |
+| ~~D3~~ | ~~离线 outbox~~ | ~~已决~~ | **已决 2026-06-19：Phase 2（T2.2–T2.3）** |
+| ~~D4~~ | ~~战报 / report~~ | ~~已决~~ | **已决 2026-06-19：Phase 2（T2.4–T2.7）** |
+| D5 | merge 后重新部署 ECS | 需求方 | merge 后立即 |
+| D6 | merge 前后完整 Gate 验收 | 需求方 | merge 前 + merge 后各一次 |
+
+### 4.1 计划与实现差异（待需求方决策 · 2026-06-19）
+
+| ID | 差异描述 | 当前实现 | 选项 |
+|---|---|---|---|
+| C1 | Phase 1 目标写「出战报闭环」，战报在 Phase 2 | Phase 1 不含 report/poster API | A) 改 PLAN 文案 B) 提前做战报 |
+| C2 | ARCH 定义 `PATCH /api/events/:id` 更新/结束 | 已实现 `POST .../finish`，无 PATCH、无改名 | A) 保持 POST finish B) 补 PATCH |
+| C3 | ARCH 列出的 PATCH/DELETE teams、batch events 等 | 未实现 | A) Phase 2+ 再做 B) 提前补 CRUD |
+| C4 | PWA 基础 manifest 已在 Phase 1 落地 | PLAN T2.1 原写 Phase 2 基础设施 | A) 已接受现状 B) 回退 PWA 到 Phase 2 |
+| C5 | 活动归档规则 | **仅**管理员手动「结束活动」后归档；场次全部结束不自动归档 | 确认 / 改回自动归档 |
+| C6 | Phase 1 Gate 四项 | 尚未人工签署（D6） | 需求方安排验收 |
 
 ---
 
@@ -405,24 +424,36 @@
 | T1.3 前端 | ✔ | react-router 6 七页；adminToken 鉴权 + 分享码只读；SSE 实时；赛后逐条修正进球 |
 | T1.4 计时器 | ✔ | `GET /api/time` + 客户端平滑计时 |
 | T1.5 SSE | ✔ | `GET /api/games/:id/stream` + in-memory sse-broker |
-| T1.6 测试 | ✔ | backend 30+ tests（语义优先）；web 单元测试 game-events / parse-response / time-format |
+| T1.6 测试 | ✔ | backend 41+ / web 21+ 语义单测；service 行覆盖 ≥85% |
+
+**2026-06-19 15:00 CST · Phase 1 整理收口（refactor + 测试 + 文档）**：
+- 代码：`route-errors` 统一错误映射；`session-logic` 纯函数；`bin/dev*.sh` 一键启停
+- 功能：PIN 创建展示、手动结束活动、归档规则、PWA/Radix、restore 预填分享码
+- 测试：backend 41+ / web 21+（语义优先：路由 finish/restore、session 归档、deriveScore）
+- 文档：ARCH §4/§8、PLAN §4.1 计划差异表
+
+**2026-06-19 18:00 CST · PR #2 决策落地（D1–D6）**：
+- D1：`/admin/restore` 分享码 + PIN 找回 adminToken；首页与观众 banner 入口
+- D2：`@radix-ui/react-dialog` / `react-label`；`vite-plugin-pwa` manifest + SW
+- D3/D4：离线 outbox 与战报明确留在 Phase 2
+- D5/D6：merge 后重新部署 ECS；merge 前后各走一遍 Phase 1 Gate
 
 **2026-06-19 12:30 CST · Phase 1 整理收口**：
 - 代码：errors/short-code 抽取；GoalPickPanel 拆分；API 响应解析加固
-- 文档：ARCH §4/§8 与实现对齐（health 路径、只读观战、/admin/restore 未实现）
+- 文档：ARCH §4/§8 与实现对齐（health 路径、只读观战）
 - 测试：deriveScore 乱序撤销、鉴权、守卫、前端事件流语义
-- ⚠️ **待决策项**见 PR 描述 §Plan Conflicts
 
-Gate 待人工验收：
-- ⬜ 1 分钟内建活动 → 配队 → 开赛 → 记 3 球 → 看比分
-- ⬜ 另一浏览器 ≤2s SSE 分数同步
-- ⬜ 重启后 SQLite 数据保留
+Gate 待人工验收（D6）：
+- ⬜ merge 前：1 分钟内建活动 → 配队 → 开赛 → 记 3 球 → 看比分
+- ⬜ merge 前：另一浏览器 ≤2s SSE 分数同步
+- ⬜ merge 前：重启后 SQLite 数据保留
+- ⬜ merge 后：ECS 重新部署 + 上述三项再验一遍
 
 已知限制 / 后续改进：
-- `/admin/restore` PIN 找回页未实现；新设备管理员暂无法通过 PIN 恢复写权限
-- Phase 2 离线 outbox / PWA / 战报尚未开始
-- 线上 ECS 需重新部署本分支才可用完整 `/api/events` 能力
-- Drizzle snapshot meta 为手工占位，后续 `db:gen` 可重新生成
+- Phase 2：IndexedDB outbox、离线 replay、战报 H5/海报
+- ARCH 中 PATCH teams / batch events 等待 Phase 2+（见 §4.1 C3）
+- 活动改名 API 未实现（见 §4.1 C2）
+- 线上 ECS 需 merge + 重新部署（D5）
 
 ---
 
