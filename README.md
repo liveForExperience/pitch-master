@@ -62,7 +62,8 @@ bash bin/dev.sh    # 一键启动 backend(:3000) + web(:5173)
 ├── docs/
 │   ├── ARCHITECTURE_V2.md    # 技术蓝图（DDL / API / 算法）
 │   ├── DECISIONS.md          # ADR 决策记录
-│   └── DEPLOYMENT.md         # ECS 部署与 GitHub Actions
+│   ├── DEPLOYMENT.md         # ECS 部署与 GitHub Actions
+│   └── issues-tracking.md    # Phase 3 内测问题跟踪
 ├── legacy/                   # v1 归档（已废弃）
 ├── backend/                  # v2 Node + Hono 后端
 ├── web/                      # v2 React + Vite PWA 前端
@@ -81,7 +82,7 @@ bash bin/dev.sh    # 一键启动 backend(:3000) + web(:5173)
 | Phase 1 | ✅ 完成 | MVP 在线版：建活动 → 配队 → 开赛 → 记进球 → SSE 观战 |
 | Phase 2 | ✅ 完成 | 离线 outbox + batch replay + 战报 H5/海报 + PWA 增强 + 分享（PR #6） |
 | UI 视觉升级 | 🚧 PR 链 | Notion-体育 minimalist 四阶段（token / 海报 4:5 / H5 战报 / App UI），见 PR #7–#12 |
-| Phase 3 | 🟡 部分 | GitHub Actions → ECS 自动部署已跑通；HTTPS / 备份演练待补 |
+| Phase 3 | 🟡 部分 | 自动部署 + healthz + 备份/恢复演练 ✅；HTTPS 暂缓；内测 Gate 待启动 |
 | Phase 4 | ⬜ 待定 | Apple Watch（可选） |
 
 **线上**：`http://8.153.145.81/`（HTTP，ECS + Nginx 反代 backend:3000）

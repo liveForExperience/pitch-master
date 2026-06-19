@@ -1,0 +1,26 @@
+# PitchMaster v2 · Caddy（Phase 3 可选 HTTPS）
+#
+# 使用前：
+#   1. 购买域名并解析到 ECS（见 DEVELOPMENT_PLAN O1）
+#   2. export DOMAIN=pitch.example.com
+#   3. dnf install -y caddy && cp 本文件到 /etc/caddy/Caddyfile && systemctl reload caddy
+#
+# IP-only / 自签：将 DOMAIN 设为服务器 IP，Caddy 会签发内部 CA 证书（移动端需手动信任）。
+
+{$DOMAIN:localhost} {
+	root * /opt/pitchmaster-v2/current/web/dist
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	handle /healthz {
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}

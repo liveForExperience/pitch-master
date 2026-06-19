@@ -127,6 +127,21 @@ describe('game-ops.service integration', () => {
     expect(row!.plannedDurationMs).toBe(15 * 60 * 1000);
   });
 
+  it('honors explicit plannedDurationMs when provided', async () => {
+    const { db } = setupTestDb();
+    const evt = await createEvent(db, '时长测试');
+    const teamA = await createTeam(db, evt.id, { name: 'A' });
+    const teamB = await createTeam(db, evt.id, { name: 'B' });
+    const customMs = 20 * 60 * 1000;
+    const game = await createGame(db, evt.id, {
+      teamAId: teamA.id,
+      teamBId: teamB.id,
+      plannedDurationMs: customMs,
+    });
+    const [row] = await db.select().from(games).where(eq(games.id, game.id));
+    expect(row!.plannedDurationMs).toBe(customMs);
+  });
+
   it('is idempotent on duplicate clientEventId', async () => {
     const { db, game, pA } = await seedMatch();
     await startGame(db, game.id);
