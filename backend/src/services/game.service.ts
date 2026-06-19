@@ -1,9 +1,15 @@
 import type { ScoreEvent } from '../types/domain.js';
 
-export function deriveScore(events: ScoreEvent[]): { scoreA: number; scoreB: number } {
-  const undone = new Set(
-    events.filter((e) => e.type === 'UNDO' && e.undoTargetEventId).map((e) => e.undoTargetEventId!),
+export function getUndoneEventIds(events: ScoreEvent[]): Set<string> {
+  return new Set(
+    events
+      .filter((e) => e.type === 'UNDO' && e.undoTargetEventId)
+      .map((e) => e.undoTargetEventId!),
   );
+}
+
+export function deriveScore(events: ScoreEvent[]): { scoreA: number; scoreB: number } {
+  const undone = getUndoneEventIds(events);
   let scoreA = 0;
   let scoreB = 0;
   for (const e of events) {

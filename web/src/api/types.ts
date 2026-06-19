@@ -59,9 +59,11 @@ export type GameDetail = {
     teamSide: string | null;
     scorerRosterId: string | null;
     assistantRosterId: string | null;
+    undoTargetEventId: string | null;
     serverTs: number;
   }>;
   scoreA: number;
   scoreB: number;
   timer: TimerState;
+  eventShortCode: string | null;
 };

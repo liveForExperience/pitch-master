@@ -14,6 +14,10 @@ export function rememberEvent(evt: Omit<RecentEvent, 'visitedAt'>): void {
   useSessionStore.getState().rememberEvent(evt);
 }
 
+export function removeRecentEvent(shortCode: string): void {
+  useSessionStore.getState().removeRecentEvent(shortCode);
+}
+
 export function getRecentEvents(): RecentEvent[] {
   return useSessionStore.getState().getRecentEvents();
 }

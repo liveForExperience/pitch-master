@@ -402,25 +402,27 @@
 |---|---|---|
 | T1.1 数据库 | ✔ | Drizzle schema 5 表 + `0000_initial.sql` + WAL client；启动时 `runMigrations()`；`DB_FILE` env |
 | T1.2 后端 API | ✔ | event/game-ops/game/timer services + Hono routes；`{ ok, data }` / `{ ok, error }` 响应；Bearer / pin 鉴权 |
-| T1.3 前端 | ✔ | react-router 7 页（/、/events/new、/events/:shortCode、setup、/games/new、record、detail）；localStorage adminToken + recent events；SSE 订阅 record 页 |
-| T1.4 计时器 | ✔ | `GET /api/time` + timer.service elapsed 公式 |
+| T1.3 前端 | ✔ | react-router 6 七页；adminToken 鉴权 + 分享码只读；SSE 实时；赛后逐条修正进球 |
+| T1.4 计时器 | ✔ | `GET /api/time` + 客户端平滑计时 |
 | T1.5 SSE | ✔ | `GET /api/games/:id/stream` + in-memory sse-broker |
-| T1.6 测试 | ✔ | 15 tests；核心 service 行覆盖 **70.56%**（≥60% 门禁） |
+| T1.6 测试 | ✔ | backend 30+ tests（语义优先）；web 单元测试 game-events / parse-response / time-format |
 
-本地工程验收：
-- `npm test`（backend）15/15 ✔
-- `npm run typecheck`（root）✔
-- `npm run build`（backend + web）✔
+**2026-06-19 12:30 CST · Phase 1 整理收口**：
+- 代码：errors/short-code 抽取；GoalPickPanel 拆分；API 响应解析加固
+- 文档：ARCH §4/§8 与实现对齐（health 路径、只读观战、/admin/restore 未实现）
+- 测试：deriveScore 乱序撤销、鉴权、守卫、前端事件流语义
+- ⚠️ **待决策项**见 PR 描述 §Plan Conflicts
 
-Gate 待人工验收（未在本阶段自动跑通）：
+Gate 待人工验收：
 - ⬜ 1 分钟内建活动 → 配队 → 开赛 → 记 3 球 → 看比分
 - ⬜ 另一浏览器 ≤2s SSE 分数同步
 - ⬜ 重启后 SQLite 数据保留
 
 已知限制 / 后续改进：
-- 录制页返回链接依赖 session store 中的 recent events；直接粘贴 URL 仍可录入（roster 已随 game detail 返回）
+- `/admin/restore` PIN 找回页未实现；新设备管理员暂无法通过 PIN 恢复写权限
+- Phase 2 离线 outbox / PWA / 战报尚未开始
+- 线上 ECS 需重新部署本分支才可用完整 `/api/events` 能力
 - Drizzle snapshot meta 为手工占位，后续 `db:gen` 可重新生成
-- 代码尚未 commit / push（用户未要求）
 
 ---
 

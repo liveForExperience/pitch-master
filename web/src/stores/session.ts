@@ -15,6 +15,7 @@ type SessionState = {
   setAdminToken: (eventId: string, token: string) => void;
   getAdminToken: (eventId: string) => string | null;
   rememberEvent: (evt: Omit<RecentEvent, 'visitedAt'>) => void;
+  removeRecentEvent: (shortCode: string) => void;
   getRecentEvents: () => RecentEvent[];
 };
 
@@ -32,6 +33,10 @@ export const useSessionStore = create<SessionState>()(
             { ...evt, visitedAt: Date.now() },
             ...s.recentEvents.filter((e) => e.shortCode !== evt.shortCode),
           ].slice(0, 20),
+        })),
+      removeRecentEvent: (shortCode) =>
+        set((s) => ({
+          recentEvents: s.recentEvents.filter((e) => e.shortCode !== shortCode),
         })),
       getRecentEvents: () => get().recentEvents,
     }),

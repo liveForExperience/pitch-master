@@ -22,6 +22,7 @@ export type ScoreEvent = {
 export type TimerGame = {
   status: GameStatus;
   startedAt: number | null;
+  finishedAt: number | null;
   pausedDurationMs: number;
   pauseStartedAt: number | null;
   plannedDurationMs: number;

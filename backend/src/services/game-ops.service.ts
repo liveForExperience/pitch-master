@@ -5,6 +5,8 @@ import { broadcast } from '../lib/sse-broker.js';
 import { newId, nowMs } from '../lib/id.js';
 import { deriveScore } from './game.service.js';
 import { buildTimerState } from './timer.service.js';
+import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js';
+import { normalizeShortCode } from '../lib/short-code.js';
 
 const DEFAULT_COLORS = [
   '#ef4444',
@@ -17,29 +19,13 @@ const DEFAULT_COLORS = [
   '#ec4899',
 ];
 
-export class NotFoundError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'NotFoundError';
-  }
-}
-
-export class ConflictError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ConflictError';
-  }
-}
-
-export class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-}
-
 export async function getEventByShortCode(db: AppDb, shortCode: string) {
-  const [event] = await db.select().from(events).where(eq(events.shortCode, shortCode)).limit(1);
+  const normalized = normalizeShortCode(shortCode);
+  const [event] = await db
+    .select()
+    .from(events)
+    .where(eq(events.shortCode, normalized))
+    .limit(1);
   if (!event) throw new NotFoundError('Event not found');
 
   const eventTeams = await db.select().from(teams).where(eq(teams.eventId, event.id));
@@ -245,8 +231,8 @@ export type RecordEventInput = {
 
 export async function recordGameEvent(db: AppDb, gameId: string, input: RecordEventInput) {
   const game = await loadGame(db, gameId);
-  if (game.status !== 'PLAYING' && game.status !== 'PAUSED') {
-    throw new ConflictError('Cannot record events unless game is in progress');
+  if (game.status !== 'PLAYING' && game.status !== 'PAUSED' && game.status !== 'FINISHED') {
+    throw new ConflictError('Cannot record events unless game has started');
   }
 
   const existing = await db
@@ -289,7 +275,7 @@ export async function recordGameEvent(db: AppDb, gameId: string, input: RecordEv
 
 export async function undoGameEvent(db: AppDb, gameId: string, targetEventId: string) {
   const game = await loadGame(db, gameId);
-  if (game.status === 'FINISHED') throw new ConflictError('Game is finished');
+  if (game.status === 'READY') throw new ConflictError('Cannot undo events before game starts');
 
   const [target] = await db
     .select()
@@ -338,6 +324,7 @@ export async function getGameDetail(db: AppDb, gameId: string) {
   const timer = buildTimerState(game, nowMs());
   const [teamA] = await db.select().from(teams).where(eq(teams.id, game.teamAId)).limit(1);
   const [teamB] = await db.select().from(teams).where(eq(teams.id, game.teamBId)).limit(1);
+  const [eventRow] = await db.select().from(events).where(eq(events.id, game.eventId)).limit(1);
   const rosterA = teamA
     ? await db.select().from(rosters).where(eq(rosters.teamId, teamA.id))
     : [];
@@ -381,6 +368,7 @@ export async function getGameDetail(db: AppDb, gameId: string) {
     scoreA: score.scoreA,
     scoreB: score.scoreB,
     timer,
+    eventShortCode: eventRow?.shortCode ?? null,
   };
 }
 

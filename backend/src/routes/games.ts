@@ -7,6 +7,8 @@ import {
   ConflictError,
   NotFoundError,
   ValidationError,
+} from '../lib/errors.js';
+import {
   finishGame,
   getGameDetail,
   getGameState,

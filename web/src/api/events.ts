@@ -10,7 +10,7 @@ export const createEvent = (name: string) =>
   });
 
 export const fetchEvent = (shortCode: string) =>
-  apiRequest<EventDetail>(`/api/events/${shortCode}`);
+  apiRequest<EventDetail>(`/api/events/${shortCode.trim().toUpperCase()}`);
 
 export const createTeam = (
   eventId: string,
@@ -35,10 +35,11 @@ export const createGame = (
   teamAId: string,
   teamBId: string,
   adminToken: string,
+  plannedDurationMs?: number,
 ) =>
   apiRequest<{ id: string }>(`/api/events/${eventId}/games`, {
     method: 'POST',
-    body: JSON.stringify({ teamAId, teamBId }),
+    body: JSON.stringify({ teamAId, teamBId, plannedDurationMs }),
     adminToken,
   });
 
@@ -67,6 +68,7 @@ export const recordGoal = (
     clientEventId: string;
     teamSide: 'A' | 'B';
     scorerRosterId: string;
+    assistantRosterId?: string;
     clientTs: number;
   },
   adminToken: string,

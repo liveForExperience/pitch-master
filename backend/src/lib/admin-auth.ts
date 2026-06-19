@@ -2,7 +2,8 @@ import type { Context } from 'hono';
 import { eq } from 'drizzle-orm';
 import type { AppDb } from '../db/client.js';
 import { games, teams } from '../db/schema.js';
-import { resolveEventAdmin, AuthError } from '../services/event.service.js';
+import { resolveEventAdmin } from '../services/event.service.js';
+import { AuthError } from '../lib/errors.js';
 import { fail } from './api-response.js';
 
 export function parseAdminCredentials(c: Context): { bearerToken?: string; pin?: string } {

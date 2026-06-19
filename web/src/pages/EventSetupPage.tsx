@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { addRoster, createTeam, fetchEvent } from '../api/events';
+import { useNavigate, useParams } from 'react-router-dom';
+import { fetchEvent } from '../api/events';
 import type { EventDetail } from '../api/types';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
-import { getAdminToken } from '../lib/storage';
+import { useRequireAdmin } from '../lib/use-require-admin';
 
 export function EventSetupPage() {
   const { shortCode = '' } = useParams();
+  const nav = useNavigate();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [newTeam, setNewTeam] = useState('');
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
@@ -21,20 +22,29 @@ export function EventSetupPage() {
     void reload();
   }, [shortCode]);
 
-  const token = event ? getAdminToken(event.id) : null;
+  const token = useRequireAdmin(event?.id, `/events/${shortCode}`);
+
+  if (!token) {
+    return (
+      <PageShell title="队伍配置" backTo={`/events/${shortCode}`}>
+        <p className="text-sm text-textSec">正在跳转…</p>
+      </PageShell>
+    );
+  }
 
   const addTeam = async () => {
-    if (!event || !token || !newTeam.trim()) return;
+    if (!event || !newTeam.trim()) return;
+    const { createTeam } = await import('../api/events');
     await createTeam(event.id, newTeam.trim(), token);
     setNewTeam('');
     await reload();
   };
 
   const addPlayers = async (teamId: string) => {
-    if (!token) return;
     const raw = draftNames[teamId] ?? '';
     const names = raw.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
     if (!names.length) return;
+    const { addRoster } = await import('../api/events');
     await addRoster(teamId, names, token);
     setDraftNames((d) => ({ ...d, [teamId]: '' }));
     await reload();
@@ -43,7 +53,6 @@ export function EventSetupPage() {
   return (
     <PageShell title="队伍配置" backTo={`/events/${shortCode}`}>
       {error && <p className="text-sm text-danger">{error}</p>}
-      {!token && <p className="text-sm text-warning">未找到管理员令牌，部分操作不可用。</p>}
 
       <Card>
         <div className="flex gap-2">
@@ -84,6 +93,14 @@ export function EventSetupPage() {
           <PrimaryButton onClick={() => void addPlayers(team.id)}>添加队员</PrimaryButton>
         </Card>
       ))}
+
+      <button
+        type="button"
+        className="w-full text-center text-sm text-primary"
+        onClick={() => nav(`/events/${shortCode}`)}
+      >
+        完成，返回活动页
+      </button>
     </PageShell>
   );
 }

@@ -212,6 +212,7 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | 已用时（ms） | `now - started_at - paused_duration_ms - (pause_started_at ? now - pause_started_at : 0)` |
 | 剩余时间 | `planned_duration_ms - 已用时` |
 | MVP | 进球+助攻最多的 roster；并列取较早出现者 |
+| 赛后修正 | Admin 可对任意有效进球写入 UNDO（不限顺序）；修改 = 撤销原事件 + 写入新进球 |
 | 射手榜 | group by scorer_roster_id, count desc |
 
 ---
@@ -244,15 +245,15 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | POST | `/api/games/:id/pause` | Admin | 暂停 |
 | POST | `/api/games/:id/resume` | Admin | 恢复 |
 | POST | `/api/games/:id/finish` | Admin | 结束 |
-| POST | `/api/games/:id/events` | Admin | 单条事件 |
+| POST | `/api/games/:id/events` | Admin | 单条事件（`PLAYING`/`PAUSED`/`FINISHED` 均可，用于赛后补录） |
 | POST | `/api/games/:id/events/batch` | Admin | 批量事件（离线 replay） |
-| DELETE | `/api/games/:id/events/:eventId` | Admin | 撤销事件（写入 UNDO 而非物理删除） |
+| DELETE | `/api/games/:id/events/:eventId` | Admin | 撤销事件（写入 UNDO；`FINISHED` 亦可，用于赛后修正） |
 | GET | `/api/games/:id/stream` | 公开 | SSE 订阅 |
 | GET | `/api/games/:id/report` | 公开 | 单场战报数据 JSON（比分 + 进球流水 + 单场 MVP） |
 | GET | `/api/games/:id/poster.png` | 公开 | 单场海报（PNG） |
 | GET | `/api/events/:id/report?topN=5` | 公开 | 活动战报数据 JSON（场次结果 + 积分榜 + 射手榜 + 助攻榜 + 活动 MVP），`topN` 默认 5、范围 1-20 |
 | GET | `/api/events/:id/poster.png?topN=5` | 公开 | 活动海报（PNG，长图自适应高度），`topN` 同上 |
-| GET | `/healthz` | 公开 | `{ok:true, version, uptime}` |
+| GET | `/api/health` | 公开 | 健康检查 `{status, service, version, uptimeSeconds, serverTime}` |
 
 ### 4.3 关键请求/响应样例
 
@@ -673,13 +674,13 @@ H5 复用 satori 模板的同一套 React 组件（`PosterCard`、`StandingsTabl
 ```
 /                                          首页（活动列表）
 /events/new                                创建活动
-/events/:shortCode                         活动主页（公开只读 + 管理操作）
-/events/:shortCode/setup                   配置队伍与队员（管理）
-/events/:shortCode/report                  战报 H5
-/games/new?eventId=...                     新建场次
-/games/:id/record                          录入页（管理）
-/games/:id                                 场次只读详情
-/admin/restore                             凭 PIN 找回 adminToken
+/events/:shortCode                         活动主页（分享码只读 + adminToken 管理）
+/events/:shortCode/setup                   配置队伍与队员（仅 adminToken）
+/events/:shortCode/report                  战报 H5（Phase 2，未实现）
+/games/new?eventId=...                     新建场次（仅 adminToken）
+/games/:id/record                          录入页（仅 adminToken）
+/games/:id                                 场次只读详情（SSE 实时）
+/admin/restore                             凭 PIN 找回 adminToken（**未实现**，见 PLAN §4）
 ```
 
 ### 8.3 UI 设计系统（与战报严格同源）

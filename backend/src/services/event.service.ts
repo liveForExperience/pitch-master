@@ -9,13 +9,7 @@ import {
   verifyAdminToken,
 } from '../lib/auth-crypto.js';
 import { newId, nowMs } from '../lib/id.js';
-
-export class AuthError extends Error {
-  constructor(message = 'Unauthorized') {
-    super(message);
-    this.name = 'AuthError';
-  }
-}
+import { AuthError } from '../lib/errors.js';
 
 export async function resolveEventAdmin(
   db: AppDb,

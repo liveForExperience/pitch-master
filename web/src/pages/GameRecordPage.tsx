@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   fetchGame,
-  fetchServerTime,
   finishGame,
   pauseGame,
   recordGoal,
@@ -12,24 +11,30 @@ import {
 } from '../api/events';
 import { newClientEventId } from '../api/client';
 import type { GameDetail } from '../api/types';
+import { GameEventFeed } from '../components/GameEventFeed';
+import { GoalPickPanel, type PickPhase } from '../components/GoalPickPanel';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
 import { formatMs } from '../lib/time-format';
+import { useGameStream } from '../lib/use-game-stream';
+import { useLiveGameTimer, useServerOffset } from '../lib/use-live-game-timer';
 import { getAdminToken } from '../lib/storage';
 import { useSessionStore } from '../stores/session';
 
+type EditingGoal = { eventId: string; side: 'A' | 'B' };
+
 export function GameRecordPage() {
   const { id = '' } = useParams();
+  const nav = useNavigate();
   const [game, setGame] = useState<GameDetail | null>(null);
-  const [serverOffset, setServerOffset] = useState(0);
-  const [now, setNow] = useState(Date.now());
   const [error, setError] = useState('');
-  const [pickSide, setPickSide] = useState<'A' | 'B' | null>(null);
+  const [pick, setPick] = useState<PickPhase>(null);
+  const [editing, setEditing] = useState<EditingGoal | null>(null);
 
   const recentEvents = useSessionStore((s) => s.recentEvents);
   const token = game ? getAdminToken(game.game.eventId) : null;
-  const eventShortCode = game
-    ? recentEvents.find((e) => e.id === game.game.eventId)?.shortCode
-    : undefined;
+  const eventShortCode =
+    game?.eventShortCode ??
+    recentEvents.find((e) => e.id === game?.game.eventId)?.shortCode;
 
   const reload = useCallback(async () => {
     const detail = await fetchGame(id);
@@ -37,42 +42,19 @@ export function GameRecordPage() {
   }, [id]);
 
   useEffect(() => {
-    fetchServerTime()
-      .then(({ serverNow }) => setServerOffset(serverNow - Date.now()))
-      .catch(() => undefined);
+    if (game && !getAdminToken(game.game.eventId)) {
+      nav(`/games/${id}`, { replace: true });
+    }
+  }, [game, id, nav]);
+
+  useEffect(() => {
     void reload().catch((err: Error) => setError(err.message));
   }, [reload]);
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 500);
-    return () => clearInterval(t);
-  }, []);
+  useGameStream(id, () => void reload(), Boolean(game));
 
-  useEffect(() => {
-    const es = new EventSource(`/api/games/${id}/stream`);
-    es.addEventListener('game_update', () => {
-      void reload();
-    });
-    es.addEventListener('timer_tick', () => {
-      void reload();
-    });
-    return () => es.close();
-  }, [id, reload]);
-
-  const timer = useMemo(() => {
-    if (!game) return null;
-    const serverNow = now + serverOffset;
-    const g = game.game;
-    if (!g.startedAt) return { elapsedMs: 0, remainingMs: g.plannedDurationMs, status: g.status };
-    let paused = g.pausedDurationMs;
-    if (g.pauseStartedAt) paused += serverNow - g.pauseStartedAt;
-    const elapsedMs = Math.max(0, serverNow - g.startedAt - paused);
-    return {
-      elapsedMs,
-      remainingMs: Math.max(0, g.plannedDurationMs - elapsedMs),
-      status: g.status,
-    };
-  }, [game, now, serverOffset]);
+  const timer = useLiveGameTimer(game);
+  const serverOffset = useServerOffset();
 
   const rosterForSide = (side: 'A' | 'B') => {
     if (!game) return [];
@@ -96,26 +78,58 @@ export function GameRecordPage() {
   const onFinish = async () => {
     if (!token) return;
     await finishGame(id, token);
+    setPick(null);
     await reload();
   };
 
-  const onGoal = async (side: 'A' | 'B', rosterId: string) => {
+  const submitGoal = async (side: 'A' | 'B', scorerId: string, assistantId?: string) => {
     if (!token) return;
-    await recordGoal(
-      id,
-      { clientEventId: newClientEventId(), teamSide: side, scorerRosterId: rosterId, clientTs: Date.now() + serverOffset },
-      token,
-    );
-    setPickSide(null);
-    await reload();
+    try {
+      if (editing) {
+        await undoEvent(id, editing.eventId, token);
+        setEditing(null);
+      }
+      await recordGoal(
+        id,
+        {
+          clientEventId: newClientEventId(),
+          teamSide: side,
+          scorerRosterId: scorerId,
+          assistantRosterId: assistantId,
+          clientTs: Date.now() + serverOffset,
+        },
+        token,
+      );
+      setPick(null);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '操作失败');
+    }
   };
 
-  const onUndoLast = async () => {
-    if (!token || !game) return;
-    const scorable = [...game.events].reverse().find((e) => e.type === 'GOAL' || e.type === 'OWN_GOAL');
-    if (!scorable) return;
-    await undoEvent(id, scorable.id, token);
-    await reload();
+  const onDeleteGoal = async (eventId: string) => {
+    if (!token) return;
+    try {
+      await undoEvent(id, eventId, token);
+      if (editing?.eventId === eventId) {
+        setEditing(null);
+        setPick(null);
+      }
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '删除失败');
+    }
+  };
+
+  const onEditGoal = (event: GameDetail['events'][number]) => {
+    if (event.teamSide !== 'A' && event.teamSide !== 'B') return;
+    setEditing({ eventId: event.id, side: event.teamSide });
+    setPick({ side: event.teamSide });
+  };
+
+  const cancelPick = () => {
+    setPick(null);
+    setEditing(null);
   };
 
   if (!game) {
@@ -126,17 +140,33 @@ export function GameRecordPage() {
     );
   }
 
+  if (!token) {
+    return (
+      <PageShell title="录入" backTo={eventShortCode ? `/events/${eventShortCode}` : '/'}>
+        <p className="text-sm text-textSec">正在跳转…</p>
+      </PageShell>
+    );
+  }
+
+  const finished = game.game.status === 'FINISHED';
+  const inProgress = game.game.status === 'PLAYING' || game.game.status === 'PAUSED';
+
   return (
     <PageShell
       title={`${game.teamA?.name} vs ${game.teamB?.name}`}
       backTo={eventShortCode ? `/events/${eventShortCode}` : '/'}
     >
+      {error && <p className="text-sm text-danger">{error}</p>}
       <Card className="text-center">
         <div className="font-score tabular-nums text-score text-textPri">
           {game.scoreA} : {game.scoreB}
         </div>
         <p className="mt-2 text-sm text-textSec">
-          {timer ? `${formatMs(timer.elapsedMs)} · 剩 ${formatMs(timer.remainingMs)} · ${timer.status}` : ''}
+          {finished
+            ? `已结束 · 用时 ${formatMs(timer?.elapsedMs ?? 0)}`
+            : timer
+              ? `${formatMs(timer.elapsedMs)} · 剩 ${formatMs(timer.remainingMs)} · ${timer.status}`
+              : ''}
         </p>
       </Card>
 
@@ -146,7 +176,7 @@ export function GameRecordPage() {
             开始比赛
           </PrimaryButton>
         )}
-        {(game.game.status === 'PLAYING' || game.game.status === 'PAUSED') && (
+        {inProgress && (
           <>
             <PrimaryButton onClick={() => void onPauseResume()}>
               {game.game.status === 'PLAYING' ? '暂停' : '继续'}
@@ -158,35 +188,50 @@ export function GameRecordPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <PrimaryButton onClick={() => setPickSide('A')}>A 队进球</PrimaryButton>
-        <PrimaryButton onClick={() => setPickSide('B')}>B 队进球</PrimaryButton>
-      </div>
-
-      {pickSide && (
-        <Card>
-          <p className="mb-2 text-sm text-textSec">选择进球球员 ({pickSide} 队)</p>
-          <div className="grid grid-cols-2 gap-2">
-            {rosterForSide(pickSide).map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className="min-h-14 rounded-xl bg-chipBg px-2 py-2 text-sm font-semibold"
-                onClick={() => void onGoal(pickSide, p.id)}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
+      {finished && (
+        <Card className="border-warning/30 bg-warning/5">
+          <p className="text-sm font-medium text-textPri">赛后修正</p>
+          <p className="mt-1 text-xs text-textSec">
+            比赛已结束，可补录进球，或在事件流中修改/删除任意一条记录。
+          </p>
         </Card>
       )}
 
-      <PrimaryButton className="bg-danger" onClick={() => void onUndoLast()}>
-        撤销最近进球
-      </PrimaryButton>
+      <div className="grid grid-cols-2 gap-3">
+        <PrimaryButton onClick={() => setPick({ side: 'A' })}>
+          {finished ? `${game.teamA?.name ?? 'A'} 补录` : 'A 队进球'}
+        </PrimaryButton>
+        <PrimaryButton onClick={() => setPick({ side: 'B' })}>
+          {finished ? `${game.teamB?.name ?? 'B'} 补录` : 'B 队进球'}
+        </PrimaryButton>
+      </div>
+
+      <GoalPickPanel
+        pick={pick}
+        editing={Boolean(editing)}
+        rosterForSide={rosterForSide}
+        onPickScorer={(side, scorerId, scorerName) =>
+          setPick({ side, scorerId, scorerName })
+        }
+        onSubmitGoal={(side, scorerId, assistantId) => void submitGoal(side, scorerId, assistantId)}
+        onCancel={cancelPick}
+        onBackToScorerList={(side) => setPick({ side })}
+      />
+
+      <Card>
+        <h2 className="mb-2 font-semibold">事件流</h2>
+        <p className="mb-3 text-xs text-textSec">点击「修改」或「删除」可调整任意一条进球记录</p>
+        <GameEventFeed
+          game={game}
+          scorableOnly
+          editable
+          onDelete={(e) => void onDeleteGoal(e.id)}
+          onEdit={onEditGoal}
+        />
+      </Card>
 
       <Link to={`/games/${id}`} className="block text-center text-sm text-primary">
-        查看详情
+        查看详情（只读链接可分享）
       </Link>
     </PageShell>
   );

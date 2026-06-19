@@ -4,6 +4,7 @@ import { buildTimerState, deriveElapsedMs, deriveRemainingMs } from '../src/serv
 const base = {
   status: 'PLAYING' as const,
   startedAt: 1_000_000,
+  finishedAt: null as number | null,
   pausedDurationMs: 0,
   pauseStartedAt: null as number | null,
   plannedDurationMs: 30 * 60 * 1000,
@@ -35,5 +36,17 @@ describe('timer.service', () => {
     expect(state.status).toBe('PLAYING');
     expect(state.elapsedMs).toBe(120_000);
     expect(state.remainingMs).toBe(30 * 60 * 1000 - 120_000);
+  });
+
+  it('freezes elapsed when finished', () => {
+    const finished = {
+      ...base,
+      status: 'FINISHED' as const,
+      finishedAt: 1_000_000 + 600_000,
+      pausedDurationMs: 0,
+      pauseStartedAt: null,
+    };
+    expect(deriveElapsedMs(finished, 1_000_000 + 999_000)).toBe(600_000);
+    expect(deriveRemainingMs(finished, 1_000_000 + 999_000)).toBe(30 * 60 * 1000 - 600_000);
   });
 });
