@@ -1,13 +1,19 @@
 import { Hono } from 'hono';
 import { getDb } from '../db/client.js';
 import { requireGameAdmin } from '../lib/admin-auth.js';
+import { parseDeviceId, requireEditorLease } from '../lib/editor-guard.js';
 import { fail, ok } from '../lib/api-response.js';
-import { readJson } from '../lib/http.js';
+import { readJson, readOptionalJson } from '../lib/http.js';
 import {
   ConflictError,
+  EditorLeaseError,
   NotFoundError,
   ValidationError,
 } from '../lib/errors.js';
+import {
+  claimEditorLease,
+  releaseEditorLease,
+} from '../services/editor-lease.service.js';
 import {
   finishGame,
   getGameDetail,
@@ -26,7 +32,7 @@ export const gamesRoute = new Hono();
 gamesRoute.get('/games/:id', async (c) => {
   const db = getDb();
   try {
-    const data = await getGameDetail(db, c.req.param('id'));
+    const data = await getGameDetail(db, c.req.param('id'), parseDeviceId(c));
     return ok(c, data);
   } catch (err) {
     if (err instanceof NotFoundError) return fail(c, 'not_found', err.message, 404);
@@ -56,17 +62,71 @@ gamesRoute.get('/games/:id/report', async (c) => {
   }
 });
 
+gamesRoute.post('/games/:id/editor', async (c) => {
+  const gameId = c.req.param('id');
+  const db = getDb();
+  const auth = await requireGameAdmin(c, db, gameId);
+  if (auth instanceof Response) return auth;
+
+  const body = await readJson<{ deviceId?: string; force?: boolean }>(c);
+  if (!body.deviceId?.trim()) {
+    return fail(c, 'validation_error', 'deviceId is required', 400);
+  }
+
+  try {
+    const data = await claimEditorLease(db, gameId, body.deviceId, Boolean(body.force));
+    const res = ok(c, data);
+    if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
+    return res;
+  } catch (err) {
+    if (err instanceof NotFoundError) return fail(c, 'not_found', err.message, 404);
+    if (err instanceof EditorLeaseError) {
+      return fail(c, 'editor_lease_required', err.message, 409, err.data);
+    }
+    throw err;
+  }
+});
+
+gamesRoute.delete('/games/:id/editor', async (c) => {
+  const gameId = c.req.param('id');
+  const db = getDb();
+  const auth = await requireGameAdmin(c, db, gameId);
+  if (auth instanceof Response) return auth;
+
+  const deviceId = c.req.query('deviceId')?.trim();
+  if (!deviceId) {
+    return fail(c, 'validation_error', 'deviceId query param is required', 400);
+  }
+
+  try {
+    const data = await releaseEditorLease(db, gameId, deviceId);
+    const res = ok(c, data);
+    if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
+    return res;
+  } catch (err) {
+    if (err instanceof NotFoundError) return fail(c, 'not_found', err.message, 404);
+    throw err;
+  }
+});
+
 gamesRoute.post('/games/:id/start', async (c) => {
   const gameId = c.req.param('id');
   const db = getDb();
   const auth = await requireGameAdmin(c, db, gameId);
   if (auth instanceof Response) return auth;
+  const lease = await requireEditorLease(c, db, gameId);
+  if (lease instanceof Response) return lease;
+  const body = await readOptionalJson<{ version?: number }>(c);
   try {
-    const data = await startGame(db, gameId);
+    const data = await startGame(db, gameId, body.version);
     const res = ok(c, data);
     if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
     return res;
   } catch (err) {
+    if (err instanceof ConflictError && err.message === 'Game version conflict') {
+      const detail = await getGameDetail(db, gameId, parseDeviceId(c));
+      return fail(c, 'version_conflict', err.message, 409, detail);
+    }
     if (err instanceof ConflictError) return fail(c, 'conflict', err.message, 409);
     throw err;
   }
@@ -77,12 +137,19 @@ gamesRoute.post('/games/:id/pause', async (c) => {
   const db = getDb();
   const auth = await requireGameAdmin(c, db, gameId);
   if (auth instanceof Response) return auth;
+  const lease = await requireEditorLease(c, db, gameId);
+  if (lease instanceof Response) return lease;
+  const body = await readOptionalJson<{ version?: number }>(c);
   try {
-    const data = await pauseGame(db, gameId);
+    const data = await pauseGame(db, gameId, body.version);
     const res = ok(c, data);
     if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
     return res;
   } catch (err) {
+    if (err instanceof ConflictError && err.message === 'Game version conflict') {
+      const detail = await getGameDetail(db, gameId, parseDeviceId(c));
+      return fail(c, 'version_conflict', err.message, 409, detail);
+    }
     if (err instanceof ConflictError) return fail(c, 'conflict', err.message, 409);
     throw err;
   }
@@ -93,12 +160,19 @@ gamesRoute.post('/games/:id/resume', async (c) => {
   const db = getDb();
   const auth = await requireGameAdmin(c, db, gameId);
   if (auth instanceof Response) return auth;
+  const lease = await requireEditorLease(c, db, gameId);
+  if (lease instanceof Response) return lease;
+  const body = await readOptionalJson<{ version?: number }>(c);
   try {
-    const data = await resumeGame(db, gameId);
+    const data = await resumeGame(db, gameId, body.version);
     const res = ok(c, data);
     if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
     return res;
   } catch (err) {
+    if (err instanceof ConflictError && err.message === 'Game version conflict') {
+      const detail = await getGameDetail(db, gameId, parseDeviceId(c));
+      return fail(c, 'version_conflict', err.message, 409, detail);
+    }
     if (err instanceof ConflictError) return fail(c, 'conflict', err.message, 409);
     throw err;
   }
@@ -109,12 +183,19 @@ gamesRoute.post('/games/:id/finish', async (c) => {
   const db = getDb();
   const auth = await requireGameAdmin(c, db, gameId);
   if (auth instanceof Response) return auth;
+  const lease = await requireEditorLease(c, db, gameId);
+  if (lease instanceof Response) return lease;
+  const body = await readOptionalJson<{ version?: number }>(c);
   try {
-    const data = await finishGame(db, gameId);
+    const data = await finishGame(db, gameId, body.version);
     const res = ok(c, data);
     if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
     return res;
   } catch (err) {
+    if (err instanceof ConflictError && err.message === 'Game version conflict') {
+      const detail = await getGameDetail(db, gameId, parseDeviceId(c));
+      return fail(c, 'version_conflict', err.message, 409, detail);
+    }
     if (err instanceof ConflictError) return fail(c, 'conflict', err.message, 409);
     throw err;
   }

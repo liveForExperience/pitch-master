@@ -1,5 +1,6 @@
 import { batchGameEvents } from '../../api/events';
 import { getAdminToken } from '../storage';
+import { getOrCreateDeviceId } from '../device-id';
 import { randomUUID } from '../uuid';
 import {
   addOutboxItem,
@@ -51,7 +52,12 @@ export async function flushOutbox(): Promise<void> {
     await Promise.all(sending.map((item) => updateOutboxItem(item)));
 
     try {
-      await batchGameEvents(gameId, toBatchPayload(sending), token);
+      await batchGameEvents(
+        gameId,
+        toBatchPayload(sending),
+        token,
+        getOrCreateDeviceId(),
+      );
       await removeOutboxItems(sending.map((i) => i.id));
     } catch (err) {
       const message = err instanceof Error ? err.message : '同步失败';

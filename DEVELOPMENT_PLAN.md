@@ -2,7 +2,7 @@
 
 > **状态**：草案 v0.1 · 待需求方签署后执行
 > **签署人**：需求提出者（项目所有者） · 执笔人：接手架构师
-> **配套文档**：[`AGENTS.md`](./AGENTS.md)（AI 上下文） · [`docs/ARCHITECTURE_V2.md`](./docs/ARCHITECTURE_V2.md)（技术蓝图） · 本文件（路线 + 阶段 + 验收）
+> **配套文档**：`[AGENTS.md](./AGENTS.md)`（AI 上下文） · `[docs/ARCHITECTURE_V2.md](./docs/ARCHITECTURE_V2.md)`（技术蓝图） · 本文件（路线 + 阶段 + 验收）
 >
 > 本文件是 **路线图与验收门禁**。技术实施细节（DDL、API 字段、算法伪代码、目录约定）一律放在 `ARCHITECTURE_V2.md`，避免重复维护。
 
@@ -10,23 +10,25 @@
 
 ## 0. 决策矩阵（已签署）
 
-| # | 决策点 | 选择 |
-|---|---|---|
-| D1 | 项目方向 | Node + SQLite + PWA 技术路线 |
-| D2 | 目标用户 | 自己 + 朋友 1-2 个俱乐部，<50 人，玩具工具 |
-| D3 | 安全投入 | 暂不投入（不做密码强化、CSRF、限流、审计） |
-| D4 | 文档体系 | 单一 `AGENTS.md` + `DEVELOPMENT_PLAN.md` + `docs/ARCHITECTURE_V2.md` |
-| D5 | 测试门禁 | 后端核心模块（事件流、计时、战报派生）单测 ≥ 60%；前端 0 强制 |
-| D6 | 业务删减 | 完全删除：互评、三维 FM 评分、Tournament/Club 两级租户、Late Cancellation 费用、复杂权限 |
-| D7 | Apple Watch | Phase 4 可选；Phase 1-3 不做，但后端 API 设计上需"Watch-friendly"（短载荷、原子操作、可重放） |
-| D8 | 账号体系 | **零 SMS / 零邮件**；创建者本机生成"管理员令牌"存 localStorage + 6 位 PIN（可拾回） |
-| D9 | 后端栈 | **Node 20 + TypeScript + Hono + Drizzle ORM + SQLite** |
-| D10 | 数据库 | SQLite 单文件，备份 = 复制 `.db`；不引入容器化 DB |
-| D11 | 前端栈 | **React 18 + Vite + TS + Tailwind + Radix UI + Zustand + PWA** |
-| D12 | 计时器 | 服务器权威 `startTime` + 客户端只显示，差值法 |
-| D13 | 战报 | 图片海报（服务端用 `satori` 渲染 PNG）+ 只读 H5 链接 双产物 |
-| D14 | 离线 | PWA + IndexedDB 本地事件队列 + 联网后按客户端时间戳 replay |
-| D15 | 部署 | 单台 ECS：systemd + Caddy（自动 HTTPS）+ SQLite 文件 · Phase 3 前都可纯本地 + IP 跑通 |
+
+| #   | 决策点         | 选择                                                                   |
+| --- | ----------- | -------------------------------------------------------------------- |
+| D1  | 项目方向        | Node + SQLite + PWA 技术路线                                             |
+| D2  | 目标用户        | 自己 + 朋友 1-2 个俱乐部，<50 人，玩具工具                                          |
+| D3  | 安全投入        | 暂不投入（不做密码强化、CSRF、限流、审计）                                              |
+| D4  | 文档体系        | 单一 `AGENTS.md` + `DEVELOPMENT_PLAN.md` + `docs/ARCHITECTURE_V2.md`   |
+| D5  | 测试门禁        | 后端核心模块（事件流、计时、战报派生）单测 ≥ 60%；前端 0 强制                                  |
+| D6  | 业务删减        | 完全删除：互评、三维 FM 评分、Tournament/Club 两级租户、Late Cancellation 费用、复杂权限      |
+| D7  | Apple Watch | Phase 4 可选；Phase 1-3 不做，但后端 API 设计上需"Watch-friendly"（短载荷、原子操作、可重放）   |
+| D8  | 账号体系        | **零 SMS / 零邮件**；创建者本机生成"管理员令牌"存 localStorage + 6 位 PIN（可拾回）          |
+| D9  | 后端栈         | **Node 20 + TypeScript + Hono + Drizzle ORM + SQLite**               |
+| D10 | 数据库         | SQLite 单文件，备份 = 复制 `.db`；不引入容器化 DB                                   |
+| D11 | 前端栈         | **React 18 + Vite + TS + Tailwind + Radix UI + Zustand + PWA**       |
+| D12 | 计时器         | 服务器权威 `startTime` + 客户端只显示，差值法                                       |
+| D13 | 战报          | 图片海报（服务端用 `satori` 渲染 PNG）+ 只读 H5 链接 双产物                             |
+| D14 | 离线          | PWA + IndexedDB 本地事件队列 + 联网后按客户端时间戳 replay                           |
+| D15 | 部署          | 单台 ECS：systemd + Caddy（自动 HTTPS）+ SQLite 文件 · Phase 3 前都可纯本地 + IP 跑通 |
+
 
 > 任何决策的变更，必须更新本表 + 修订 ARCHITECTURE_V2.md 对应章节，且在 §13 阶段记录登记变更原因与影响范围。
 
@@ -36,7 +38,7 @@
 
 ### 1.1 北极星指标（决定一切优先级）
 
-> **"现场操作者从打开页面到记下一个进球，**耗时 ≤ 8 秒**；从活动结束到看到可分享战报，耗时 ≤ 3 秒。"**
+> **"现场操作者从打开页面到记下一个进球，耗时 ≤ 8 秒；从活动结束到看到可分享战报，耗时 ≤ 3 秒。"**
 
 任何特性如果伤害这两个数字，一律 reject。
 
@@ -65,6 +67,7 @@
 
 ### 1.4 Should-Have（v3+ 候选）
 
+- **多人录入渐进方案（Phase 5 · 已立项草案 2026-06-19）**：S2 录入权租约交接 → S3 多写者事件日志；详见 **§2.6** 与 **§4.3**
 - watchOS 原生 app（Phase 4 可启动）
 - 球员身份在多次活动间复用（"我的常客"）
 - 自动均衡分组建议
@@ -80,13 +83,16 @@
 
 **目标**：工程脚手架站立，生产环境就绪。
 
-| 任务 | 产出物 | 验收 |
-|---|---|---|
-| T0.1 工程骨架 | `backend/` Hono 工程 + `web/` Vite 工程 + 根 `package.json`（npm workspaces） + `bin/dev.sh` 一键启动 + `docs/DEPLOYMENT.md` 草案 | `npm install` 在根目录一次装好；`npm run dev:backend` 和 `npm run dev:web` 都能起来；`GET /api/health` 返回 ok；vite 反代 `/api/*` 通 |
-| T0.2 写 README.md | 根 README 描述产品与技术栈 | README 聚焦产品能力与快速上手 |
-| T0.3 生产环境清理 | ECS 旧运行时卸载、端口释放 | ECS 上旧 Java/MySQL 服务已下线，端口释放 |
+
+| 任务               | 产出物                                                                                                                  | 验收                                                                                                               |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| T0.1 工程骨架        | `backend/` Hono 工程 + `web/` Vite 工程 + 根 `package.json`（npm workspaces） + `bin/dev.sh` 一键启动 + `docs/DEPLOYMENT.md` 草案 | `npm install` 在根目录一次装好；`npm run dev:backend` 和 `npm run dev:web` 都能起来；`GET /api/health` 返回 ok；vite 反代 `/api/`* 通 |
+| T0.2 写 README.md | 根 README 描述产品与技术栈                                                                                                    | README 聚焦产品能力与快速上手                                                                                               |
+| T0.3 生产环境清理      | ECS 旧运行时卸载、端口释放                                                                                                      | ECS 上旧 Java/MySQL 服务已下线，端口释放                                                                                     |
+
 
 **Phase 0 Gate**：
+
 - ✅ `backend/`、`web/` 两个工程都能 `npm run dev:backend|web` 启动，前端经 vite proxy 拉到后端 `/api/health` 返回 200
 - ✅ ECS 旧运行时已下线，资源已让出
 - ✅ 部署方案已成文（`docs/DEPLOYMENT.md`）
@@ -102,11 +108,13 @@
 #### 任务分解
 
 **T1.1 数据库与迁移**（参见 `ARCHITECTURE_V2.md` §3）
+
 - 5 张表 DDL：`event`、`team`、`roster`、`game`、`game_event`
 - Drizzle schema 定义 + 初始 migration
 - 启动时自动 migrate
 
 **T1.2 后端 API（在线版，无离线队列）**
+
 - `POST /api/events` 创建活动 → 返回 `{id, shortCode, adminToken, pin, createdAt}`
 - `GET /api/events/:shortCode` 只读活动详情
 - `POST /api/events/:id/finish` 手动结束活动（Admin）
@@ -123,7 +131,9 @@
 > 所有写入接口校验 `Authorization: Bearer <adminToken>` 或 `?pin=XXXXXX`。具体认证流见 `ARCHITECTURE_V2.md` §5。
 
 **T1.3 前端页面（移动竖屏优先）**
+
 - PWA：Phase 1 仅 manifest + Service Worker 壳（可添主屏）；离线 outbox / 兜底页在 Phase 2（C4 已决）
+
 1. `/`：新建 → 加入活动 → 找回管理 → 进行中活动 → 已归档
 2. `/events/new`：4 步表单（名字 → 队伍数 → 队伍名 → **PIN 凭证确认**）
 3. `/events/:shortCode`：活动主页（凭证卡片 / 比赛列表 / **手动结束活动**）
@@ -134,16 +144,19 @@
 8. `/games/:id`：只读详情（SSE）
 
 **T1.4 计时器（服务器权威）**
+
 - 后端：`game.start_time` (DB) + Hono 路由 `GET /api/time` 返回 `{serverNow}` (ISO 8601 UTC)
 - 前端：启动时计算 `clientOffset = serverNow - clientNow`，显示时 `elapsed = now() + clientOffset - startTime`
 - 暂停/恢复：维护 `totalPausedMs` 字段
 
 **T1.5 实时推送（SSE）**
+
 - `GET /api/games/:id/stream` (SSE)
 - 任何事件写入后 broadcast `{type, gameEvent, scoreA, scoreB}`
 - 前端 EventSource 订阅，自动重连
 
 **T1.6 后端测试（核心 60% 门禁）**
+
 - `game.service.test.ts`：事件流 → 比分派生（GOAL/OWN_GOAL/UNDO 各场景）
 - `timer.service.test.ts`：start/pause/resume/finish 计时
 - `event.service.test.ts`：建活动 + 加队员 + 唯一 shortCode
@@ -164,30 +177,36 @@
 #### 任务分解
 
 **T2.1 PWA 离线增强**（基础 manifest + SW 已在 Phase 1 落地，见 §5 2026-06-19 决策）
+
 - 离线兜底页与 App Shell 缓存策略调优
 - 与 T2.2 outbox 联动的后台 sync worker
 
 **T2.2 本地事件队列（核心难点）**
+
 - IndexedDB 表 `outbox`：`{id, gameId, type, payload, clientTs, status}`
 - 录入页所有写操作：先写 outbox（立即 UI 响应）→ 后台 worker 推送 API
 - 网络恢复检测 → 自动 flush
 - 冲突策略：见 `ARCHITECTURE_V2.md` §6
 
 **T2.3 服务端 replay 接口**
+
 - `POST /api/games/:id/events/batch`：接收 `[{type, payload, clientTs}]`，按 clientTs 排序后写入
 - 幂等保证：每条事件携带客户端生成的 `clientEventId` (UUID)，服务端 unique 约束
 
 **T2.4 战报：派生数据 + API**
+
 - `report.service.ts`：实现 `computeStandings / topScorers / topAssists / eventMvp / gameMvp`（见 `ARCHITECTURE_V2.md` §7.2）
 - 单元测试：积分榜排序稳定性、并列时的 tie-breaker、空数据兜底
 - API：`GET /api/games/:id/report`、`GET /api/events/:id/report`（Top 5 固定）
 
 **T2.5 战报：UI 组件（共享给 App / H5 / 海报）**
+
 - 在 `web/src/components/ui/` 实现 `Card / Section / TeamBadge / RankBadge / StatusChip / StatRow / ScoreBoard`（见 `ARCHITECTURE_V2.md` §8.3.4）
 - 共享 `tokens.ts` 统一色板/字号/间距，**禁止 hardcode 颜色**
 - 两个战报页面：`/events/:shortCode/report`、`/games/:id/report`，复用上述组件
 
 **T2.6 战报：图片海报（satori）**
+
 - 安装 `satori` + `@resvg/resvg-js` + `subset-font`
 - 字体子集化打包到 `backend/src/assets/fonts/`（Regular + Bold 各 ≤250KB）
 - 实现 `EventPosterTemplate`、`GamePosterTemplate`（与 T2.5 UI 组件结构同源）
@@ -196,6 +215,7 @@
 - 落到 `assets/snapshots/` 的 PNG 比对作为视觉回归测试
 
 **T2.7 分享集成**
+
 - 战报 H5 顶部 CTA："想下次也来踢吗？→ 进活动主页"
 - 活动主页 / 单场详情提供"分享战报"按钮（Top 5 固定，无 topN 选择器）
 - Web Share API：图片 + 文案 + H5 链接（fallback 复制链接到剪贴板）
@@ -217,14 +237,16 @@
 
 **目标**：朋友能通过 IP 或域名访问；7×24 稳定 1 周以上。
 
-| 任务 | 产出物 |
-|---|---|
-| T3.1 部署脚本 | `deploy/scripts/install.sh` 一键装 Node + systemd + Caddy + SQLite |
-| T3.2 配置 systemd | `pitchmaster-v2.service` 自启动、日志走 journald |
-| T3.3 Caddy 自动 HTTPS | 即使先用 IP，也用 Caddy 自签证书避免浏览器警告 |
-| T3.4 备份脚本 | `deploy/scripts/backup.sh` 定时 `cp pitchmaster.db pitchmaster-YYYYMMDD.db` |
-| T3.5 监控（极简） | `/healthz` 端点 + uptime 监控（用 UptimeRobot 免费版） |
-| T3.6 上线灰度 | 邀请 3-5 人内部测试 2 周，记录 bug 到 `docs/issues-tracking.md` |
+
+| 任务                  | 产出物                                                                       |
+| ------------------- | ------------------------------------------------------------------------- |
+| T3.1 部署脚本           | `deploy/scripts/install.sh` 一键装 Node + systemd + Caddy + SQLite           |
+| T3.2 配置 systemd     | `pitchmaster-v2.service` 自启动、日志走 journald                                 |
+| T3.3 Caddy 自动 HTTPS | 即使先用 IP，也用 Caddy 自签证书避免浏览器警告                                              |
+| T3.4 备份脚本           | `deploy/scripts/backup.sh` 定时 `cp pitchmaster.db pitchmaster-YYYYMMDD.db` |
+| T3.5 监控（极简）         | `/healthz` 端点 + uptime 监控（用 UptimeRobot 免费版）                              |
+| T3.6 上线灰度           | 邀请 3-5 人内部测试 2 周，记录 bug 到 `docs/issues-tracking.md`                       |
+
 
 #### Phase 3 Gate
 
@@ -242,40 +264,188 @@
 
 ---
 
+### 2.6 Phase 5 · 多人录入（S2 → S3 渐进 · 草案 v0.1）
+
+**触发条件**：Phase 2 Gate 通过 + 需求方签署 **§4.3**（2026-06-19 已起草，待签）。
+
+**北极星约束**：S2/S3 不得拖慢「开页面 → 记一个进球 ≤ 8 秒」；冲突提示必须非阻塞（后台 reconcile）。
+
+**总周期**：约 3–4 周业余时间（S2 约 12–16h，S3 约 20–28h）。S3 **依赖** S2 的 `deviceId`、租约基础设施与测试夹具。
+
+#### Phase 5A · S2 录入权交接（Editor Lease）
+
+**目标**：同一场比赛任意时刻**仅一台设备**可写；支持显式「交给另一台手机」而**不必**轮换 `adminToken`（保留 PIN 恢复作为换机兜底）。
+
+
+| 任务                    | 产出物                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| T5A.1 DDL + migration | `game` 表增 `editor_device_id`、`editor_lease_expires_at`；见 `ARCHITECTURE_V2.md` §6.6 |
+| T5A.2 租约 service      | `editor-lease.service.ts`：claim / renew / release / force-claim                    |
+| T5A.3 写接口门禁           | 场次写操作（start/pause/resume/finish/events/batch）无有效租约 → `409 editor_lease_required`   |
+| T5A.4 API 路由          | `POST/DELETE /api/games/:id/editor`；`GET` 详情含 `editor` 字段                          |
+| T5A.5 SSE             | 广播 `editor_changed`                                                                |
+| T5A.6 前端 deviceId     | `web/src/lib/device-id.ts` 持久化 `pm:deviceId`                                       |
+| T5A.7 录入页集成           | `GameRecordPage` 进入 claim、30s 续租、离开 release；无锁只读 +「申请录入权」                          |
+| T5A.8 观战提示            | `GameDetailPage` 显示当前录入设备（尾 4 位）                                                   |
+| T5A.9 测试              | 租约过期、抢锁、同 device 多 Tab 续租、写接口 409                                                  |
+
+
+**Phase 5A Gate**：
+
+- ✅ A 持有租约时 B 记球 → B 收到明确提示，服务端无新事件
+- ✅ A「释放录入权」→ B 一键 claim 后可记球，全程无需 PIN
+- ✅ A 断网/杀进程 90s 后租约过期，B 可 claim
+- ✅ PIN 恢复仍可用（轮换 token），与租约互不破坏
+- ✅ 记一球仍 ≤ 8 秒（含首次 claim）
+
+#### Phase 5B · S3 多写者协同（Multi-Writer Event Log）
+
+**目标**：**进球/撤销**允许多设备同时写；**计时**仍单持有者（复用 S2 租约，仅 timer 类操作校验）。
+
+
+| 任务                  | 产出物                                                                       |
+| ------------------- | ------------------------------------------------------------------------- |
+| T5B.1 排序权威化         | 展示与 replay 主序 `serverTs`，`clientTs` 仅 tie-break；更新 batch sort             |
+| T5B.2 乐观并发          | `game.version` 整数；timer 变更 `WHERE version=?`，失败 409 + 最新 state            |
+| T5B.3 写门禁拆分         | GOAL/OWN_GOAL/UNDO **不**要求 editor lease；start/pause/resume/finish **仍要求** |
+| T5B.4 客户端 reconcile | `mergeGameWithOutbox` 升级为 server-first；SSE 带 `eventVersion` 或增量           |
+| T5B.5 UNDO 规则       | 仅允许撤销已确认（有 `serverTs`）事件；pending 本地球仅本机可撤                                 |
+| T5B.6 冲突 UI         | 409 静默 `GET /api/games/:id` 重绘，不打断点击流                                     |
+| T5B.7 双写集成测试        | 两设备交错记球 + 各撤一球 + 弱网 batch flush                                           |
+| T5B.8 文档            | 更新 ARCH §6.7；`deriveScore` 变更有单测                                          |
+
+
+**Phase 5B Gate**：
+
+- ✅ 两手机同时记 5 球，比分正确，时间线按 `serverTs` 稳定
+- ✅ 设备 A 离线记 2 球，设备 B 在线记 3 球，双端联网后一致
+- ✅ 交叉 UNDO 不丢球、不产生幽灵分
+- ✅ 仅 timer 持有者可 pause；非持有者操作 409
+- ✅ 飞行模式剧本在双设备场景仍通过（幂等 + 顺序）
+
+**明确不做（Phase 5 范围外）**：
+
+- 用户注册 / 角色权限矩阵（见 §1.3）
+- CRDT / Yjs 实时协同编辑
+- 活动配置页（roster）多人同时改——仍任意 adminToken 可写；冲突靠「别两人同时配队」运营约束，v4 再议
+
+---
+
 ## 3. 风险登记册
 
-| ID | 风险 | 等级 | 缓解 |
-|---|---|---|---|
-| R1 | 离线队列冲突合并复杂度高（多设备同时录入同一场比赛） | 高 | Phase 1 仅允许"管理员设备"录入，多端只读；Phase 2 离线也按这个前提 |
-| R2 | satori 中文字体支持需要打包字体文件 | 中 | 预先打包 Noto Sans SC subset (~200KB)，写入 `backend/assets/fonts/` |
-| R3 | SQLite 在并发写入 > 100 QPS 时会阻塞 | 低 | 玩具场景永远到不了；如真触发就加 WAL 模式（已默认开启） |
-| R4 | 用户更换设备导致 adminToken 丢失，PIN 也忘 | 中 | UI 强提示"截图保存 PIN"；后台保留管理员后门：知道活动 ID 的人 + 物理访问服务器可恢复 |
-| R5 | Caddy 自签证书在 iOS 上"不受信任" | 中 | Phase 3 中期决定是否买域名；自签 + 信任证书的引导文档备好 |
-| R6 | 我（执笔人）若中途退出，接手者能否跑通 | 高 | 三份文档（PLAN/AGENTS/ARCH）必须做到"读完就能开工"，每个 Phase Gate 都附自检清单 |
+
+| ID  | 风险                            | 等级  | 缓解                                                                                             |
+| --- | ----------------------------- | --- | ---------------------------------------------------------------------------------------------- |
+| R1  | 离线队列冲突合并复杂度高（多设备同时录入同一场比赛）    | 高   | **Phase 5A**：场次级 editor lease 单写者；**Phase 5B**：server-first reconcile + UNDO 约束；详见 §2.6 / §4.3 |
+| R2  | satori 中文字体支持需要打包字体文件         | 中   | 预先打包 Noto Sans SC subset (~200KB)，写入 `backend/assets/fonts/`                                   |
+| R3  | SQLite 在并发写入 > 100 QPS 时会阻塞   | 低   | 玩具场景永远到不了；如真触发就加 WAL 模式（已默认开启）                                                                 |
+| R4  | 用户更换设备导致 adminToken 丢失，PIN 也忘 | 中   | UI 强提示"截图保存 PIN"；后台保留管理员后门：知道活动 ID 的人 + 物理访问服务器可恢复                                             |
+| R5  | Caddy 自签证书在 iOS 上"不受信任"       | 中   | Phase 3 中期决定是否买域名；自签 + 信任证书的引导文档备好                                                             |
+| R6  | 我（执笔人）若中途退出，接手者能否跑通           | 高   | 三份文档（PLAN/AGENTS/ARCH）必须做到"读完就能开工"，每个 Phase Gate 都附自检清单                                        |
+
 
 ---
 
 ## 4. 待决事项（每次阶段评审更新）
 
-| ID | 事项 | 待决方 | 截止 |
-|---|---|---|---|
-| O1 | 是否买域名 + 备案 | 需求方 | Phase 3 中期 |
-| O2 | 球场 GPS 自动识别活动地点？ | 需求方 | Phase 2 评审 |
-| ~~O3~~ | ~~战报海报视觉风格~~ | ~~已决~~ | **已决 2026-06-18：风格 B 卡片浅底长图，详见 ADR-0005** |
-| O4 | 黑/白色主题切换是否必要？ | 需求方 | Phase 1 评审 |
-| ~~D1~~ | ~~`/admin/restore` PIN 找回页~~ | ~~已决~~ | **已决 2026-06-19：Phase 1 实现** |
-| ~~D2~~ | ~~Radix UI + PWA 基础~~ | ~~已决~~ | **已决 2026-06-19：Phase 1 实现（Radix Dialog/Label；vite-plugin-pwa manifest+SW）** |
-| ~~D3~~ | ~~离线 outbox~~ | ~~已决~~ | **已决 2026-06-19：Phase 2（T2.2–T2.3）** |
-| ~~D4~~ | ~~战报 / report~~ | ~~已决~~ | **已决 2026-06-19：Phase 2（T2.4–T2.7）** |
-| D5 | merge 后重新部署 ECS | 需求方 | merge 后立即 |
-| D6 | merge 前后完整 Gate 验收 | 需求方 | **merge 前：需求方手动测试（C6 已决）；merge 后：部署后再验** |
-| ~~S1~~ | ~~微信报名文本快速导入球员~~ | ~~已决~~ | **已决 2026-06-19：见 §4.2，每行即一名球员；活动结束清空导入池** |
+
+| ID     | 事项                           | 待决方    | 截止                                                                           |
+| ------ | ---------------------------- | ------ | ---------------------------------------------------------------------------- |
+| O1     | 是否买域名 + 备案                   | 需求方    | Phase 3 中期                                                                   |
+| O2     | 球场 GPS 自动识别活动地点？             | 需求方    | Phase 2 评审                                                                   |
+| ~~O3~~ | ~~战报海报视觉风格~~                 | ~~已决~~ | **已决 2026-06-18：风格 B 卡片浅底长图，详见 ADR-0005**                                    |
+| O4     | 黑/白色主题切换是否必要？                | 需求方    | Phase 1 评审                                                                   |
+| ~~D1~~ | ~~`/admin/restore` PIN 找回页~~ | ~~已决~~ | **已决 2026-06-19：Phase 1 实现**                                                 |
+| ~~D2~~ | ~~Radix UI + PWA 基础~~        | ~~已决~~ | **已决 2026-06-19：Phase 1 实现（Radix Dialog/Label；vite-plugin-pwa manifest+SW）** |
+| ~~D3~~ | ~~离线 outbox~~                | ~~已决~~ | **已决 2026-06-19：Phase 2（T2.2–T2.3）**                                         |
+| ~~D4~~ | ~~战报 / report~~              | ~~已决~~ | **已决 2026-06-19：Phase 2（T2.4–T2.7）**                                         |
+| D5     | merge 后重新部署 ECS              | 需求方    | merge 后立即                                                                    |
+| D6     | merge 前后完整 Gate 验收           | 需求方    | **merge 前：需求方手动测试（C6 已决）；merge 后：部署后再验**                                     |
+| ~~S1~~ | ~~微信报名文本快速导入球员~~             | ~~已决~~ | **已决 2026-06-19：见 §4.2，每行即一名球员；活动结束清空导入池**                                   |
+| M1     | Phase 5 多人录入（S2→S3）签署        | ~~需求方~~ | **已决 2026-06-19：§4.3 已签署，Phase 5A 开工** |
+| M2     | S3 是否允许「强制抢 timer 租约」需二次确认   | ~~需求方~~ | **已决 2026-06-19：允许，前端 confirm 弹窗** |
+
+
+### 4.3 方案 · 多人录入渐进（Phase 5 · S2→S3 · 草案 2026-06-19）
+
+**背景**：球场常见「记完上半场把手机交给另一个人」；v2 用 PIN 轮换 token 能换机，但体验重、且无法防止两人误同时录入。需求方确认路径：**先 S2（交接）再 S3（真协同）**。
+
+#### 场景定义
+
+
+| ID     | 场景                       | Phase  |
+| ------ | ------------------------ | ------ |
+| S1     | 多人观战（SSE 只读）             | 已有     |
+| **S2** | 录入权交接：任意时刻单写者，可显式交给另一台设备 | **5A** |
+| **S3** | 多人同时记进球/撤销；计时仍单人控        | **5B** |
+
+
+#### S2 · 录入权租约（核心规则）
+
+
+| 规则       | 值                                         |
+| -------- | ----------------------------------------- |
+| 租约粒度     | **场次** `game_id`（非活动级）                    |
+| 持有者标识    | `deviceId`（客户端 `localStorage` UUID，非用户账号） |
+| 默认 TTL   | 90s；录入页每 30s 自动 renew                     |
+| 过期       | 无续租则自动释放；他人可 claim                        |
+| 抢锁       | `force=true` 可抢（需 adminToken + 前端二次确认）    |
+| 同设备多 Tab | 共享 `deviceId`，视为同一持有者                     |
+| 写门禁      | 无租约 → `409` code=`editor_lease_required`  |
+| 只读       | 无 adminToken 或无租约均可观战（SSE / 详情页）          |
+
+
+**与 PIN 恢复的关系**：
+
+- PIN 恢复：**换机 / 丢 token** 兜底，仍轮换 `adminToken`
+- Editor lease：**同 token 多设备** 时的录入权调度，不轮换 token
+
+#### S3 · 多写者事件日志（核心规则）
+
+
+| 规则        | 说明                                            |
+| --------- | --------------------------------------------- |
+| 进球/撤销     | 多设备可同时 POST；靠 append-only `game_event` + 幂等收敛 |
+| 权威顺序      | `serverTs ASC`，同毫秒 `clientEventId` 字典序        |
+| 计时        | 仍走 S2 租约；仅 holder 可 start/pause/resume/finish |
+| 并发写 timer | `game.version` 乐观锁；失败返回最新 `GameDetail`        |
+| UNDO      | 目标必须有服务端 `id`；跨设备不得撤他人 pending outbox         |
+| 不用 CRDT   | 足球记分可交换性强，事件溯源足够                              |
+
+
+#### 实施顺序（文件级）
+
+**S2 先后端再前端**：
+
+1. `backend/src/db/schema.ts` + migration
+2. `backend/src/services/editor-lease.service.ts` + test
+3. `backend/src/lib/editor-guard.ts` 挂到 `games.ts` 写路由
+4. `web/src/lib/device-id.ts`
+5. `web/src/lib/use-editor-lease.ts`
+6. `web/src/pages/GameRecordPage.tsx` + `GameDetailPage.tsx`
+
+**S3 在 S2 之上**：
+
+1. `backend/src/services/outbox.service.ts` 排序调整
+2. `game` 表 `version` + `game-ops.service.ts` 乐观锁
+3. `web/src/lib/outbox/merge-game.ts` → `reconcile-game.ts`
+4. `backend/tests/multi-writer.integration.test.ts`
+
+#### 验收剧本（人工 · 内测追加）
+
+1. **S2**：A 记 2 球 → 释放 → B claim → 记 1 球 → 观战端 SSE ≤ 2s
+2. **S2**：A 持锁杀进程 → 90s 后 B 抢锁成功
+3. **S3**：A/B 各快速点 3 球 → 比分 6，流水顺序稳定
+4. **S3**：A 飞行模式记 2 球，B 在线记 3 球 → 联网后服务端 5 球
+
+---
 
 ### 4.2 方案 · 微信报名文本快速导入（S1 · 已决 2026-06-19）
 
 **背景**：微信群接龙/报名名单多为「序号 + 姓名」纯文本，手动逐条录入 roster 成本高。
 
 **目标**：
+
 1. 在 `EventSetupPage` 粘贴原始报名文本 → 解析出候选球员列表（可预览、可删）
 2. 保留现有「逗号/换行手动输入」添加方式
 3. 「从导入名单点选」：chip 多选后一键加入当前队伍 roster（仍走 `POST /api/teams/:id/roster`）
@@ -284,27 +454,32 @@
 
 #### 解析规则（已签署）
 
-| 规则 | 处理 |
-|---|---|
-| 一行一名球员 | 去掉行首 `1.` / `1、` / `1)` 后，**整段剩余文本即球员名**（含 `+1`、`门`、emoji） |
-| 非名单行 | 丢弃含「人满」「截止」「接龙」等关键词的行 |
-| 空行 | 忽略 |
-| 重复姓名 | 同次粘贴内 exact 重复跳过 |
-| 导入池生命周期 | `sessionStorage` 按 `eventId`；**手动结束活动后清空** |
+
+| 规则      | 处理                                                         |
+| ------- | ---------------------------------------------------------- |
+| 一行一名球员  | 去掉行首 `1.` / `1、` / `1)` 后，**整段剩余文本即球员名**（含 `+1`、`门`、emoji） |
+| 非名单行    | 丢弃含「人满」「截止」「接龙」等关键词的行                                      |
+| 空行      | 忽略                                                         |
+| 重复姓名    | 同次粘贴内 exact 重复跳过                                           |
+| 导入池生命周期 | `sessionStorage` 按 `eventId`；**手动结束活动后清空**                 |
+
 
 #### 实现
 
-| 步骤 | 文件 |
-|---|---|
-| 解析 + 测试 | `web/src/lib/roster-import.ts` |
-| session 缓存 | `web/src/lib/roster-import-store.ts` |
-| 粘贴 UI | `web/src/components/roster/RosterImportPanel.tsx` |
-| 分队 chip | `web/src/components/roster/TeamImportChips.tsx` |
-| 结束活动清池 | `EventPage.tsx` `confirmFinish` |
+
+| 步骤         | 文件                                                |
+| ---------- | ------------------------------------------------- |
+| 解析 + 测试    | `web/src/lib/roster-import.ts`                    |
+| session 缓存 | `web/src/lib/roster-import-store.ts`              |
+| 粘贴 UI      | `web/src/components/roster/RosterImportPanel.tsx` |
+| 分队 chip    | `web/src/components/roster/TeamImportChips.tsx`   |
+| 结束活动清池     | `EventPage.tsx` `confirmFinish`                   |
+
 
 ---
 
 ### 4.1 计划与实现差异（2026-06-19 · 已决）
+
 |---|---|---|
 | ~~C1~~ | Phase 1 目标曾写「出战报」 | **已决**：战报（API + H5 + 海报）在 **Phase 2 T2.4–T2.7** 完成；Phase 1 目标文案已改 |
 | ~~C2~~ | 结束活动 API 形态 | **已决**：以 `POST /api/events/:id/finish` 为准；**不**实现 `PATCH /api/events/:id`（ARCH 已同步） |
@@ -338,6 +513,7 @@
 - [x] 三份核心文档产出：`AGENTS.md`、`DEVELOPMENT_PLAN.md`、`docs/ARCHITECTURE_V2.md`、`docs/DECISIONS.md`（4 条 ADR）
 
 #### 阶段内增补
+
 - 战报需求扩展为两层 + 三榜（commit `ca479a5`，详见 ADR-0005）
 - 生产环境旧运行时清理方案（commit `9be7490`，详见 ADR-0006）
 
@@ -345,27 +521,32 @@
 
 实施过程：
 
-| 步骤 | 动作 | 结果 |
-|---|---|---|
-| 1 | ssh root@8.153.145.81 资产盘点 | 主机 Alibaba Cloud Linux 3，2C/1.8G/40G |
-| 2 | 备份旧数据库 | `pitch_master-20260619-002357.sql.gz` 已本地保管 |
-| 3 | stop + disable + rm 旧 systemd 服务 | ✅ Unit not found |
-| 4 | rm 旧 Nginx site conf + reload nginx | ✅ Nginx 仍 active 保留 |
-| 5 | 卸载 MySQL / Java / Maven | ✅ 命令 not found，磁盘释放 |
-| 6 | 最终验收 | 见下表 |
+
+| 步骤  | 动作                                                     | 结果                                          |
+| --- | ------------------------------------------------------ | ------------------------------------------- |
+| 1   | ssh [root@8.153.145.81](mailto:root@8.153.145.81) 资产盘点 | 主机 Alibaba Cloud Linux 3，2C/1.8G/40G        |
+| 2   | 备份旧数据库                                                 | `pitch_master-20260619-002357.sql.gz` 已本地保管 |
+| 3   | stop + disable + rm 旧 systemd 服务                       | ✅ Unit not found                            |
+| 4   | rm 旧 Nginx site conf + reload nginx                    | ✅ Nginx 仍 active 保留                         |
+| 5   | 卸载 MySQL / Java / Maven                                | ✅ 命令 not found，磁盘释放                         |
+| 6   | 最终验收                                                   | 见下表                                         |
+
 
 资源对比：
 
-| 指标 | 下线前 | 下线后 | 变化 |
-|---|---|---|---|
-| 内存使用 | 1.1 GiB | 404 MiB | **释放 826 MiB** |
-| 内存空闲 | 87 MiB | 913 MiB | +826 MiB |
-| 磁盘使用 | 12 GB | 9.7 GB | **释放 2.3 GB** |
-| 端口 8080 | 监听 | 无监听 | 释放 |
-| 端口 3306 | 监听 | 无监听 | 释放 |
-| 端口 80 | Nginx + 旧 site | Nginx 仅默认 | 保留供部署 |
+
+| 指标      | 下线前            | 下线后       | 变化             |
+| ------- | -------------- | --------- | -------------- |
+| 内存使用    | 1.1 GiB        | 404 MiB   | **释放 826 MiB** |
+| 内存空闲    | 87 MiB         | 913 MiB   | +826 MiB       |
+| 磁盘使用    | 12 GB          | 9.7 GB    | **释放 2.3 GB**  |
+| 端口 8080 | 监听             | 无监听       | 释放             |
+| 端口 3306 | 监听             | 无监听       | 释放             |
+| 端口 80   | Nginx + 旧 site | Nginx 仅默认 | 保留供部署          |
+
 
 收尾清理（同日完成）：
+
 - 删除 `/var/backups/pitchmaster-v1/`（含 env 明文密码的服务器侧备份）
 - 卸载 :9000 端口的 `webhook` 进程（旧部署自动化工具，含默认密钥安全隐患）
 - 服务器最终监听端口：22 (sshd) + 80 (nginx，无 site) + 111/5355 (系统服务) + 127.0.0.1:42819 (阿里云监控)
@@ -374,20 +555,23 @@
 
 实施过程：
 
-| 步骤 | 动作 | 结果 |
-|---|---|---|
-| 1 | 建 `backend/`（Hono + @hono/node-server + tsx + vitest + TS strict） | health 路由 + Hono request 测试通过 |
-| 2 | 建 `web/`（Vite 6 + React 18 + TS + Tailwind 3 + Zustand） | 首屏调用 `/api/health` 渲染 backend metadata |
-| 3 | 引入 npm workspaces（root `package.json`） | 解决 npm 11 找不到 sub-package.json 的问题，且让 `npm install` 一次装好两端 |
-| 4 | `bin/dev.sh` 一键并发启动两端，子进程同生共死 | trap INT/TERM 同步清理 |
-| 5 | `.nvmrc` 锁 Node 20 | 与 ARCHITECTURE_V2 §10.2 / DEPLOYMENT 一致 |
-| 6 | 同时把 `docs/DEPLOYMENT.md` 草案落盘（GitHub Actions → ECS deploy key + symlink 切换 + 失败回滚） | Phase 3 实施前定稿，本阶段不动手 |
-| 7 | 联调验收 | backend `:3000/api/health` 直连 + 经 vite `:5173` 反代均返回 `{status:"ok",...}` ✓；vitest 2/2 通过 ✓；两端 typecheck 全绿 ✓ |
+
+| 步骤  | 动作                                                                                 | 结果                                                                                                           |
+| --- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 1   | 建 `backend/`（Hono + @hono/node-server + tsx + vitest + TS strict）                  | health 路由 + Hono request 测试通过                                                                                |
+| 2   | 建 `web/`（Vite 6 + React 18 + TS + Tailwind 3 + Zustand）                            | 首屏调用 `/api/health` 渲染 backend metadata                                                                       |
+| 3   | 引入 npm workspaces（root `package.json`）                                             | 解决 npm 11 找不到 sub-package.json 的问题，且让 `npm install` 一次装好两端                                                   |
+| 4   | `bin/dev.sh` 一键并发启动两端，子进程同生共死                                                      | trap INT/TERM 同步清理                                                                                           |
+| 5   | `.nvmrc` 锁 Node 20                                                                 | 与 ARCHITECTURE_V2 §10.2 / DEPLOYMENT 一致                                                                      |
+| 6   | 同时把 `docs/DEPLOYMENT.md` 草案落盘（GitHub Actions → ECS deploy key + symlink 切换 + 失败回滚） | Phase 3 实施前定稿，本阶段不动手                                                                                         |
+| 7   | 联调验收                                                                               | backend `:3000/api/health` 直连 + 经 vite `:5173` 反代均返回 `{status:"ok",...}` ✓；vitest 2/2 通过 ✓；两端 typecheck 全绿 ✓ |
+
 
 技术决策：
+
 - **npm workspaces vs 各自独立** —— 选 workspaces。npm 11 在子目录跑 `npm install` 时会向上回溯找 prefix，若仓库根没有 `package.json` 就 ENOENT；workspaces 顺道把"一键 install + 一键 dev"打通，零成本。生产部署沿用 root npm ci 后再 build 各 workspace。
 - **backend 端口 3000** —— 与 ARCHITECTURE_V2 §10.3 Caddyfile `reverse_proxy localhost:3000` 严格对齐。
-- **vite 反代 `/api/*` → :3000** —— 开发期前后端同源，无需 CORS 临时配置；生产期由 Caddy 同样的 path 规则反代，前端代码零修改。
+- **vite 反代 `/api/`* → :3000** —— 开发期前后端同源，无需 CORS 临时配置；生产期由 Caddy 同样的 path 规则反代，前端代码零修改。
 
 下一步：进入 Phase 1。先实现 T1.1（Drizzle schema + 5 张表 + 迁移）打地基。
 
@@ -397,30 +581,35 @@
 
 本次完成：
 
-| 步骤 | 动作 | 结果 |
-|---|---|---|
-| 1 | 本地生成 `~/.ssh/pitchmaster_deploy` ed25519 keypair（专用） | OK |
-| 2 | 写 `deploy/systemd/pitchmaster-v2.service`（systemd unit，含资源限制 400M / 沙箱化） | OK |
-| 3 | 写 `deploy/scripts/deploy-receive.sh`（解包 → symlink 切换 → restart → 15 次健康检查 → 失败回滚） | OK |
-| 4 | 写 `deploy/scripts/ecs-bootstrap.sh`（一次性初始化，幂等） | OK |
-| 5 | 写 `.github/workflows/deploy.yml`（main push 自动触发；typecheck + test + build + scp + ssh deploy + public health 验证） | OK |
-| 6 | 写 `deploy/nginx/pitchmaster-v2.conf`（`/api/* → :3000`，其余 → web/dist + SPA fallback） | OK |
-| 7 | scp `deploy/` 整目录到 ECS，跑 bootstrap：装 Node 22（满足 >=20）/ 建目录 / 装 deploy key（带 5 项限制） / 装 systemd unit / enable | OK |
-| 8 | 用 deploy key 登录 ECS 验证 `whoami` + `ls /opt/pitchmaster-v2/` | OK，登录通 |
-| 9 | 把 Nginx site 落上 ECS，注释掉 `/etc/nginx/nginx.conf` 默认 server 块，reload nginx | OK，无冲突警告 |
-| 10 | 公网验收：`curl http://8.153.145.81/` 与 `/api/health` 分别返回 500、502（预期，因 web/dist 尚无、backend 未启动） | OK，链路通 |
+
+| 步骤  | 动作                                                                                                              | 结果       |
+| --- | --------------------------------------------------------------------------------------------------------------- | -------- |
+| 1   | 本地生成 `~/.ssh/pitchmaster_deploy` ed25519 keypair（专用）                                                            | OK       |
+| 2   | 写 `deploy/systemd/pitchmaster-v2.service`（systemd unit，含资源限制 400M / 沙箱化）                                        | OK       |
+| 3   | 写 `deploy/scripts/deploy-receive.sh`（解包 → symlink 切换 → restart → 15 次健康检查 → 失败回滚）                               | OK       |
+| 4   | 写 `deploy/scripts/ecs-bootstrap.sh`（一次性初始化，幂等）                                                                  | OK       |
+| 5   | 写 `.github/workflows/deploy.yml`（main push 自动触发；typecheck + test + build + scp + ssh deploy + public health 验证） | OK       |
+| 6   | 写 `deploy/nginx/pitchmaster-v2.conf`（`/api/* → :3000`，其余 → web/dist + SPA fallback）                             | OK       |
+| 7   | scp `deploy/` 整目录到 ECS，跑 bootstrap：装 Node 22（满足 >=20）/ 建目录 / 装 deploy key（带 5 项限制） / 装 systemd unit / enable    | OK       |
+| 8   | 用 deploy key 登录 ECS 验证 `whoami` + `ls /opt/pitchmaster-v2/`                                                     | OK，登录通   |
+| 9   | 把 Nginx site 落上 ECS，注释掉 `/etc/nginx/nginx.conf` 默认 server 块，reload nginx                                        | OK，无冲突警告 |
+| 10  | 公网验收：`curl http://8.153.145.81/` 与 `/api/health` 分别返回 500、502（预期，因 web/dist 尚无、backend 未启动）                     | OK，链路通   |
+
 
 待用户配合：在 GitHub 仓库 Settings → Secrets and variables → Actions 设置 4 个 secret：
+
 - `DEPLOY_SSH_KEY` = `~/.ssh/pitchmaster_deploy` 全文
 - `DEPLOY_HOST` = `8.153.145.81`
 - `DEPLOY_USER` = `root`
 - `DEPLOY_KNOWN_HOSTS` = `ssh-keyscan 8.153.145.81` 输出
 
 配置完成后 push 任意代码到 main 即可触发部署，预期最终：
+
 - `curl http://8.153.145.81/api/health` → `{"status":"ok",...}`
 - 浏览器访问 `http://8.153.145.81/` → 看到 hello-world 脚手架页（"PitchMaster v2 · 球场速记 · 脚手架就绪"）
 
 **2026-06-19 01:25 CST 首次部署成功**（GitHub Actions run #27777219998）：
+
 - 用户 `gh auth login` 后，4 个 Secret 自动配置完成
 - 第一次 workflow 失败：shared/ 无 workspace 结构导致 `@hono/node-server` 缺失 → commit `ddf446c` 修复
 - 第二次 workflow 全绿（38s）：build → scp → deploy-receive → health check → public verify
@@ -431,39 +620,46 @@
 
 ### 2026-06-19 · Phase 1 · MVP 在线版（T1.1–T1.6，进行中）
 
-| 任务 | 状态 | 说明 |
-|---|---|---|
-| T1.1 数据库 | ✔ | Drizzle schema 5 表 + `0000_initial.sql` + WAL client；启动时 `runMigrations()`；`DB_FILE` env |
-| T1.2 后端 API | ✔ | event/game-ops/game/timer services + Hono routes；`{ ok, data }` / `{ ok, error }` 响应；Bearer / pin 鉴权 |
-| T1.3 前端 | ✔ | react-router 6 七页；adminToken 鉴权 + 分享码只读；SSE 实时；赛后逐条修正进球 |
-| T1.4 计时器 | ✔ | `GET /api/time` + 客户端平滑计时 |
-| T1.5 SSE | ✔ | `GET /api/games/:id/stream` + in-memory sse-broker |
-| T1.6 测试 | ✔ | backend 41+ / web 21+ 语义单测；service 行覆盖 ≥85% |
+
+| 任务          | 状态  | 说明                                                                                                   |
+| ----------- | --- | ---------------------------------------------------------------------------------------------------- |
+| T1.1 数据库    | ✔   | Drizzle schema 5 表 + `0000_initial.sql` + WAL client；启动时 `runMigrations()`；`DB_FILE` env             |
+| T1.2 后端 API | ✔   | event/game-ops/game/timer services + Hono routes；`{ ok, data }` / `{ ok, error }` 响应；Bearer / pin 鉴权 |
+| T1.3 前端     | ✔   | react-router 6 七页；adminToken 鉴权 + 分享码只读；SSE 实时；赛后逐条修正进球                                              |
+| T1.4 计时器    | ✔   | `GET /api/time` + 客户端平滑计时                                                                            |
+| T1.5 SSE    | ✔   | `GET /api/games/:id/stream` + in-memory sse-broker                                                   |
+| T1.6 测试     | ✔   | backend 41+ / web 21+ 语义单测；service 行覆盖 ≥85%                                                          |
+
 
 **2026-06-19 15:00 CST · Phase 1 整理收口（refactor + 测试 + 文档）**：
+
 - 代码：`route-errors` 统一错误映射；`session-logic` 纯函数；`bin/dev*.sh` 一键启停
 - 功能：PIN 创建展示、手动结束活动、归档规则、PWA/Radix、restore 预填分享码
 - 测试：backend 41+ / web 21+（语义优先：路由 finish/restore、session 归档、deriveScore）
 - 文档：ARCH §4/§8、PLAN §4.1 计划差异表
 
 **2026-06-19 18:00 CST · PR #2 决策落地（D1–D6）**：
+
 - D1：`/admin/restore` 分享码 + PIN 找回 adminToken；首页与观众 banner 入口
 - D2：`@radix-ui/react-dialog` / `react-label`；`vite-plugin-pwa` manifest + SW
 - D3/D4：离线 outbox 与战报明确留在 Phase 2
 - D5/D6：merge 后重新部署 ECS；merge 前后各走一遍 Phase 1 Gate
 
 **2026-06-19 12:30 CST · Phase 1 整理收口**：
+
 - 代码：errors/short-code 抽取；GoalPickPanel 拆分；API 响应解析加固
 - 文档：ARCH §4/§8 与实现对齐（health 路径、只读观战）
 - 测试：deriveScore 乱序撤销、鉴权、守卫、前端事件流语义
 
 Gate 待人工验收（D6 / C6 已决，merge 前由需求方执行）：
+
 - ⬜ merge 前：1 分钟内建活动 → 配队 → 开赛 → 记 3 球 → 看比分
 - ⬜ merge 前：另一浏览器 ≤2s SSE 分数同步
 - ⬜ merge 前：重启后 SQLite 数据保留
 - ⬜ merge 后：ECS 重新部署 + 上述三项再验一遍
 
 已知限制 / 后续改进：
+
 - Phase 2：IndexedDB outbox、离线 replay、战报 H5/海报
 - ARCH 中 PATCH teams / batch events 等待 Phase 2+（见 §4.1 C3）
 - 活动改名 API 未实现（见 §4.1 C2）
@@ -471,15 +667,17 @@ Gate 待人工验收（D6 / C6 已决，merge 前由需求方执行）：
 
 ### 2026-06-19 · Phase 2 · 离线 + 战报（启动）
 
-| 任务 | 状态 | 说明 |
-|---|---|---|
-| T2.1 PWA 离线增强 | ✔ | injectManifest SW + offline.html + Background Sync + 网络探测条 |
-| T2.2 IndexedDB outbox | ✔ | `web/src/lib/outbox/` + Zustand + `OutboxSync` + 录入页乐观合并 |
-| T2.3 batch replay API | ✔ | `POST /api/games/:id/events/batch` + `outbox.service.ts` 单测 |
-| T2.4 战报派生 + API | ✔ | `report.service.ts` + `GET .../report` + 单测 |
-| T2.5 战报 UI 组件 + H5 | ✔ | tokens + 7 组件 + `/events/:shortCode/report` + `/games/:id/report` |
-| T2.6 satori 海报 | ✔ | satori + resvg + 字体子集 + PNG API + 单测 |
-| T2.7 分享集成 | ✔ | Web Share + 剪贴板 fallback + 活动/单场入口（Top 5 固定） |
+
+| 任务                    | 状态  | 说明                                                                |
+| --------------------- | --- | ----------------------------------------------------------------- |
+| T2.1 PWA 离线增强         | ✔   | injectManifest SW + offline.html + Background Sync + 网络探测条        |
+| T2.2 IndexedDB outbox | ✔   | `web/src/lib/outbox/` + Zustand + `OutboxSync` + 录入页乐观合并          |
+| T2.3 batch replay API | ✔   | `POST /api/games/:id/events/batch` + `outbox.service.ts` 单测       |
+| T2.4 战报派生 + API       | ✔   | `report.service.ts` + `GET .../report` + 单测                       |
+| T2.5 战报 UI 组件 + H5    | ✔   | tokens + 7 组件 + `/events/:shortCode/report` + `/games/:id/report` |
+| T2.6 satori 海报        | ✔   | satori + resvg + 字体子集 + PNG API + 单测                              |
+| T2.7 分享集成             | ✔   | Web Share + 剪贴板 fallback + 活动/单场入口（Top 5 固定）                      |
+
 
 **分支**：`cursor/phase2-report-service` → PR #6 merge
 
@@ -493,39 +691,45 @@ Gate 待人工验收（D6 / C6 已决，merge 前由需求方执行）：
 
 四阶段独立 PR 链（#7 → #8 → #9 → #10 / 汇总 #12）：
 
-| 阶段 | 状态 | 说明 |
-|---|---|---|
-| UI-1 Token + 字体 | ✔ merge #7 | `tokens.ts` 墨绿 palette；Geist Mono + Newsreader 子集；去 emoji → Phosphor |
-| UI-2 海报 4:5 | 🚧 PR #8/#12 | 1080×1350/1620；`poster-font.ts` PosterCJK；hairline-only；缓存 `v2:` |
-| UI-3 H5 战报 | 🚧 PR #9/#12 | `components/report/` Hero + 4 布局族；分享 CTA 置顶 |
-| UI-4 App UI | 🚧 PR #10/#12 | Home hairline；录入页 Geist Mono Hero；CTA 文案锁定 |
+
+| 阶段              | 状态            | 说明                                                                   |
+| --------------- | ------------- | -------------------------------------------------------------------- |
+| UI-1 Token + 字体 | ✔ merge #7    | `tokens.ts` 墨绿 palette；Geist Mono + Newsreader 子集；去 emoji → Phosphor |
+| UI-2 海报 4:5     | 🚧 PR #8/#12  | 1080×1350/1620；`poster-font.ts` PosterCJK；hairline-only；缓存 `v2:`     |
+| UI-3 H5 战报      | 🚧 PR #9/#12  | `components/report/` Hero + 4 布局族；分享 CTA 置顶                          |
+| UI-4 App UI     | 🚧 PR #10/#12 | Home hairline；录入页 Geist Mono Hero；CTA 文案锁定                           |
+
 
 **分支**：`cursor/ui-phase4-app-ui`（含 UUID WebView 兼容 fix `d541100`）
 
 ### 2026-06-19 · S1 微信报名导入 + Phase 3 部署补全
 
-| 任务 | 状态 | 说明 |
-|---|---|---|
-| S1 解析 + session 池 | ✔ | `roster-import.ts` / `roster-import-store.ts` + 单测 |
-| S1 UI（粘贴 + chip 分队） | ✔ | `RosterImportPanel` / `TeamImportChips`；结束活动清池 |
-| 默认场次 15 分钟 | ✔ | `game-defaults.ts`；`createGame` 显式默认 |
-| T3.1 install.sh | ✔ | bootstrap + Nginx + cron 备份 |
-| T3.4 backup.sh | ✔ | sqlite3 `.backup`，保留 30 天 |
-| T3.5 /api/healthz | ✔ | 与 `/api/health` 同载荷；Nginx 反代 |
-| T3.6 内测跟踪 | ✔ | `docs/issues-tracking.md` 模板 |
-| T3.3 HTTPS (Caddy) | ⬜ 暂缓 | `deploy/caddy/Caddyfile` 已备；**需求方决定暂不切换**，继续 Nginx HTTP |
-| Phase 3 Gate 人工项 | 🟡 | 备份恢复演练 ✅ 2026-06-19；内测 2 周待启动 |
+
+| 任务                  | 状态   | 说明                                                      |
+| ------------------- | ---- | ------------------------------------------------------- |
+| S1 解析 + session 池   | ✔    | `roster-import.ts` / `roster-import-store.ts` + 单测      |
+| S1 UI（粘贴 + chip 分队） | ✔    | `RosterImportPanel` / `TeamImportChips`；结束活动清池          |
+| 默认场次 15 分钟          | ✔    | `game-defaults.ts`；`createGame` 显式默认                    |
+| T3.1 install.sh     | ✔    | bootstrap + Nginx + cron 备份                             |
+| T3.4 backup.sh      | ✔    | sqlite3 `.backup`，保留 30 天                               |
+| T3.5 /api/healthz   | ✔    | 与 `/api/health` 同载荷；Nginx 反代                            |
+| T3.6 内测跟踪           | ✔    | `docs/issues-tracking.md` 模板                            |
+| T3.3 HTTPS (Caddy)  | ⬜ 暂缓 | `deploy/caddy/Caddyfile` 已备；**需求方决定暂不切换**，继续 Nginx HTTP |
+| Phase 3 Gate 人工项    | 🟡   | 备份恢复演练 ✅ 2026-06-19；内测 2 周待启动                           |
+
 
 **2026-06-19 18:58 CST · ECS 备份恢复演练（Gate 7.15）**：
 
-| 步骤 | 结果 |
-|---|---|
-| `backup.sh` → `data-20260619.db` (76K) | ✅ sqlite3 `.backup` |
-| 停服 → 移走 `data.db` → 从备份恢复 | ✅ |
-| 启服后 `/api/health` | ✅ 第 3 次探活通过 |
-| 数据校验 | ✅ events=1 games=2，活动 `77WJEB / 周六夜场` 一致 |
-| 公网 `http://8.153.145.81/api/health` | ✅ |
-| 每日 cron | ✅ `/etc/cron.daily/pitchmaster-backup` 已安装 |
+
+| 步骤                                     | 结果                                         |
+| -------------------------------------- | ------------------------------------------ |
+| `backup.sh` → `data-20260619.db` (76K) | ✅ sqlite3 `.backup`                        |
+| 停服 → 移走 `data.db` → 从备份恢复              | ✅                                          |
+| 启服后 `/api/health`                      | ✅ 第 3 次探活通过                                |
+| 数据校验                                   | ✅ events=1 games=2，活动 `77WJEB / 周六夜场` 一致   |
+| 公网 `http://8.153.145.81/api/health`    | ✅                                          |
+| 每日 cron                                | ✅ `/etc/cron.daily/pitchmaster-backup` 已安装 |
+
 
 灾前快照留存：`/var/lib/pitchmaster/data.db.pre-drill-20260619185754`（可择机删除）。
 
@@ -533,25 +737,52 @@ Gate 待人工验收（D6 / C6 已决，merge 前由需求方执行）：
 
 需求方提出三项 UX 优化，全部落地：
 
-| 项 | 状态 | 说明 |
-|---|---|---|
-| 中英双语 i18n | ✅ | `web/src/i18n/`（dict + 引擎）；右上角齿轮 → Settings 弹层切换；持久化 `pm:locale`；`navigator.language` 兜底 |
-| 夜间模式（用户偏好 + 系统 fallback） | ✅ | `web/src/lib/theme.ts` + Tailwind `darkMode: 'class'` + CSS 变量；持久化 `pm:theme`；`index.html` 早期脚本防 FOUC |
-| H5 战报 / 海报锁定亮色 | ✅ | `PageShell forceLight` + `.theme-light` 子树（独立 CSS 变量隔离）；战报对外资产视觉与 PNG 海报一致 |
-| 禁止移动端缩放 | ✅ | `index.html` viewport `user-scalable=no, maximum-scale=1.0`；`body { touch-action: manipulation }` 同步关 iOS 双击缩放 |
-| lib 层 locale 化 | ✅ | `share-report` / `game-events` / `report-display` / `api/parse-response` 接受可选 `t`；测试用 `__resetLocaleForTests` 锁 locale |
-| 测试 | ✅ | 新增 `i18n/i18n.test.ts`（6）+ `lib/theme.test.ts`（4）；web 全量 17 文件 / 73 用例绿；backend 11 文件 / 62 用例绿 |
-| 文档 | ✅ | `docs/ARCHITECTURE_V2.md §8.6` 新增 + §8.3.1 重写为 CSS 变量；README 主功能增列 |
+
+| 项                        | 状态  | 说明                                                                                                                     |
+| ------------------------ | --- | ---------------------------------------------------------------------------------------------------------------------- |
+| 中英双语 i18n                | ✅   | `web/src/i18n/`（dict + 引擎）；右上角齿轮 → Settings 弹层切换；持久化 `pm:locale`；`navigator.language` 兜底                               |
+| 夜间模式（用户偏好 + 系统 fallback） | ✅   | `web/src/lib/theme.ts` + Tailwind `darkMode: 'class'` + CSS 变量；持久化 `pm:theme`；`index.html` 早期脚本防 FOUC                  |
+| H5 战报 / 海报锁定亮色           | ✅   | `PageShell forceLight` + `.theme-light` 子树（独立 CSS 变量隔离）；战报对外资产视觉与 PNG 海报一致                                             |
+| 禁止移动端缩放                  | ✅   | `index.html` viewport `user-scalable=no, maximum-scale=1.0`；`body { touch-action: manipulation }` 同步关 iOS 双击缩放         |
+| lib 层 locale 化           | ✅   | `share-report` / `game-events` / `report-display` / `api/parse-response` 接受可选 `t`；测试用 `__resetLocaleForTests` 锁 locale |
+| 测试                       | ✅   | 新增 `i18n/i18n.test.ts`（6）+ `lib/theme.test.ts`（4）；web 全量 17 文件 / 73 用例绿；backend 11 文件 / 62 用例绿                         |
+| 文档                       | ✅   | `docs/ARCHITECTURE_V2.md §8.6` 新增 + §8.3.1 重写为 CSS 变量；README 主功能增列                                                     |
+
 
 不在范围：海报 PNG 多语言（服务端固定中文，与 §1.3 Out-of-Scope 对齐；如需 EN 海报由后续阶段决策）。
+
+### 2026-06-19 · Phase 5 多人录入计划（S2→S3 渐进）
+
+需求方确认路径：**先 S2（录入权交接）再 S3（真协同录入）**。已登记文档，**代码未开工**。
+
+
+| 项                     | 状态          | 说明                                    |
+| --------------------- | ----------- | ------------------------------------- |
+| §2.6 Phase 5A/5B 任务分解 | ✔           | Editor Lease → Multi-Writer Event Log |
+| §4.3 方案细则             | ✔           | 租约规则、UNDO 约束、验收剧本                     |
+| ARCH §6.6–6.7         | ✔           | DDL / API / SSE / reconcile           |
+| ADR-0008              | ✅ Accepted | 需求方 2026-06-19 签署 §4.3                |
+| Phase 5A 代码           | ✅ 已交付    | editor lease 全栈 + 单测；待 Phase 5A Gate 人工验收 |
+| Phase 5B 代码           | ✅ 已交付    | multi-writer + version 乐观锁 + reconcile；待 S3 验收 |
+
+**2026-06-19 · Phase 5A/5B 多人录入（S2→S3）**：
+
+| 项 | 状态 |
+|---|---|
+| T5A editor lease | ✅ |
+| T5B multi-writer + `game.version` | ✅ |
+| 后端单测 71 + 前端 77 | ✅ |
+| ECS 部署 | 🚧 push main 触发 |
+| 待决 M2                 | ✅ 已决      | 允许 force 抢 timer（二次确认弹窗）                    |
+
 
 ---
 
 ## 6. 签署
 
-- [ ] 需求方已阅读并同意 §0 决策矩阵
-- [ ] 需求方已阅读并同意 §1 范围界定
-- [ ] 需求方已阅读并同意 §2 阶段计划
-- [ ] 需求方已确认 §3 风险与 §4 待决事项
+- [x] 需求方已阅读并同意 §0 决策矩阵
+- [x] 需求方已阅读并同意 §1 范围界定
+- [x] 需求方已阅读并同意 §2 阶段计划
+- [x] 需求方已确认 §3 风险与 §4 待决事项
 
 签署日期：____________
