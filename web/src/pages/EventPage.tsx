@@ -1,18 +1,25 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { fetchEvent, finishEvent as finishEventApi } from '../api/events';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { deleteEvent as deleteEventApi, deleteGame as deleteGameApi, fetchEvent, finishEvent as finishEventApi } from '../api/events';
 import { clearRosterImportPool } from '../lib/roster-import-store';
+import { removeOutboxItemsForGame } from '../lib/outbox/db';
+import { useOutboxStore } from '../stores/outbox';
 import { ApiError } from '../api/client';
 import type { EventDetail } from '../api/types';
 import { EventCredentialsCard } from '../components/EventCredentialsCard';
+import { EventGameRow } from '../components/event/EventGameRow';
 import { EventSharePanel } from '../components/report/EventSharePanel';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '../components/ui/dialog';
+import { ConfirmDangerDialog } from '../components/ui/confirm-danger-dialog';
+import { Flag, Trash } from '@phosphor-icons/react';
+import { DangerActionTile } from '../components/ui/danger-zone';
+import { InlineAlert } from '../components/ui/inline-alert';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
+import { PagePanel, PagePanelBody, PagePanelHeader } from '../components/ui/page-panel';
+import { StatusChip } from '../components/ui/status-chip';
+import { TeamBadge } from '../components/ui/team-badge';
+import { Tour } from '../components/tour/Tour';
+import { EVENT_ADMIN_TOUR_STEPS, TOUR_IDS } from '../components/tour/tour-config';
+import { usePageTour } from '../components/tour/use-page-tour';
 import { useT } from '../i18n';
 import { isEventEnded } from '../lib/event-status';
 import {
@@ -26,12 +33,17 @@ import { useSessionStore } from '../stores/session';
 
 export function EventPage() {
   const t = useT();
+  const nav = useNavigate();
   const { shortCode = '' } = useParams();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [error, setError] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteGameId, setDeleteGameId] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deletingGame, setDeletingGame] = useState(false);
   const adminTokens = useSessionStore((s) => s.adminTokens);
 
   useEffect(() => {
@@ -73,6 +85,10 @@ export function EventPage() {
   const storedPin = event ? findStoredEvent(event.shortCode)?.pin : undefined;
   const ended = event ? isEventEnded(event) : false;
 
+  const tour = usePageTour(TOUR_IDS.eventAdmin, {
+    ready: Boolean(event) && isAdmin && !ended,
+  });
+
   const confirmFinish = async () => {
     if (!event || !adminToken) return;
     setFinishing(true);
@@ -88,6 +104,41 @@ export function EventPage() {
       setError(err instanceof ApiError ? err.message : t('event.finish.error'));
     } finally {
       setFinishing(false);
+    }
+  };
+
+  const confirmDeleteEvent = async () => {
+    if (!event || !adminToken) return;
+    setDeleting(true);
+    setError('');
+    try {
+      await deleteEventApi(event.id, adminToken);
+      clearRosterImportPool(event.id);
+      removeRecentEvent(event.shortCode);
+      setDeleteOpen(false);
+      nav('/');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('event.delete.error'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const confirmDeleteGame = async () => {
+    if (!event || !adminToken || !deleteGameId) return;
+    setDeletingGame(true);
+    setError('');
+    try {
+      await deleteGameApi(deleteGameId, adminToken);
+      await removeOutboxItemsForGame(deleteGameId);
+      await useOutboxStore.getState().refresh();
+      const data = await fetchEvent(event.shortCode);
+      setEvent(data);
+      setDeleteGameId(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('game.delete.error'));
+    } finally {
+      setDeletingGame(false);
     }
   };
 
@@ -116,169 +167,239 @@ export function EventPage() {
 
   return (
     <PageShell title={event?.name ?? t('event.fallbackTitle')} backTo="/">
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && <InlineAlert>{error}</InlineAlert>}
       {!event && !error && <p className="text-sm text-textSec">{t('event.loading')}</p>}
       {event && (
-        <>
-          {!isAdmin && (
-            <Card className="border-primary/30 bg-primary/5">
-              <p className="text-sm font-medium text-textPri">{t('event.viewer.title')}</p>
-              <p className="mt-1 text-xs text-textSec">
-                {t('event.viewer.bodyA')}
-                <Link to={`/admin/restore?code=${event.shortCode}`} className="text-primary">
-                  {t('event.viewer.restoreLink')}
-                </Link>
-                {t('event.viewer.bodyB')}
-              </p>
-            </Card>
-          )}
+        <div className="space-y-5 -mt-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
+            <StatusChip
+              label={ended ? t('event.statusEnded') : t('event.statusActive')}
+              variant={ended ? 'finished' : 'playing'}
+            />
+            {event.games.length > 0 && (
+              <span className="text-xs text-textSec">
+                {t('event.gameCount', { n: event.games.length })}
+              </span>
+            )}
+          </div>
 
           {!isAdmin && (
-            <Card>
-              <p className="text-sm text-textSec">{t('event.shareCode')}</p>
-              <p className="font-mono text-2xl font-bold text-primary">{event.shortCode}</p>
-            </Card>
+            <PagePanel>
+              <PagePanelBody className="space-y-2">
+                <p className="text-sm font-medium text-textPri">{t('event.viewer.title')}</p>
+                <p className="text-xs leading-relaxed text-textSec">
+                  {t('event.viewer.bodyA')}
+                  <Link to={`/admin/restore?code=${event.shortCode}`} className="text-primary">
+                    {t('event.viewer.restoreLink')}
+                  </Link>
+                  {t('event.viewer.bodyB')}
+                </p>
+              </PagePanelBody>
+            </PagePanel>
           )}
 
           {isAdmin && storedPin && (
-            <EventCredentialsCard
-              shortCode={event.shortCode}
-              pin={storedPin}
-              hint={t('cred.adminHint')}
-            />
+            <div data-tour="event-credentials">
+              <EventCredentialsCard
+                shortCode={event.shortCode}
+                pin={storedPin}
+                eventName={event.name}
+              />
+            </div>
           )}
 
           {isAdmin && !storedPin && (
-            <Card>
-              <p className="text-sm text-textSec">{t('event.shareCode')}</p>
-              <p className="font-mono text-2xl font-bold text-primary">{event.shortCode}</p>
-              <p className="mt-2 text-xs text-textSec">{t('event.noPinHint')}</p>
-            </Card>
+            <section data-tour="event-credentials" className="space-y-1.5 px-1">
+              <h2 className="text-base font-semibold tracking-tight text-textPri">
+                {t('cred.sectionTitle')}
+              </h2>
+              <p className="font-mono text-2xl font-bold tracking-widest text-primary">
+                {event.shortCode}
+              </p>
+              <p className="text-xs text-textSec">{t('event.noPinHint')}</p>
+            </section>
           )}
+
+          {!isAdmin && (
+            <section className="space-y-1.5 px-1">
+              <p className="text-xs text-textSec">{t('event.shareCode')}</p>
+              <p className="font-mono text-2xl font-bold tracking-widest text-primary">
+                {event.shortCode}
+              </p>
+            </section>
+          )}
+
+          {isAdmin && !ended && (
+            <PagePanel data-tour="event-setup">
+              <PagePanelHeader
+                title={t('event.setupSection')}
+                subtitle={t('event.setupHint')}
+              />
+              <PagePanelBody>
+                <PrimaryButton>
+                  <Link to={`/events/${shortCode}/setup`} className="block w-full">
+                    {t('event.setupCta')}
+                  </Link>
+                </PrimaryButton>
+              </PagePanelBody>
+            </PagePanel>
+          )}
+
+          <PagePanel>
+            <PagePanelHeader title={t('event.games.title')} />
+            {event.games.length === 0 ? (
+              <PagePanelBody className="space-y-3">
+                <p className="text-sm text-textSec">
+                  {isAdmin ? t('event.games.emptyAdmin') : t('event.games.emptyViewer')}
+                </p>
+                {isAdmin && !ended && (
+                  <PrimaryButton className="min-h-12 rounded-xl text-sm font-bold">
+                    <Link
+                      to={`/games/new?eventId=${event.id}&shortCode=${event.shortCode}`}
+                      data-tour="event-new-game"
+                      className="block w-full"
+                    >
+                      {t('event.games.new')}
+                    </Link>
+                  </PrimaryButton>
+                )}
+              </PagePanelBody>
+            ) : (
+              <>
+                <ul>
+                  {event.games.map((g) => {
+                    const teamA = event.teams.find((tm) => tm.id === g.teamAId);
+                    const teamB = event.teams.find((tm) => tm.id === g.teamBId);
+                    return (
+                      <EventGameRow
+                        key={g.id}
+                        gameId={g.id}
+                        teamAName={teamA?.name ?? 'A'}
+                        teamAColor={teamA?.colorHex ?? '#64748b'}
+                        teamBName={teamB?.name ?? 'B'}
+                        teamBColor={teamB?.colorHex ?? '#64748b'}
+                        status={g.status}
+                        scoreA={g.scoreA}
+                        scoreB={g.scoreB}
+                        isAdmin={isAdmin}
+                        onDelete={isAdmin ? () => setDeleteGameId(g.id) : undefined}
+                      />
+                    );
+                  })}
+                </ul>
+                {isAdmin && !ended && (
+                  <div className="border-t border-border p-4">
+                    <PrimaryButton className="min-h-12 rounded-xl text-sm font-bold">
+                      <Link
+                        to={`/games/new?eventId=${event.id}&shortCode=${event.shortCode}`}
+                        data-tour="event-new-game"
+                        className="block w-full"
+                      >
+                        {t('event.games.new')}
+                      </Link>
+                    </PrimaryButton>
+                  </div>
+                )}
+              </>
+            )}
+          </PagePanel>
 
           {event.games.length > 0 && (
             <EventSharePanel eventName={event.name} shortCode={event.shortCode} />
           )}
 
-          <section className="border-t border-border pt-6">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-body font-bold text-textPri">{t('event.games.title')}</p>
-              <div className="flex items-center gap-3">
-                {event.games.length > 0 && (
-                  <Link
-                    to={`/events/${event.shortCode}/report`}
-                    className="text-sm text-primary"
-                  >
-                    {t('event.games.share')}
-                  </Link>
-                )}
-                {isAdmin && !ended && (
-                  <Link
-                    to={`/games/new?eventId=${event.id}&shortCode=${event.shortCode}`}
-                    className="text-sm font-semibold text-primary"
-                  >
-                    {t('event.games.new')}
-                  </Link>
-                )}
-              </div>
-            </div>
-            {event.games.length === 0 ? (
-              <p className="text-sm text-textSec">
-                {isAdmin ? t('event.games.emptyAdmin') : t('event.games.emptyViewer')}
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {event.games.map((g) => {
-                  const a = event.teams.find((tm) => tm.id === g.teamAId)?.name ?? 'A';
-                  const b = event.teams.find((tm) => tm.id === g.teamBId)?.name ?? 'B';
-                  return (
-                    <li key={g.id}>
-                      <Link
-                        to={isAdmin ? `/games/${g.id}/record` : `/games/${g.id}`}
-                        className="block py-3 active:bg-elevated"
-                      >
-                        <div className="font-medium text-textPri">
-                          {a} vs {b}
-                        </div>
-                        <div className="mt-0.5 text-xs text-textSec">
-                          {g.status}
-                          {isAdmin ? t('event.games.adminSuffix') : t('event.games.viewerSuffix')}
-                        </div>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
-          {isAdmin && !ended ? (
-            <>
-              <PrimaryButton>
-                <Link to={`/events/${shortCode}/setup`} className="block w-full">
-                  {t('event.setupCta')}
-                </Link>
-              </PrimaryButton>
-              <button
-                type="button"
-                onClick={() => setFinishOpen(true)}
-                className="min-h-12 w-full rounded-2xl border border-danger/30 px-4 py-3 text-sm font-semibold text-danger"
-              >
-                {t('event.finish')}
-              </button>
-            </>
-          ) : isAdmin ? null : (
-            <Card>
-              <h2 className="mb-2 font-semibold">{t('event.teams.title')}</h2>
-              {event.teams.length === 0 ? (
-                <p className="text-sm text-textSec">{t('event.teams.empty')}</p>
-              ) : (
-                <ul className="space-y-3">
-                  {event.teams.map((team) => (
-                    <li key={team.id}>
-                      <div className="mb-1 flex items-center gap-2 font-medium">
-                        <span
-                          className="h-3 w-3 rounded-full"
-                          style={{ background: team.colorHex }}
-                        />
-                        {team.name}
-                      </div>
-                      <p className="text-sm text-textSec">
-                        {team.roster.length > 0
-                          ? team.roster.map((p) => p.name).join('、')
-                          : t('event.teams.noRoster')}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
+          {isAdmin && (
+            <PagePanel>
+              <PagePanelHeader
+                title={t('event.manageSection')}
+                subtitle={t('event.manageHint')}
+              />
+              <PagePanelBody>
+                <div className={ended ? '' : 'grid grid-cols-2 gap-2'}>
+                  {!ended && (
+                    <DangerActionTile
+                      icon={Flag}
+                      title={t('event.finish')}
+                      tone="warning"
+                      data-tour="event-finish"
+                      onClick={() => setFinishOpen(true)}
+                    />
+                  )}
+                  <DangerActionTile
+                    icon={Trash}
+                    title={t('event.delete')}
+                    tone="danger"
+                    onClick={() => setDeleteOpen(true)}
+                  />
+                </div>
+              </PagePanelBody>
+            </PagePanel>
           )}
 
-          <Dialog open={finishOpen} onOpenChange={setFinishOpen}>
-            <DialogContent>
-              <DialogTitle>{t('event.finish.title')}</DialogTitle>
-              <DialogDescription>{t('event.finish.desc')}</DialogDescription>
-              <div className="mt-4 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFinishOpen(false)}
-                  className="min-h-12 flex-1 rounded-xl border border-border px-3 text-sm font-semibold text-textSec"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="button"
-                  disabled={finishing}
-                  onClick={() => void confirmFinish()}
-                  className="min-h-12 flex-1 rounded-xl bg-danger px-3 text-sm font-semibold text-textInv disabled:opacity-50"
-                >
-                  {finishing ? t('event.finish.processing') : t('event.finish.confirm')}
-                </button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </>
+          {!isAdmin && (
+            <PagePanel>
+              <PagePanelHeader title={t('event.teams.title')} />
+              <PagePanelBody>
+                {event.teams.length === 0 ? (
+                  <p className="text-sm text-textSec">{t('event.teams.empty')}</p>
+                ) : (
+                  <ul className="space-y-4">
+                    {event.teams.map((team) => (
+                      <li key={team.id}>
+                        <TeamBadge name={team.name} colorHex={team.colorHex} />
+                        <p className="mt-2 text-sm leading-relaxed text-textSec">
+                          {team.roster.length > 0
+                            ? team.roster.map((p) => p.name).join('、')
+                            : t('event.teams.noRoster')}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </PagePanelBody>
+            </PagePanel>
+          )}
+
+          <Tour
+            tourId={TOUR_IDS.eventAdmin}
+            steps={EVENT_ADMIN_TOUR_STEPS}
+            open={tour.open}
+            onClose={tour.close}
+          />
+
+          <ConfirmDangerDialog
+            open={finishOpen}
+            onOpenChange={setFinishOpen}
+            title={t('event.finish.title')}
+            description={t('event.finish.desc')}
+            confirmLabel={t('event.finish.confirm')}
+            processingLabel={t('event.finish.processing')}
+            processing={finishing}
+            onConfirm={() => void confirmFinish()}
+          />
+
+          <ConfirmDangerDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title={t('event.delete.title')}
+            description={t('event.delete.desc')}
+            confirmLabel={t('event.delete.confirm')}
+            processingLabel={t('event.delete.processing')}
+            processing={deleting}
+            onConfirm={() => void confirmDeleteEvent()}
+          />
+
+          <ConfirmDangerDialog
+            open={Boolean(deleteGameId)}
+            onOpenChange={(open) => !open && setDeleteGameId(null)}
+            title={t('game.delete.title')}
+            description={t('game.delete.desc')}
+            confirmLabel={t('game.delete.confirm')}
+            processingLabel={t('game.delete.processing')}
+            processing={deletingGame}
+            onConfirm={() => void confirmDeleteGame()}
+          />
+        </div>
       )}
     </PageShell>
   );

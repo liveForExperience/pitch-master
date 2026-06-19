@@ -1,16 +1,20 @@
 import { useState } from 'react';
+import { ShareNetwork } from '@phosphor-icons/react';
 import { shareReport, type ShareReportInput } from '../../lib/share-report';
 import { useT } from '../../i18n';
+import { reportActionTileClass, reportActionIconClass } from './report-action-styles';
 
 export function ShareReportButton({
   share,
   className = '',
   variant = 'primary',
+  layout = 'bar',
   label,
 }: {
   share: ShareReportInput;
   className?: string;
   variant?: 'primary' | 'secondary';
+  layout?: 'bar' | 'tile';
   label?: string;
 }) {
   const t = useT();
@@ -37,9 +41,13 @@ export function ShareReportButton({
   };
 
   const base =
-    variant === 'primary'
-      ? 'bg-primary text-textInv active:bg-primaryDk'
-      : 'border border-primary/30 bg-primary/5 text-primary';
+    layout === 'tile'
+      ? reportActionTileClass
+      : variant === 'primary'
+        ? 'bg-primary text-textInv active:bg-primaryDk'
+        : 'border border-primary/30 bg-primary/5 text-primary';
+
+  const text = busy ? t('share.preparing') : copied ? t('share.copied') : label ?? t('share.label');
 
   return (
     <div className={className}>
@@ -47,9 +55,20 @@ export function ShareReportButton({
         type="button"
         disabled={busy}
         onClick={() => void handleShare()}
-        className={`min-h-12 w-full rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-50 ${base}`}
+        className={`w-full disabled:opacity-50 ${
+          layout === 'tile'
+            ? base
+            : `min-h-12 rounded-xl px-4 py-3 text-sm font-semibold ${base}`
+        }`}
       >
-        {busy ? t('share.preparing') : copied ? t('share.copied') : label ?? t('share.label')}
+        {layout === 'tile' ? (
+          <>
+            <ShareNetwork size={22} weight="bold" className={reportActionIconClass} aria-hidden />
+            <span>{text}</span>
+          </>
+        ) : (
+          text
+        )}
       </button>
       {error && <p className="mt-1 text-xs text-danger">{error}</p>}
     </div>

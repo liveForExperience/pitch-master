@@ -21,6 +21,8 @@ const baseGame: GameDetail = {
     plannedDurationMs: 1_800_000,
     pausedDurationMs: 0,
     pauseStartedAt: null,
+    scoreA: 1,
+    scoreB: 0,
   },
   teamA: { id: 't1', name: '红', colorHex: '#f00', roster: [] },
   teamB: { id: 't2', name: '蓝', colorHex: '#00f', roster: [] },

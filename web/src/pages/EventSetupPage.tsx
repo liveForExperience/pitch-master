@@ -9,6 +9,9 @@ import {
 import type { EventDetail } from '../api/types';
 import { RosterImportPanel } from '../components/roster/RosterImportPanel';
 import { TeamSetupCard } from '../components/roster/TeamSetupCard';
+import { Tour } from '../components/tour/Tour';
+import { EVENT_SETUP_TOUR_STEPS, TOUR_IDS } from '../components/tour/tour-config';
+import { usePageTour } from '../components/tour/use-page-tour';
 import { PageShell } from '../components/ui/layout';
 import { useT } from '../i18n';
 import { mergeIntoPool, nameReturnsToPool } from '../lib/roster-pool';
@@ -39,6 +42,10 @@ export function EventSetupPage() {
   }, [shortCode]);
 
   const token = useRequireAdmin(event?.id, `/events/${shortCode}`);
+
+  const tour = usePageTour(TOUR_IDS.eventSetup, {
+    ready: Boolean(event && token),
+  });
 
   useEffect(() => {
     if (!event?.id) return;
@@ -125,9 +132,18 @@ export function EventSetupPage() {
         </p>
       )}
 
-      <RosterImportPanel pool={importPool} onPoolChange={updateImportPool} />
+      <div data-tour="setup-import">
+        <RosterImportPanel
+          pool={importPool}
+          onPoolChange={updateImportPool}
+          forceOpen={tour.open}
+        />
+      </div>
 
-      <section className="rounded-xl border border-border bg-surface p-4">
+      <section
+        data-tour="setup-new-team"
+        className="rounded-xl border border-border bg-surface p-4"
+      >
         <label className="mb-2 block text-xs font-medium text-textSec">
           {t('setup.newTeamPlaceholder')}
         </label>
@@ -153,28 +169,37 @@ export function EventSetupPage() {
       </section>
 
       <div className="space-y-3">
-        {event?.teams.map((team) => (
-          <TeamSetupCard
-            key={team.id}
-            team={team}
-            importPool={importPool}
-            draftValue={draftNames[team.id] ?? ''}
-            adminToken={token}
-            onDraftChange={(value) => setDraftNames((d) => ({ ...d, [team.id]: value }))}
-            onRename={renameTeam}
-            onAddPlayers={addPlayers}
-            onRemovePlayer={removePlayer}
-          />
+        {event?.teams.map((team, idx) => (
+          <div key={team.id} data-tour={idx === 0 ? 'setup-team-card' : undefined}>
+            <TeamSetupCard
+              team={team}
+              importPool={importPool}
+              draftValue={draftNames[team.id] ?? ''}
+              adminToken={token}
+              onDraftChange={(value) => setDraftNames((d) => ({ ...d, [team.id]: value }))}
+              onRename={renameTeam}
+              onAddPlayers={addPlayers}
+              onRemovePlayer={removePlayer}
+            />
+          </div>
         ))}
       </div>
 
       <button
         type="button"
+        data-tour="setup-done"
         className="w-full py-2 text-center text-sm font-medium text-primary"
         onClick={() => nav(`/events/${shortCode}`)}
       >
         {t('setup.done')}
       </button>
+
+      <Tour
+        tourId={TOUR_IDS.eventSetup}
+        steps={EVENT_SETUP_TOUR_STEPS}
+        open={tour.open}
+        onClose={tour.close}
+      />
     </PageShell>
   );
 }

@@ -14,6 +14,7 @@ export function ArchivedNavButton({ className }: { className?: string }) {
   return (
     <Link
       to="/archived"
+      data-tour="nav-archived"
       aria-label={t('archived.openLabel')}
       title={
         unread > 0

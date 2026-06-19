@@ -92,3 +92,10 @@ export async function finishEvent(db: AppDb, eventId: string) {
     .where(eq(events.id, eventId));
   return { eventId, finishedAt };
 }
+
+export async function deleteEvent(db: AppDb, eventId: string) {
+  const [event] = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
+  if (!event) throw new NotFoundError('Event not found');
+  await db.delete(events).where(eq(events.id, eventId));
+  return { eventId, shortCode: event.shortCode };
+}

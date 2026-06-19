@@ -132,7 +132,11 @@ export function NewEventPage() {
 
       {step === 4 && created && (
         <>
-          <EventCredentialsCard shortCode={created.shortCode} pin={created.pin} />
+          <EventCredentialsCard
+            shortCode={created.shortCode}
+            pin={created.pin}
+            eventName={name.trim()}
+          />
           {error && <p className="text-sm text-danger">{error}</p>}
           <PrimaryButton disabled={loading} onClick={() => void finishSetup()}>
             {loading ? t('newEvent.step4.continuing') : t('newEvent.step4.continue')}

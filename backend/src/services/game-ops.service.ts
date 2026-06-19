@@ -1,4 +1,4 @@
-import { and, asc, eq, or } from 'drizzle-orm';
+import { and, asc, eq, inArray, or } from 'drizzle-orm';
 import type { AppDb } from '../db/client.js';
 import { events, gameEvents, games, rosters, teams } from '../db/schema.js';
 import { broadcast } from '../lib/sse-broker.js';
@@ -43,6 +43,15 @@ export async function getEventByShortCode(db: AppDb, shortCode: string) {
     })),
   );
 
+  const gameIds = eventGames.map((g) => g.id);
+  const allEventRows = await loadEventsForGames(db, gameIds);
+  const rowsByGame = new Map<string, typeof allEventRows>();
+  for (const row of allEventRows) {
+    const list = rowsByGame.get(row.gameId) ?? [];
+    list.push(row);
+    rowsByGame.set(row.gameId, list);
+  }
+
   return {
     id: event.id,
     shortCode: event.shortCode,
@@ -60,15 +69,21 @@ export async function getEventByShortCode(db: AppDb, shortCode: string) {
         jerseyNumber: r.jerseyNumber,
       })),
     })),
-    games: eventGames.map((g) => ({
-      id: g.id,
-      teamAId: g.teamAId,
-      teamBId: g.teamBId,
-      status: g.status,
-      startedAt: g.startedAt,
-      finishedAt: g.finishedAt,
-      plannedDurationMs: g.plannedDurationMs,
-    })),
+    games: eventGames.map((g) => {
+      const rows = rowsByGame.get(g.id) ?? [];
+      const { scoreA, scoreB } = deriveScore(mapScoreEvents(rows));
+      return {
+        id: g.id,
+        teamAId: g.teamAId,
+        teamBId: g.teamBId,
+        status: g.status,
+        startedAt: g.startedAt,
+        finishedAt: g.finishedAt,
+        plannedDurationMs: g.plannedDurationMs,
+        scoreA,
+        scoreB,
+      };
+    }),
   };
 }
 
@@ -173,6 +188,15 @@ async function loadGameEvents(db: AppDb, gameId: string) {
     .orderBy(asc(gameEvents.serverTs));
 }
 
+async function loadEventsForGames(db: AppDb, gameIds: string[]) {
+  if (gameIds.length === 0) return [];
+  return db
+    .select()
+    .from(gameEvents)
+    .where(inArray(gameEvents.gameId, gameIds))
+    .orderBy(asc(gameEvents.serverTs));
+}
+
 function mapScoreEvents(rows: Awaited<ReturnType<typeof loadGameEvents>>) {
   return rows.map((e) => ({
     id: e.id,
@@ -249,6 +273,12 @@ export async function finishGame(db: AppDb, gameId: string) {
     .where(eq(games.id, gameId));
   await emitGameUpdate(db, gameId, 'FINISH');
   return { gameId, finishedAt: ts };
+}
+
+export async function deleteGame(db: AppDb, gameId: string) {
+  const game = await loadGame(db, gameId);
+  await db.delete(games).where(eq(games.id, gameId));
+  return { gameId, eventId: game.eventId };
 }
 
 export type RecordEventInput = {

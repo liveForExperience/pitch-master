@@ -1,6 +1,14 @@
 import { cn } from '../../lib/cn';
 
-type ChipVariant = 'win' | 'draw' | 'loss' | 'playing' | 'paused' | 'finished' | 'ready' | 'neutral';
+export type ChipVariant =
+  | 'win'
+  | 'draw'
+  | 'loss'
+  | 'playing'
+  | 'paused'
+  | 'finished'
+  | 'ready'
+  | 'neutral';
 
 const variantClass: Record<ChipVariant, string> = {
   win: 'bg-primary/15 text-primaryDk',

@@ -9,6 +9,7 @@ import {
   ValidationError,
 } from '../lib/errors.js';
 import {
+  deleteGame,
   finishGame,
   getGameDetail,
   getGameState,
@@ -185,6 +186,22 @@ gamesRoute.post('/games/:id/events', async (c) => {
     if (err instanceof NotFoundError) return fail(c, 'not_found', err.message, 404);
     if (err instanceof ConflictError) return fail(c, 'conflict', err.message, 409);
     if (err instanceof ValidationError) return fail(c, 'validation_error', err.message, 400);
+    throw err;
+  }
+});
+
+gamesRoute.delete('/games/:id', async (c) => {
+  const gameId = c.req.param('id');
+  const db = getDb();
+  const auth = await requireGameAdmin(c, db, gameId);
+  if (auth instanceof Response) return auth;
+  try {
+    const data = await deleteGame(db, gameId);
+    const res = ok(c, data);
+    if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
+    return res;
+  } catch (err) {
+    if (err instanceof NotFoundError) return fail(c, 'not_found', err.message, 404);
     throw err;
   }
 });

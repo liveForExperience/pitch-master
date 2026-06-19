@@ -63,6 +63,12 @@ export async function removeOutboxItems(ids: string[]): Promise<void> {
   );
 }
 
+export async function removeOutboxItemsForGame(gameId: string): Promise<void> {
+  const items = await listOutboxItems();
+  const ids = items.filter((i) => i.gameId === gameId).map((i) => i.id);
+  await removeOutboxItems(ids);
+}
+
 export async function listOutboxItems(): Promise<OutboxItem[]> {
   const items = await runTx<OutboxItem[]>('readonly', (store) => store.getAll());
   const stuck = items.filter((i) => i.status === 'SENDING');

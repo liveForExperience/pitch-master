@@ -68,6 +68,12 @@ export const finishEvent = (eventId: string, adminToken: string) =>
     adminToken,
   });
 
+export const deleteEvent = (eventId: string, adminToken: string) =>
+  apiRequest<{ eventId: string; shortCode: string }>(`/api/events/${eventId}`, {
+    method: 'DELETE',
+    adminToken,
+  });
+
 export const fetchGame = (gameId: string) => apiRequest<GameDetail>(`/api/games/${gameId}`);
 
 export const fetchGameState = (gameId: string) =>
@@ -86,6 +92,12 @@ export const resumeGame = (gameId: string, adminToken: string) =>
 
 export const finishGame = (gameId: string, adminToken: string) =>
   apiRequest<unknown>(`/api/games/${gameId}/finish`, { method: 'POST', adminToken });
+
+export const deleteGame = (gameId: string, adminToken: string) =>
+  apiRequest<{ gameId: string; eventId: string }>(`/api/games/${gameId}`, {
+    method: 'DELETE',
+    adminToken,
+  });
 
 export const recordGoal = (
   gameId: string,

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { events } from '../src/db/schema.js';
+import { events, games } from '../src/db/schema.js';
 import {
   createGame,
   createTeam,
+  deleteGame,
   finishGame,
   startGame,
 } from '../src/services/game-ops.service.js';
 import { ConflictError } from '../src/lib/errors.js';
-import { createEvent, finishEvent, generateUniqueShortCode } from '../src/services/event.service.js';
+import { createEvent, deleteEvent, finishEvent, generateUniqueShortCode } from '../src/services/event.service.js';
 import { setupTestDb } from './helpers/test-db.js';
 
 describe('event.service', () => {
@@ -58,6 +59,22 @@ describe('event.service', () => {
     await expect(finishEvent(db, evt.id)).rejects.toBeInstanceOf(ConflictError);
   });
 
+  it('deleteEvent removes event and cascades children', async () => {
+    const { db } = setupTestDb();
+    const evt = await createEvent(db, '待删除');
+    const teamA = await createTeam(db, evt.id, { name: 'A' });
+    const teamB = await createTeam(db, evt.id, { name: 'B' });
+    const game = await createGame(db, evt.id, { teamAId: teamA.id, teamBId: teamB.id });
+
+    const removed = await deleteEvent(db, evt.id);
+    expect(removed).toMatchObject({ eventId: evt.id, shortCode: evt.shortCode });
+
+    const rows = await db.select().from(events).where(eq(events.id, evt.id));
+    expect(rows).toHaveLength(0);
+    const gameRows = await db.select().from(games).where(eq(games.id, game.id));
+    expect(gameRows).toHaveLength(0);
+  });
+
   it('finishGame does not auto-finish parent event', async () => {
     const { db } = setupTestDb();
     const evt = await createEvent(db, '场次结束');
@@ -70,5 +87,20 @@ describe('event.service', () => {
 
     const [row] = await db.select().from(events).where(eq(events.id, evt.id));
     expect(row!.status).toBe('DRAFT');
+  });
+
+  it('deleteGame removes game and its events', async () => {
+    const { db } = setupTestDb();
+    const evt = await createEvent(db, '删场次');
+    const teamA = await createTeam(db, evt.id, { name: 'A' });
+    const teamB = await createTeam(db, evt.id, { name: 'B' });
+    const game = await createGame(db, evt.id, { teamAId: teamA.id, teamBId: teamB.id });
+    await startGame(db, game.id);
+
+    const removed = await deleteGame(db, game.id);
+    expect(removed).toMatchObject({ gameId: game.id, eventId: evt.id });
+
+    const rows = await db.select().from(games).where(eq(games.id, game.id));
+    expect(rows).toHaveLength(0);
   });
 });

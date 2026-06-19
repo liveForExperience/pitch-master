@@ -231,7 +231,8 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 |---|---|---|---|
 | GET | `/api/time` | 公开 | 返回 `{serverNow: 1718712345678}` 用于时钟校准 |
 | POST | `/api/events` | 公开 | 创建活动；返回 `{id, shortCode, adminToken, pin}` |
-| GET | `/api/events/:shortCode` | 公开 | 获取活动详情（含 teams + games 列表，不含 adminToken） |
+| GET | `/api/events/:shortCode` | 公开 | 获取活动详情（含 teams + games 列表及每场派生比分 `scoreA`/`scoreB`，不含 adminToken） |
+| DELETE | `/api/events/:id` | Admin | 删除活动及下属队伍、场次、事件 |
 | POST | `/api/events/:id/finish` | Admin | 手动结束活动 → `{eventId, finishedAt}`；客户端归档唯一触发源 |
 | POST | `/api/events/:id/restore-token?pin=` | 公开（PIN） | PIN 正确时轮换 adminToken → `{restored, adminToken?}` |
 | POST | `/api/events/:id/teams` | Admin | 创建队伍 `{name, colorHex?}` |
@@ -241,6 +242,7 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | DELETE | `/api/roster/:id` | Admin | 移出队员；有比赛记录时拒绝 |
 | POST | `/api/events/:id/games` | Admin | 创建场次 `{teamAId, teamBId, plannedDurationMs?}` |
 | GET | `/api/games/:id` | 公开 | 详情（含事件流 + 派生比分） |
+| DELETE | `/api/games/:id` | Admin | 删除场次及其事件流 |
 | POST | `/api/games/:id/start` | Admin | 开赛（写 `started_at = now`） |
 | POST | `/api/games/:id/pause` | Admin | 暂停 |
 | POST | `/api/games/:id/resume` | Admin | 恢复 |
