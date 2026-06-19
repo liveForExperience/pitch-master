@@ -70,7 +70,7 @@ export function GamePosterTemplate({
       </PosterCard>
 
       <PosterCard>
-        <PosterTitle text="⚽ 进球流水" />
+        <PosterTitle text="进球流水" />
         <GoalGroup teamName={teamA.name} colorHex={teamA.colorHex} goals={goalsA} />
         <GoalGroup teamName={teamB.name} colorHex={teamB.colorHex} goals={goalsB} />
         {report.goals.length === 0 && <PosterMuted>暂无进球</PosterMuted>}
@@ -78,7 +78,7 @@ export function GamePosterTemplate({
 
       {report.gameMvp && (
         <PosterCard>
-          <PosterTitle text="⭐ 本场 MVP" />
+          <PosterTitle text="本场 MVP" />
           <div
             style={{
               fontSize: 24,

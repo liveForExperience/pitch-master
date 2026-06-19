@@ -68,7 +68,7 @@ export function EventPosterTemplate({ report }: { report: EventReport }) {
     <PosterRoot width={posterWidth} height={height}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
         <div style={{ fontSize: 32, fontWeight: 700, display: 'flex' }}>
-          {`🏆 ${report.event.name}`}
+          {report.event.name}
         </div>
         <PosterMuted>{formatPosterDate(report.meta.generatedAt)}</PosterMuted>
         <PosterMuted>{report.event.shortCode}</PosterMuted>
@@ -117,7 +117,7 @@ export function EventPosterTemplate({ report }: { report: EventReport }) {
 
       {report.standings.length > 0 && (
         <PosterCard>
-          <PosterTitle text="🏅 积分榜" />
+          <PosterTitle text="积分榜" />
           {report.standings.map((row, i) => (
             <ZebraRow key={row.teamId} zebra={i % 2 === 0}>
               <RankBadge rank={row.rank} />
@@ -140,7 +140,7 @@ export function EventPosterTemplate({ report }: { report: EventReport }) {
 
       {report.topScorers.length > 0 && (
         <PosterCard>
-          <PosterTitle text="👟 射手榜 Top 5" />
+          <PosterTitle text="射手榜 Top 5" />
           {report.topScorers.map((row, i) => (
             <ZebraRow key={row.rosterId} zebra={i % 2 === 0}>
               <RankBadge rank={i + 1} />
@@ -157,7 +157,7 @@ export function EventPosterTemplate({ report }: { report: EventReport }) {
 
       {report.topAssists.length > 0 && (
         <PosterCard>
-          <PosterTitle text="🅰 助攻榜 Top 5" />
+          <PosterTitle text="助攻榜 Top 5" />
           {report.topAssists.map((row, i) => (
             <ZebraRow key={row.rosterId} zebra={i % 2 === 0}>
               <RankBadge rank={i + 1} />
@@ -174,7 +174,7 @@ export function EventPosterTemplate({ report }: { report: EventReport }) {
 
       {report.mvp && (
         <PosterCard>
-          <PosterTitle text="⭐ 活动 MVP" />
+          <PosterTitle text="活动 MVP" />
           <div
             style={{
               fontSize: 24,

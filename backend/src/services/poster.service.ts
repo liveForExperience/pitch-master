@@ -22,6 +22,8 @@ export { estimateEventPosterHeight };
 type FontSet = {
   regular: Buffer;
   bold: Buffer;
+  mono: Buffer;
+  serifItalic: Buffer;
 };
 
 let fonts: FontSet | null = null;
@@ -31,6 +33,8 @@ function loadFonts(): FontSet {
   fonts = {
     regular: readAsset('fonts', 'NotoSansSC-Regular-subset.woff'),
     bold: readAsset('fonts', 'NotoSansSC-Bold-subset.woff'),
+    mono: readAsset('fonts', 'GeistMono-Medium-subset.woff'),
+    serifItalic: readAsset('fonts', 'Newsreader-Italic-subset.woff'),
   };
   return fonts;
 }
@@ -44,6 +48,8 @@ const satoriFonts = () => {
   return [
     { name: 'NotoSC', data: f.regular, weight: 400 as const, style: 'normal' as const },
     { name: 'NotoSC', data: f.bold, weight: 700 as const, style: 'normal' as const },
+    { name: 'GeistMono', data: f.mono, weight: 500 as const, style: 'normal' as const },
+    { name: 'Newsreader', data: f.serifItalic, weight: 500 as const, style: 'italic' as const },
   ];
 };
 
