@@ -5,10 +5,12 @@ export function ShareReportButton({
   share,
   className = '',
   variant = 'primary',
+  label = '分享战报',
 }: {
   share: ShareReportInput;
   className?: string;
   variant?: 'primary' | 'secondary';
+  label?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -45,7 +47,7 @@ export function ShareReportButton({
         onClick={() => void handleShare()}
         className={`min-h-12 w-full rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-50 ${base}`}
       >
-        {busy ? '准备分享…' : copied ? '链接已复制' : '分享战报'}
+        {busy ? '准备分享…' : copied ? '链接已复制' : label}
       </button>
       {error && <p className="mt-1 text-xs text-danger">{error}</p>}
     </div>
