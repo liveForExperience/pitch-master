@@ -1,49 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchEvent } from '../api/events';
 import { PageShell } from '../components/ui/layout';
+import { EventListItem } from '../components/EventListItem';
 import { useT } from '../i18n';
-import { isEventEnded } from '../lib/event-status';
-import { archiveEvent, removeRecentEvent } from '../lib/storage';
+import { useSyncArchivedEvents } from '../lib/use-sync-archived-events';
 import { useSessionStore } from '../stores/session';
-
-function EventListItem({ name, shortCode }: { name: string; shortCode: string }) {
-  return (
-    <Link
-      to={`/events/${shortCode}`}
-      className="flex items-center justify-between py-3 active:bg-elevated"
-    >
-      <span className="font-medium text-textPri">{name}</span>
-      <span className="font-mono text-xs text-textSec">{shortCode}</span>
-    </Link>
-  );
-}
 
 export function HomePage() {
   const t = useT();
   const recent = useSessionStore((s) => s.recentEvents);
-  const archived = useSessionStore((s) => s.archivedEvents);
   const nav = useNavigate();
   const [joinCode, setJoinCode] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
 
-  useEffect(() => {
-    const sync = async () => {
-      const { recentEvents, archivedEvents } = useSessionStore.getState();
-      const all = [...recentEvents, ...archivedEvents];
-      for (const e of all) {
-        try {
-          const data = await fetchEvent(e.shortCode);
-          if (isEventEnded(data)) {
-            archiveEvent(e.shortCode);
-          }
-        } catch {
-          removeRecentEvent(e.shortCode);
-        }
-      }
-    };
-    void sync();
-  }, []);
+  useSyncArchivedEvents();
 
   const goJoin = () => {
     const code = joinCode.trim().toUpperCase().replace(/\s/g, '');
@@ -89,17 +58,6 @@ export function HomePage() {
         </section>
 
         <section className="py-6">
-          <p className="text-body font-bold text-textPri">{t('home.restore.title')}</p>
-          <p className="mt-1 text-caption text-textSec">{t('home.restore.hint')}</p>
-          <Link
-            to="/admin/restore"
-            className="mt-4 block border border-border py-3 text-center text-sm font-semibold text-primary active:bg-elevated"
-          >
-            {t('home.restore.link')}
-          </Link>
-        </section>
-
-        <section className="py-6">
           <p className="text-body font-bold text-textPri">{t('home.ongoing.title')}</p>
           <p className="mt-1 text-caption text-textSec">{t('home.ongoing.hint')}</p>
           {recent.length === 0 ? (
@@ -112,42 +70,6 @@ export function HomePage() {
                 </li>
               ))}
             </ul>
-          )}
-        </section>
-
-        <section className="py-6">
-          <button
-            type="button"
-            className="flex w-full items-center justify-between text-left"
-            onClick={() => setShowArchived((v) => !v)}
-            disabled={archived.length === 0}
-          >
-            <div>
-              <p className="text-body font-bold text-textPri">
-                {archived.length > 0
-                  ? t('home.archived.titleWithCount', { count: archived.length })
-                  : t('home.archived.title')}
-              </p>
-              <p className="mt-1 text-caption text-textSec">{t('home.archived.hint')}</p>
-            </div>
-            {archived.length > 0 && (
-              <span className="text-xs text-primary">
-                {showArchived ? t('home.collapse') : t('home.expand')}
-              </span>
-            )}
-          </button>
-          {archived.length === 0 ? (
-            <p className="mt-4 text-sm text-textSec">{t('home.archived.empty')}</p>
-          ) : (
-            showArchived && (
-              <ul className="mt-2 divide-y divide-border">
-                {archived.map((e) => (
-                  <li key={e.shortCode}>
-                    <EventListItem name={e.name} shortCode={e.shortCode} />
-                  </li>
-                ))}
-              </ul>
-            )
           )}
         </section>
       </div>

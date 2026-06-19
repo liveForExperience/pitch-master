@@ -3,12 +3,9 @@ import { getLocale } from '../i18n';
 
 export class ApiError extends Error {
   code: string;
-  data?: unknown;
-
-  constructor(code: string, message: string, data?: unknown) {
+  constructor(code: string, message: string) {
     super(message);
     this.code = code;
-    this.data = data;
   }
 }
 
@@ -43,8 +40,8 @@ export function parseApiFailure(body: unknown, status: number): ApiError {
     const record = body as Record<string, unknown>;
     const nested = record.error;
     if (nested && typeof nested === 'object') {
-      const err = nested as { code?: string; message?: string; data?: unknown };
-      return new ApiError(err.code ?? 'api_error', err.message ?? httpFail(status), err.data);
+      const err = nested as { code?: string; message?: string };
+      return new ApiError(err.code ?? 'api_error', err.message ?? httpFail(status));
     }
     if (typeof nested === 'string') {
       const path = typeof record.path === 'string' ? record.path : '';

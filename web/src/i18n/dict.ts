@@ -46,6 +46,13 @@ export const zh: Dict = {
   'settings.theme.light': '亮色',
   'settings.theme.dark': '夜间',
   'settings.openLabel': '打开设置',
+  'settings.navTooltip': '语言与外观会保存在本机。',
+
+  'archived.openLabel': '查看已归档活动',
+  'archived.navTooltip': '已结束的活动记录；手动「结束活动」后才会归档。',
+
+  'restore.openLabel': '凭 PIN 恢复管理',
+  'restore.navTooltip': '换设备后输入分享码和 PIN，可重新获得录入与配置权限。',
 
   // ── shell / nav ──────────────────────────────────────────────────────
   'shell.back': '← 返回',
@@ -67,6 +74,8 @@ export const zh: Dict = {
   'home.archived.titleWithCount': '已归档 · {count}',
   'home.archived.hint': '已结束的活动记录',
   'home.archived.empty': '暂无已结束的活动。',
+  'archived.search.placeholder': '搜索活动名称或分享码',
+  'archived.search.empty': '没有匹配的活动。',
   'home.expand': '展开',
   'home.collapse': '收起',
 
@@ -209,13 +218,6 @@ export const zh: Dict = {
   'record.feedHint': '点击「修改」或「删除」可调整任意一条进球记录',
   'record.viewDetail': '查看详情（只读链接可分享）',
   'record.error.delete': '删除失败',
-  'record.editor.holding': '你正在控制计时（设备 {tail}）· 记球无需独占',
-  'record.editor.other': '设备 {tail} 正在控制计时 · 你仍可记球',
-  'record.editor.readonly': '申请计时控制权后可开始/暂停；记球随时可用',
-  'record.editor.claim': '申请计时控制',
-  'record.editor.force': '接管计时',
-  'record.editor.release': '释放计时控制',
-  'record.editor.forceConfirm': '确定接管计时？原设备将无法开始/暂停。',
 
   // ── goal pick panel ──────────────────────────────────────────────────
   'pick.scorerEdit': '修改进球：重新选择球员',
@@ -251,8 +253,6 @@ export const zh: Dict = {
 
   // ── game detail ──────────────────────────────────────────────────────
   'detail.title': '比赛详情',
-  'detail.editor.active': '计时设备 {tail}',
-  'detail.editor.none': '暂无设备录入',
   'detail.finished': '已结束 · 用时 {elapsed}',
   'detail.elapsed': '已用 {elapsed} / {planned}',
   'detail.eventStream': '事件流',
@@ -352,6 +352,15 @@ export const en: Dict = {
   'settings.theme.light': 'Light',
   'settings.theme.dark': 'Dark',
   'settings.openLabel': 'Open settings',
+  'settings.navTooltip': 'Language and theme are saved on this device.',
+
+  'archived.openLabel': 'View archived events',
+  'archived.navTooltip':
+    'Records of finished events. They appear here after you end an event manually.',
+
+  'restore.openLabel': 'Restore with PIN',
+  'restore.navTooltip':
+    'Switching devices? Enter the share code and PIN to regain recording rights.',
 
   // ── shell / nav ──────────────────────────────────────────────────────
   'shell.back': '← Back',
@@ -377,6 +386,8 @@ export const en: Dict = {
   'home.archived.titleWithCount': 'Archived · {count}',
   'home.archived.hint': 'Finished events',
   'home.archived.empty': 'No archived events yet.',
+  'archived.search.placeholder': 'Search by name or share code',
+  'archived.search.empty': 'No matching events.',
   'home.expand': 'Expand',
   'home.collapse': 'Collapse',
 
@@ -525,14 +536,6 @@ export const en: Dict = {
   'record.feedHint': 'Tap "Edit" or "Delete" to adjust any goal',
   'record.viewDetail': 'Open detail (shareable read-only)',
   'record.error.delete': 'Delete failed',
-  'record.editor.holding': 'You control the timer ({tail}) · scoring is shared',
-  'record.editor.other': 'Device {tail} controls the timer · you can still score',
-  'record.editor.readonly': 'Claim the timer to start/pause; scoring is always available',
-  'record.editor.claim': 'Claim timer',
-  'record.editor.force': 'Take timer',
-  'record.editor.release': 'Release timer',
-  'record.editor.forceConfirm':
-    'Take over the timer? The other device will not be able to start/pause.',
 
   // ── goal pick panel ──────────────────────────────────────────────────
   'pick.scorerEdit': 'Edit goal: pick scorer again',
@@ -568,8 +571,6 @@ export const en: Dict = {
 
   // ── game detail ──────────────────────────────────────────────────────
   'detail.title': 'Game detail',
-  'detail.editor.active': 'Timer · device {tail}',
-  'detail.editor.none': 'No active recorder',
   'detail.finished': 'Finished · {elapsed}',
   'detail.elapsed': '{elapsed} / {planned}',
   'detail.eventStream': 'Event stream',

@@ -111,7 +111,7 @@
 | 撤销 | 写入 `type=UNDO` + `undoTargetEventId`；不物理删除 |
 | 幂等 | 所有事件写入携带 `clientEventId` (UUID)；DB unique 约束 `(game_id, client_event_id)` |
 | 鉴权 | 写接口需 `Authorization: Bearer <adminToken>` 或 `?pin=XXXXXX` |
-| 单管理员假设 | Phase 1–4：单设备录入；**Phase 5A** 租约单写者；**Phase 5B** 进球多写者、计时单写者 |
+| 单管理员假设 | 同一场比赛只一个设备录入；多设备同录 = 后续议题 |
 | MVP 选取 | 进球+助攻最高者；并列取较早出现 |
 
 ---

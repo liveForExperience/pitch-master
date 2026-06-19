@@ -9,18 +9,13 @@ import {
   resumeGame,
   startGame,
 } from '../api/events';
-import { ApiError } from '../api/parse-response';
 import type { GameDetail } from '../api/types';
 import { GameEventFeed } from '../components/GameEventFeed';
-import { EditorLeaseBanner } from '../components/EditorLeaseBanner';
 import { GoalPickPanel, type PickPhase } from '../components/GoalPickPanel';
 import { PageShell, PrimaryButton } from '../components/ui/layout';
 import { useT } from '../i18n';
-import { reconcileGameWithOutbox, isServerConfirmedEvent } from '../lib/outbox/reconcile-game';
-import { resolveUndoTarget } from '../lib/outbox/merge-game';
-import { getOrCreateDeviceId } from '../lib/device-id';
+import { mergeGameWithOutbox, resolveUndoTarget } from '../lib/outbox/merge-game';
 import { formatMs } from '../lib/time-format';
-import { useEditorLease } from '../lib/use-editor-lease';
 import { useGameStream } from '../lib/use-game-stream';
 import { useLiveGameTimer, useServerOffset } from '../lib/use-live-game-timer';
 import { getAdminToken } from '../lib/storage';
@@ -105,7 +100,6 @@ export function GameRecordPage() {
   const [pick, setPick] = useState<PickPhase>(null);
   const [editing, setEditing] = useState<EditingGoal | null>(null);
 
-  const deviceId = useMemo(() => getOrCreateDeviceId(), []);
   const outboxItems = useOutboxStore((s) => s.items);
   const enqueue = useOutboxStore((s) => s.enqueue);
   const pendingForGame = useMemo(
@@ -113,31 +107,20 @@ export function GameRecordPage() {
     [outboxItems, id],
   );
   const game = useMemo(
-    () => (serverGame ? reconcileGameWithOutbox(serverGame, pendingForGame) : null),
+    () => (serverGame ? mergeGameWithOutbox(serverGame, pendingForGame) : null),
     [serverGame, pendingForGame],
   );
 
   const recentEvents = useSessionStore((s) => s.recentEvents);
   const token = game ? getAdminToken(game.game.eventId) : null;
-  const {
-    editor,
-    canControlTimer,
-    busy: leaseBusy,
-    claim,
-    release,
-    syncFromDetail,
-  } = useEditorLease(id, token, Boolean(token));
-  const canRecordGoals = Boolean(token);
-
   const eventShortCode =
     game?.eventShortCode ??
     recentEvents.find((e) => e.id === game?.game.eventId)?.shortCode;
 
   const reload = useCallback(async () => {
-    const detail = await fetchGame(id, deviceId);
+    const detail = await fetchGame(id);
     setServerGame(detail);
-    syncFromDetail(detail.editor);
-  }, [id, deviceId, syncFromDetail]);
+  }, [id]);
 
   useEffect(() => {
     if (game && !getAdminToken(game.game.eventId)) {
@@ -149,7 +132,7 @@ export function GameRecordPage() {
     void reload().catch((err: Error) => setError(err.message));
   }, [reload]);
 
-  useGameStream(id, () => void reload(), Boolean(serverGame), () => void reload());
+  useGameStream(id, () => void reload(), Boolean(serverGame));
 
   const timer = useLiveGameTimer(game);
   const serverOffset = useServerOffset();
@@ -160,49 +143,28 @@ export function GameRecordPage() {
     return team?.roster ?? [];
   };
 
-  const runTimerAction = async (action: () => Promise<unknown>) => {
-    if (!token || !serverGame || !canControlTimer) return;
-    try {
-      await action();
-      await reload();
-    } catch (err) {
-      if (err instanceof ApiError && err.code === 'version_conflict') {
-        await reload();
-        return;
-      }
-      setError(err instanceof Error ? err.message : t('common.error.generic'));
-    }
+  const onStart = async () => {
+    if (!token) return;
+    await startGame(id, token);
+    await reload();
   };
 
-  const onStart = () =>
-    void runTimerAction(() =>
-      startGame(id, token!, { deviceId, version: serverGame!.game.version }),
-    );
-
-  const onPauseResume = () => {
-    if (!game) return;
-    void runTimerAction(() =>
-      game.game.status === 'PLAYING'
-        ? pauseGame(id, token!, { deviceId, version: serverGame!.game.version })
-        : resumeGame(id, token!, { deviceId, version: serverGame!.game.version }),
-    );
+  const onPauseResume = async () => {
+    if (!token || !game) return;
+    if (game.game.status === 'PLAYING') await pauseGame(id, token);
+    else if (game.game.status === 'PAUSED') await resumeGame(id, token);
+    await reload();
   };
 
-  const onFinish = () =>
-    void runTimerAction(async () => {
-      await finishGame(id, token!, { deviceId, version: serverGame!.game.version });
-      setPick(null);
-    });
-
-  const onClaimLease = () => void claim(false).then(() => reload());
-  const onForceLease = () => {
-    if (!window.confirm(t('record.editor.forceConfirm'))) return;
-    void claim(true).then(() => reload());
+  const onFinish = async () => {
+    if (!token) return;
+    await finishGame(id, token);
+    setPick(null);
+    await reload();
   };
-  const onReleaseLease = () => void release().then(() => reload());
 
   const submitGoal = async (side: 'A' | 'B', scorerId: string, assistantId?: string) => {
-    if (!token || !serverGame || !canRecordGoals) return;
+    if (!token || !serverGame) return;
     const clientTs = Date.now() + serverOffset;
     try {
       if (editing) {
@@ -242,13 +204,7 @@ export function GameRecordPage() {
   };
 
   const onDeleteGoal = async (eventId: string) => {
-    if (!token || !serverGame || !canRecordGoals) return;
-    if (
-      !isServerConfirmedEvent(eventId, serverGame.events) &&
-      !pendingForGame.some((i) => i.payload.clientEventId === eventId)
-    ) {
-      return;
-    }
+    if (!token || !serverGame) return;
     try {
       const undoTarget = resolveUndoTarget(eventId, serverGame.events, pendingForGame);
       await enqueue(
@@ -272,12 +228,6 @@ export function GameRecordPage() {
 
   const onEditGoal = (event: GameDetail['events'][number]) => {
     if (event.teamSide !== 'A' && event.teamSide !== 'B') return;
-    if (
-      !isServerConfirmedEvent(event.id, serverGame?.events ?? []) &&
-      !pendingForGame.some((i) => i.payload.clientEventId === event.id)
-    ) {
-      return;
-    }
     setEditing({ eventId: event.id, side: event.teamSide });
     setPick({ side: event.teamSide });
   };
@@ -313,15 +263,6 @@ export function GameRecordPage() {
       backTo={eventShortCode ? `/events/${eventShortCode}` : '/'}
     >
       {error && <p className="text-sm text-danger">{error}</p>}
-      <EditorLeaseBanner
-        editor={editor}
-        myDeviceId={deviceId}
-        busy={leaseBusy}
-        canControlTimer={canControlTimer}
-        onClaim={() => void onClaimLease()}
-        onForce={onForceLease}
-        onRelease={() => void onReleaseLease()}
-      />
       {hasPending && (
         <p className="text-xs text-warning">
           {t('record.pending', { count: pendingForGame.length })}
@@ -332,24 +273,16 @@ export function GameRecordPage() {
 
       <div className="grid grid-cols-2 gap-2">
         {game.game.status === 'READY' && (
-          <PrimaryButton
-            className="col-span-2"
-            disabled={!canControlTimer}
-            onClick={onStart}
-          >
+          <PrimaryButton className="col-span-2" onClick={() => void onStart()}>
             {t('record.start')}
           </PrimaryButton>
         )}
         {inProgress && (
           <>
-            <PrimaryButton disabled={!canControlTimer} onClick={onPauseResume}>
+            <PrimaryButton onClick={() => void onPauseResume()}>
               {game.game.status === 'PLAYING' ? t('record.pause') : t('record.resume')}
             </PrimaryButton>
-            <PrimaryButton
-              className="bg-warning"
-              disabled={!canControlTimer}
-              onClick={onFinish}
-            >
+            <PrimaryButton className="bg-warning" onClick={() => void onFinish()}>
               {t('record.finish')}
             </PrimaryButton>
           </>
@@ -367,12 +300,12 @@ export function GameRecordPage() {
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <PrimaryButton disabled={!canRecordGoals} onClick={() => setPick({ side: 'A' })}>
+        <PrimaryButton onClick={() => setPick({ side: 'A' })}>
           {finished
             ? t('record.goalAFix', { name: game.teamA?.name ?? 'A' })
             : t('record.goalA')}
         </PrimaryButton>
-        <PrimaryButton disabled={!canRecordGoals} onClick={() => setPick({ side: 'B' })}>
+        <PrimaryButton onClick={() => setPick({ side: 'B' })}>
           {finished
             ? t('record.goalAFix', { name: game.teamB?.name ?? 'B' })
             : t('record.goalB')}
@@ -396,7 +329,7 @@ export function GameRecordPage() {
         <GameEventFeed
           game={game}
           scorableOnly
-          editable={canRecordGoals}
+          editable
           onDelete={(e) => void onDeleteGoal(e.id)}
           onEdit={onEditGoal}
         />

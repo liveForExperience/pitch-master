@@ -21,14 +21,12 @@ const baseGame: GameDetail = {
     plannedDurationMs: 1_800_000,
     pausedDurationMs: 0,
     pauseStartedAt: null,
-    version: 0,
   },
   teamA: { id: 't1', name: '红', colorHex: '#f00', roster: [] },
   teamB: { id: 't2', name: '蓝', colorHex: '#00f', roster: [] },
   events: [
     {
       id: 'srv-g1',
-      clientEventId: 'srv-g1-client',
       type: 'GOAL',
       teamSide: 'A',
       scorerRosterId: 'p1',
@@ -117,7 +115,6 @@ describe('outbox merge-game', () => {
     const score = deriveScore([
       {
         id: 'g1',
-        clientEventId: 'c-g1',
         type: 'GOAL',
         teamSide: 'A',
         scorerRosterId: null,
@@ -127,7 +124,6 @@ describe('outbox merge-game', () => {
       },
       {
         id: 'g2',
-        clientEventId: 'c-g2',
         type: 'GOAL',
         teamSide: 'B',
         scorerRosterId: null,
@@ -137,7 +133,6 @@ describe('outbox merge-game', () => {
       },
       {
         id: 'u1',
-        clientEventId: 'c-u1',
         type: 'UNDO',
         teamSide: null,
         scorerRosterId: null,

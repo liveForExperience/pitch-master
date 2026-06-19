@@ -20,7 +20,6 @@ describe('game-events semantics', () => {
   const events: GameDetail['events'] = [
     {
       id: 'g1',
-      clientEventId: 'c-g1',
       type: 'GOAL',
       teamSide: 'A',
       scorerRosterId: 'p1',
@@ -30,7 +29,6 @@ describe('game-events semantics', () => {
     },
     {
       id: 'g2',
-      clientEventId: 'c-g2',
       type: 'GOAL',
       teamSide: 'B',
       scorerRosterId: 'p2',
@@ -40,7 +38,6 @@ describe('game-events semantics', () => {
     },
     {
       id: 'u1',
-      clientEventId: 'c-u1',
       type: 'UNDO',
       teamSide: null,
       scorerRosterId: null,

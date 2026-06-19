@@ -243,56 +243,35 @@ ADR-0001 选定 systemd + Caddy 的部署形态作为远景。但实际进入 Ph
 
 ---
 
-## ADR-0008 · 多人录入渐进方案（S2 Editor Lease → S3 Multi-Writer）
+## ADR-0008 · Phase 5 多人录入（S2/S3）— 已回滚
 
-**日期**：2026-06-19
-**状态**：Accepted（需求方 2026-06-19 签署 `DEVELOPMENT_PLAN.md` §4.3）
-**决策者**：需求方 + 接手架构师
+**日期**：2026-06-19（立项）· 2026-06-19（回滚）
+**状态**：**Rejected**（需求方决定回退至 S1）
+**决策者**：需求方
 
 ### 背景
 
-v2 假设单管理员设备录入（ARCH §6.4）。实际球场需要：
-1. **S2**：把手机交给另一个人记，不必 PIN 换 token
-2. **S3**：两人同时记进球（边裁 + 主裁），但计时不能两人各按各的
-
-legacy Java 版有悲观锁 `lockUserId`；v2 重写时移除，现需以更轻量方式回归。
+曾立项 Phase 5A（Editor Lease / S2）与 Phase 5B（Multi-Writer / S3），并已合并上线（commit `91701b2`）。内测反馈：租约交接 + 多写者 reconcile 复杂度高、现场收益有限。
 
 ### 决策
 
 | 维度 | 选择 |
 |---|---|
-| **路径** | 先 S2（Phase 5A）再 S3（Phase 5B），不跳步 |
-| **S2 机制** | 场次级 Editor Lease（`deviceId` + TTL 90s），写操作门禁 |
-| **S3 机制** | 进球/UNDO 放开多写者；timer 仍 lease + `game.version` 乐观锁 |
-| **冲突合并** | 事件溯源 + `serverTs` 排序；**不用** Yjs/CRDT |
-| **身份** | 仍无用户系统；`deviceId` 仅 localStorage UUID |
-| **PIN** | 保留作换机兜底；与 lease 正交 |
-
-### 替代方案
-
-| 方案 | 弃用理由 |
-|---|---|
-| 仅 PIN 轮换 token | 无法防止双设备误同时写；换机体验重 |
-| 直接 S3 无 S2 | 计时竞态与 UX 提示未建立，排障难 |
-| Yjs 协同 | 领域是 append-only 事件，过度工程 |
-| 活动级锁 | 粒度太粗，无法「一人记分一人配队」 |
+| **目标状态** | **S1**：单设备录入 + 多端 SSE 只读观战 |
+| **换机** | 继续用分享码 + PIN 恢复 `adminToken`（`/admin/restore`） |
+| **代码** | `git revert 91701b2` 移除 lease / version / multi-writer |
+| **线上 DB** | 已执行的 `0001`/`0002` migration 列可保留（SQLite 冗余列无害）；不追 down migration |
 
 ### 后果
 
-**正面**：
-- S2 可独立交付，立刻改善换手机场景
-- S3 复用现有 `game_event` 模型，不改 deriveScore 哲学
-- 符合玩具级安全（仍共享 adminToken）
+- 产品回到「同一场比赛只一个管理员设备录入」假设（`ARCHITECTURE_V2.md` §6.4）
+- 删除：`editor-lease.service`、`EditorLeaseBanner`、`use-editor-lease`、`reconcile-game` 等
+- 多人协同录入列为 v3+ 候选，需重新 ADR 方可启动
 
-**负面**：
-- S3 前端 reconcile 复杂度上升（`merge-game` 演进）
-- `game` 表 schema 变更需 migration
-- 内测剧本需追加双设备用例
+### 关联
 
-### 关联文档
-
-- `DEVELOPMENT_PLAN.md` §2.6、§4.3
-- `docs/ARCHITECTURE_V2.md` §6.6、§6.7
+- Revert commit：`1cc1ee1`
+- `DEVELOPMENT_PLAN.md` §5 阶段日志
 
 ---
 
