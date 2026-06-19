@@ -1,4 +1,4 @@
-# PitchMaster v2 · 内测问题跟踪（Phase 3 T3.6）
+# PitchMaster · 内测问题跟踪（Phase 3 T3.6）
 
 > 邀请 3–5 人内部测试 2 周，记录 bug 与体验反馈。  
 > **不在本文件记录**：功能需求膨胀（应回到 `DEVELOPMENT_PLAN.md §1.4 Should-Have` 评审）。

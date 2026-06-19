@@ -1,4 +1,4 @@
-# PitchMaster v2 · 技术架构蓝图
+# PitchMaster · 技术架构蓝图
 
 > **状态**：草案 v0.1
 > **配套**：[`../DEVELOPMENT_PLAN.md`](../DEVELOPMENT_PLAN.md)（路线 + 阶段） · [`../AGENTS.md`](../AGENTS.md)（AI 上下文）
@@ -60,13 +60,7 @@ pitch-master/
 ├── docs/
 │   ├── ARCHITECTURE_V2.md          # 本文件
 │   └── DECISIONS.md                # ADR 记录（重大决策变更追加）
-├── legacy/                         # v1 全量归档（只读参考）
-│   ├── README.md                   # 说明"已废弃，仅参考"
-│   ├── backend/                    # 原 src/main, src/test
-│   ├── frontend/                   # 原 frontend/
-│   ├── docs-v1/                    # 原 docs/
-│   └── deploy-v1/                  # 原 deploy/
-├── backend/                        # v2 Node + Hono 后端
+├── backend/                        # Node + Hono 后端
 │   ├── src/
 │   │   ├── app.ts                  # Hono 入口
 │   │   ├── routes/
@@ -101,7 +95,7 @@ pitch-master/
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── vitest.config.ts
-├── web/                            # v2 React + Vite + PWA 前端
+├── web/                            # React + Vite + PWA 前端
 │   ├── src/
 │   │   ├── main.tsx
 │   │   ├── App.tsx                 # react-router 路由表
@@ -909,4 +903,4 @@ sudo systemctl start pitchmaster-v2
 
 | 日期 | 变更 | 兼容性 | 迁移说明 |
 |---|---|---|---|
-| 2026-MM-DD | 初版 v2 schema | - | 不与 v1 兼容（v1 数据归档 `legacy/`，不迁移） |
+| 2026-MM-DD | 初版 schema | - | 全新项目，无历史数据迁移 |

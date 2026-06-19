@@ -6,7 +6,6 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - 'legacy/**'
       - '.gitignore'
       - 'AGENTS.md'
       - 'DEVELOPMENT_PLAN.md'

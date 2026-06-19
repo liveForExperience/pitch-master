@@ -1,3 +1,0 @@
-UPDATE `match`
-SET `status` = 'REGISTRATION_CLOSED'
-WHERE `status` = 'GROUPING_DRAFT';

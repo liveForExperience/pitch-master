@@ -13,13 +13,13 @@
 |---|---|---|---|---|---|---|
 | **A. GitHub Actions SSH push（推荐）** | push 到 main 触发 Actions，Actions 通过 SSH key 登录 ECS 执行部署脚本 | GitHub Secrets 持有部署 SSH key | 被动 | 22 端口（已开） | 凭证泄露需轮换 deploy-key；deploy-key 可限定为只读子集 | 中 |
 | B. ECS pull + cron | crontab 每分钟 `git pull && rebuild` | ECS 本地凭证 / public repo | 主动 | 不需 | 单点；轮询浪费；延迟最长 1 分钟 | 低 |
-| C. webhook（v1 用过） | GitHub Webhook POST → ECS 上 webhook 进程触发 build | webhook secret + Git 拉取凭证 | 被动 | 需开 :9000 或经 Nginx /webhook 反代 | 多一个常驻进程；密钥管理散乱（v1 用过默认 token） | 中 |
-| D. Watchtower / 容器编排 | 镜像 push 触发 pull | Registry token | 主动 | 不需 | 引入容器/镜像仓库，反复制装备 | 高（且违背 v2 minimalist 原则） |
+| C. webhook | GitHub Webhook POST → ECS 上 webhook 进程触发 build | webhook secret + Git 拉取凭证 | 被动 | 需开 :9000 或经 Nginx /webhook 反代 | 多一个常驻进程；密钥管理散乱 | 中 |
+| D. Watchtower / 容器编排 | 镜像 push 触发 pull | Registry token | 主动 | 不需 | 引入容器/镜像仓库，反复制装备 | 高（且违背 minimalist 原则） |
 
 **决策：方案 A**。理由：
 - 与 GitHub Actions 一脉相承，构建产物落 release artifact 可追溯
 - 一台 1.8 GiB ECS 不适合"边构建边跑应用"——构建放 Actions 上，部署只解压与重启
-- 凭证集中在 GitHub Secrets，比 v1 时代 hardcoded 在 webhook 中的 `your-secret-token` 安全得多
+- 凭证集中在 GitHub Secrets，比 webhook 硬编码密钥安全得多
 - 触发即时（push 几秒后开始），无轮询延迟
 
 > ADR-0007 将在 Phase 3 实施前正式签发并记入 `DECISIONS.md`。
@@ -28,7 +28,7 @@
 
 - **不在 ECS 上构建**（内存只有 1.8 GiB，跑 Vite + 应用同时容易 OOM）
 - **构建产物原子替换**：每次部署用 `mv` 切换目录的方式，失败可秒级回滚
-- **零停机不强求**：v2 是玩具项目，0.5 秒中断完全可接受；不上 blue-green
+- **零停机不强求**：玩具项目，0.5 秒中断完全可接受；不上 blue-green
 - **SSH key 只为部署服务**：不复用 root 的私人 key，专用 deploy key，限定 forced command
 
 ---
@@ -258,7 +258,7 @@ IP-only 自签证书在 iOS 需手动信任（见 PLAN §3 R5）。
 
 ## 8. 现状（Phase 0 末已落地）
 
-- ✅ ECS 上 v1 已彻底下线
+- ✅ ECS 生产环境已就绪
 - ✅ GitHub 远端 `https://github.com/liveForExperience/pitch-master.git` 可写
 - ✅ ECS 已 bootstrap（Node 22 / `/opt/pitchmaster-v2/` 目录 / deploy key / systemd unit enabled）
 - ✅ Nginx site `pitchmaster-v2.conf` 已落地，`/api/* → :3000`，`/` → `current/web/dist`

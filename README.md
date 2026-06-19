@@ -1,11 +1,9 @@
-# PitchMaster v2
+# PitchMaster
 
 > **一个让球场边一个人用一部手机，10 秒内开始一场比赛、5 秒内记下一个进球、活动结束自动出战报的工具。**
 
-PitchMaster v2 是为业余足球小圈子（自己 + 朋友 1-2 个俱乐部，<50 人）设计的"现场实战记录器"。
+PitchMaster 是为业余足球小圈子（自己 + 朋友 1-2 个俱乐部，<50 人）设计的"现场实战记录器"。
 极简、移动优先、断网可用、零账号注册。
-
-> ⚠️ v1（Spring Boot + MySQL + FM 评分）已于 2026-06 推倒重做。v1 完整归档在 [`legacy/`](./legacy/) 仅供参考，不再维护。
 
 ---
 
@@ -19,7 +17,7 @@ PitchMaster v2 是为业余足球小圈子（自己 + 朋友 1-2 个俱乐部，
 
 ---
 
-## 技术栈（v2）
+## 技术栈
 
 | 层 | 选型 |
 |---|---|
@@ -55,7 +53,7 @@ bash bin/dev.sh    # 一键启动 backend(:3000) + web(:5173)
 ```
 /
 ├── AGENTS.md                 # AI 编码代理上下文（唯一）
-├── DEVELOPMENT_PLAN.md       # 当前开发路线 + 阶段计划 + 验收门禁
+├── DEVELOPMENT_PLAN.md       # 开发路线 + 阶段计划 + 验收门禁
 ├── README.md                 # 本文件
 ├── .nvmrc                    # Node 20
 ├── bin/dev.sh                # 一键启动两端
@@ -63,10 +61,9 @@ bash bin/dev.sh    # 一键启动 backend(:3000) + web(:5173)
 │   ├── ARCHITECTURE_V2.md    # 技术蓝图（DDL / API / 算法）
 │   ├── DECISIONS.md          # ADR 决策记录
 │   ├── DEPLOYMENT.md         # ECS 部署与 GitHub Actions
-│   └── issues-tracking.md    # Phase 3 内测问题跟踪
-├── legacy/                   # v1 归档（已废弃）
-├── backend/                  # v2 Node + Hono 后端
-├── web/                      # v2 React + Vite PWA 前端
+│   └── issues-tracking.md    # 内测问题跟踪
+├── backend/                  # Node + Hono 后端
+├── web/                      # React + Vite PWA 前端
 └── deploy/                   # systemd / Nginx / GitHub Actions 部署脚本
 ```
 
@@ -78,10 +75,10 @@ bash bin/dev.sh    # 一键启动 backend(:3000) + web(:5173)
 
 | 阶段 | 状态 | 说明 |
 |---|---|---|
-| Phase 0 | ✅ 完成 | v1 归档、脚手架、ECS 部署链路（ADR-0007） |
+| Phase 0 | ✅ 完成 | 脚手架、ECS 部署链路 |
 | Phase 1 | ✅ 完成 | MVP 在线版：建活动 → 配队 → 开赛 → 记进球 → SSE 观战 |
-| Phase 2 | ✅ 完成 | 离线 outbox + batch replay + 战报 H5/海报 + PWA 增强 + 分享（PR #6） |
-| UI 视觉升级 | 🚧 PR 链 | Notion-体育 minimalist 四阶段（token / 海报 4:5 / H5 战报 / App UI），见 PR #7–#12 |
+| Phase 2 | ✅ 完成 | 离线 outbox + batch replay + 战报 H5/海报 + PWA 增强 + 分享 |
+| UI 视觉升级 | 🚧 PR 链 | Notion-体育 minimalist 四阶段（token / 海报 4:5 / H5 战报 / App UI） |
 | Phase 3 | 🟡 部分 | 自动部署 + healthz + 备份/恢复演练 ✅；HTTPS 暂缓；内测 Gate 待启动 |
 | Phase 4 | ⬜ 待定 | Apple Watch（可选） |
 
