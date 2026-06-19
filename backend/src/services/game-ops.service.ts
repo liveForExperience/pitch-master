@@ -6,6 +6,7 @@ import { newId, nowMs } from '../lib/id.js';
 import { deriveScore } from './game.service.js';
 import { buildTimerState } from './timer.service.js';
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js';
+import { buildEditorState } from './editor-lease.service.js';
 import { DEFAULT_PLANNED_DURATION_MS } from '../lib/game-defaults.js';
 import { normalizeShortCode } from '../lib/short-code.js';
 
@@ -140,7 +141,33 @@ async function loadGameEvents(db: AppDb, gameId: string) {
     .select()
     .from(gameEvents)
     .where(eq(gameEvents.gameId, gameId))
-    .orderBy(asc(gameEvents.serverTs));
+    .orderBy(asc(gameEvents.serverTs), asc(gameEvents.clientEventId));
+}
+
+async function mutateGame(
+  db: AppDb,
+  gameId: string,
+  expectedVersion: number | undefined,
+  values: {
+    status?: 'READY' | 'PLAYING' | 'PAUSED' | 'FINISHED';
+    startedAt?: number | null;
+    finishedAt?: number | null;
+    pausedDurationMs?: number;
+    pauseStartedAt?: number | null;
+  },
+) {
+  const game = await loadGame(db, gameId);
+  const currentVersion = game.version;
+  if (expectedVersion != null && expectedVersion !== currentVersion) {
+    throw new ConflictError('Game version conflict');
+  }
+  const rows = await db
+    .update(games)
+    .set({ ...values, version: currentVersion + 1 })
+    .where(and(eq(games.id, gameId), eq(games.version, currentVersion)))
+    .returning();
+  if (!rows[0]) throw new ConflictError('Game version conflict');
+  return rows[0];
 }
 
 function mapScoreEvents(rows: Awaited<ReturnType<typeof loadGameEvents>>) {
@@ -161,46 +188,48 @@ async function emitGameUpdate(db: AppDb, gameId: string, type: string, extra?: R
   broadcast(gameId, 'timer_tick', { elapsedMs: timer.elapsedMs, status: timer.status });
 }
 
-export async function startGame(db: AppDb, gameId: string) {
+export async function startGame(db: AppDb, gameId: string, expectedVersion?: number) {
   const game = await loadGame(db, gameId);
   if (game.status !== 'READY') throw new ConflictError('Game already started');
   const ts = nowMs();
-  await db
-    .update(games)
-    .set({ status: 'PLAYING', startedAt: ts, pauseStartedAt: null })
-    .where(eq(games.id, gameId));
+  await mutateGame(db, gameId, expectedVersion, {
+    status: 'PLAYING',
+    startedAt: ts,
+    pauseStartedAt: null,
+  });
   await emitGameUpdate(db, gameId, 'START');
   return { gameId, startedAt: ts };
 }
 
-export async function pauseGame(db: AppDb, gameId: string) {
+export async function pauseGame(db: AppDb, gameId: string, expectedVersion?: number) {
   const game = await loadGame(db, gameId);
   if (game.status !== 'PLAYING') throw new ConflictError('Game is not playing');
   const ts = nowMs();
-  await db
-    .update(games)
-    .set({ status: 'PAUSED', pauseStartedAt: ts })
-    .where(eq(games.id, gameId));
+  await mutateGame(db, gameId, expectedVersion, {
+    status: 'PAUSED',
+    pauseStartedAt: ts,
+  });
   await emitGameUpdate(db, gameId, 'PAUSE');
   return { gameId, pauseStartedAt: ts };
 }
 
-export async function resumeGame(db: AppDb, gameId: string) {
+export async function resumeGame(db: AppDb, gameId: string, expectedVersion?: number) {
   const game = await loadGame(db, gameId);
   if (game.status !== 'PAUSED' || game.pauseStartedAt == null) {
     throw new ConflictError('Game is not paused');
   }
   const ts = nowMs();
   const pausedDurationMs = game.pausedDurationMs + (ts - game.pauseStartedAt);
-  await db
-    .update(games)
-    .set({ status: 'PLAYING', pausedDurationMs, pauseStartedAt: null })
-    .where(eq(games.id, gameId));
+  await mutateGame(db, gameId, expectedVersion, {
+    status: 'PLAYING',
+    pausedDurationMs,
+    pauseStartedAt: null,
+  });
   await emitGameUpdate(db, gameId, 'RESUME');
   return { gameId, pausedDurationMs };
 }
 
-export async function finishGame(db: AppDb, gameId: string) {
+export async function finishGame(db: AppDb, gameId: string, expectedVersion?: number) {
   const game = await loadGame(db, gameId);
   if (game.status === 'FINISHED') throw new ConflictError('Game already finished');
   const ts = nowMs();
@@ -208,15 +237,12 @@ export async function finishGame(db: AppDb, gameId: string) {
   if (game.status === 'PAUSED' && game.pauseStartedAt != null) {
     pausedDurationMs += ts - game.pauseStartedAt;
   }
-  await db
-    .update(games)
-    .set({
-      status: 'FINISHED',
-      finishedAt: ts,
-      pauseStartedAt: null,
-      pausedDurationMs,
-    })
-    .where(eq(games.id, gameId));
+  await mutateGame(db, gameId, expectedVersion, {
+    status: 'FINISHED',
+    finishedAt: ts,
+    pauseStartedAt: null,
+    pausedDurationMs,
+  });
   await emitGameUpdate(db, gameId, 'FINISH');
   return { gameId, finishedAt: ts };
 }
@@ -339,7 +365,7 @@ export async function undoGameEvent(
   return { event: row, scoreA: score.scoreA, scoreB: score.scoreB, idempotent: false as const };
 }
 
-export async function getGameDetail(db: AppDb, gameId: string) {
+export async function getGameDetail(db: AppDb, gameId: string, requestDeviceId?: string | null) {
   const game = await loadGame(db, gameId);
   const rows = await loadGameEvents(db, gameId);
   const score = deriveScore(mapScoreEvents(rows));
@@ -383,14 +409,25 @@ export async function getGameDetail(db: AppDb, gameId: string) {
       plannedDurationMs: game.plannedDurationMs,
       pausedDurationMs: game.pausedDurationMs,
       pauseStartedAt: game.pauseStartedAt,
+      version: game.version,
     },
     teamA: mapTeam(teamA, rosterA),
     teamB: mapTeam(teamB, rosterB),
-    events: rows,
+    events: rows.map((e) => ({
+      id: e.id,
+      clientEventId: e.clientEventId,
+      type: e.type,
+      teamSide: e.teamSide,
+      scorerRosterId: e.scorerRosterId,
+      assistantRosterId: e.assistantRosterId,
+      undoTargetEventId: e.undoTargetEventId,
+      serverTs: e.serverTs,
+    })),
     scoreA: score.scoreA,
     scoreB: score.scoreB,
     timer,
     eventShortCode: eventRow?.shortCode ?? null,
+    editor: buildEditorState(game, requestDeviceId),
   };
 }
 

@@ -45,16 +45,24 @@ export type TimerState = {
   plannedDurationMs: number;
 };
 
+export type EditorState = {
+  deviceId: string | null;
+  expiresAt: number | null;
+  isHeldByMe: boolean;
+};
+
 export type GameDetail = {
   game: GameSummary & {
     eventId: string;
     pausedDurationMs: number;
     pauseStartedAt: number | null;
+    version: number;
   };
   teamA: Team | undefined;
   teamB: Team | undefined;
   events: Array<{
     id: string;
+    clientEventId: string;
     type: string;
     teamSide: string | null;
     scorerRosterId: string | null;
@@ -66,6 +74,7 @@ export type GameDetail = {
   scoreB: number;
   timer: TimerState;
   eventShortCode: string | null;
+  editor?: EditorState;
 };
 
 export type TeamBrief = { id: string; name: string; colorHex: string };

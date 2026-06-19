@@ -4,7 +4,11 @@ import { t } from '../i18n';
 
 export { ApiError };
 
-type RequestOpts = RequestInit & { adminToken?: string | null; pin?: string };
+type RequestOpts = RequestInit & {
+  adminToken?: string | null;
+  pin?: string;
+  deviceId?: string | null;
+};
 
 function buildUrl(path: string, pin?: string): string {
   if (!pin) return path;
@@ -15,6 +19,7 @@ function buildUrl(path: string, pin?: string): string {
 export async function apiRequest<T>(path: string, opts: RequestOpts = {}): Promise<T> {
   const headers = new Headers(opts.headers);
   if (opts.adminToken) headers.set('Authorization', `Bearer ${opts.adminToken}`);
+  if (opts.deviceId) headers.set('X-Device-Id', opts.deviceId);
   if (opts.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }

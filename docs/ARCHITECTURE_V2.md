@@ -248,6 +248,8 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | POST | `/api/games/:id/events` | Admin | 单条事件（`PLAYING`/`PAUSED`/`FINISHED` 均可，用于赛后补录） |
 | POST | `/api/games/:id/events/batch` | Admin | 离线 outbox 批量 replay（按 `clientTs` 排序，幂等） |
 | DELETE | `/api/games/:id/events/:eventId` | Admin | 撤销事件（写入 UNDO；`FINISHED` 亦可，用于赛后修正） |
+| POST | `/api/games/:id/editor` | Admin | **Phase 5A** 领取/续租/抢锁录入权 `{deviceId, force?}` |
+| DELETE | `/api/games/:id/editor` | Admin | **Phase 5A** 释放录入权（Query `deviceId`） |
 | GET | `/api/games/:id/stream` | 公开 | SSE 订阅 |
 | GET | `/api/games/:id/report` | 公开 | 单场战报 JSON |
 | GET | `/api/games/:id/poster.png` | 公开 | 单场海报 PNG |
@@ -377,17 +379,125 @@ worker.flush():
 - DB 唯一约束 `(game_id, client_event_id)`
 - 重复提交 → 服务端检测后返回 200 + 现有记录（视为成功）
 
-### 6.4 冲突说明（v2 假设）
+### 6.4 冲突说明（演进路线）
 
-**v2 假设**：同一场比赛**只有一个管理员设备**在录入。其他设备只读。
-- 该假设让我们彻底避开 CRDT / OT 的复杂度
-- 如果未来 v3 需要多人协同录入，再引入 yjs 或类似方案
+**v2 基线（Phase 1–4）**：同一场比赛**只有一个管理员设备**在录入。其他设备只读。刻意避开 CRDT / OT。
+
+**Phase 5A（S2）**：场次级 **Editor Lease**——仍单写者，但支持显式交接（§6.6）。
+
+**Phase 5B（S3）**：进球/撤销改为 **Multi-Writer Event Log**；计时仍单持有者（§6.7）。不引入 Yjs。
 
 ### 6.5 时钟纠偏
 
 - 录入时 `clientTs = Date.now() + clientServerOffsetMs`
 - `clientServerOffsetMs` 由 `GET /api/time` 校准，每 5 分钟自动重新校准
 - 这避免了用户手机时间错乱导致事件顺序混乱
+
+### 6.6 Editor Lease（Phase 5A · S2）
+
+#### 6.6.1 DDL 变更
+
+`game` 表追加：
+
+```sql
+ALTER TABLE game ADD COLUMN editor_device_id TEXT;
+ALTER TABLE game ADD COLUMN editor_lease_expires_at INTEGER;
+-- Phase 5B 追加：
+-- ALTER TABLE game ADD COLUMN version INTEGER NOT NULL DEFAULT 0;
+```
+
+#### 6.6.2 租约语义
+
+| 字段 | 说明 |
+|---|---|
+| `editor_device_id` | 当前持有者客户端 `deviceId`（UUID v4，存 localStorage `pm:deviceId`） |
+| `editor_lease_expires_at` | epoch ms；`now > expires` 视为无持有者 |
+
+操作（均需 Admin 鉴权）：
+
+| Method | Path | Body | 响应 |
+|---|---|---|---|
+| POST | `/api/games/:id/editor` | `{ deviceId, force?: boolean }` | `{ deviceId, expiresAt }` |
+| DELETE | `/api/games/:id/editor` | Query `deviceId` | `{ released: true }` |
+
+`GET /api/games/:id` 的 `data` 增加：
+
+```json
+"editor": {
+  "deviceId": "uuid-or-null",
+  "expiresAt": 1718712345678,
+  "isHeldByMe": false
+}
+```
+
+`isHeldByMe` 由服务端根据请求头 `X-Device-Id` 计算（可选；前端也可本地比对）。
+
+#### 6.6.3 写门禁（S2 全量 · S3 仅 timer）
+
+Phase 5A：以下接口除 Admin 鉴权外，还要求 `editor_device_id === X-Device-Id` 且租约未过期：
+
+- `POST /api/games/:id/start|pause|resume|finish`
+- `POST /api/games/:id/events`
+- `POST /api/games/:id/events/batch`
+- `DELETE /api/games/:id/events/:eventId`
+
+失败：`409` `{ code: "editor_lease_required", message, data: { holderDeviceId, expiresAt } }`
+
+Phase 5B 调整为：仅 **timer 类** 路由保留租约门禁；events 路由放开（见 §6.7）。
+
+#### 6.6.4 SSE
+
+新增事件类型 `editor_changed`：
+
+```json
+{ "deviceId": "...", "expiresAt": 1718712345678 }
+```
+
+#### 6.6.5 服务模块
+
+- `backend/src/services/editor-lease.service.ts`
+- `backend/src/lib/editor-guard.ts` — 路由层调用，不嵌入 `game-ops.service` 业务
+
+### 6.7 Multi-Writer Event Log（Phase 5B · S3）
+
+#### 6.7.1 原则
+
+- **比分真相源**：`game_event` 追加流 + `deriveScore()`（不变）
+- **排序**：`ORDER BY server_ts ASC, client_event_id ASC`（展示、战报、MVP tie-break）
+- **batch replay**：先按 `clientTs` 粗排写入，最终以 `serverTs` 为准；测试须覆盖
+
+#### 6.7.2 Timer 乐观锁
+
+`game.version` 在每次 `start/pause/resume/finish` 成功时 `+1`。
+
+```sql
+UPDATE game SET status=?, ..., version = version + 1
+WHERE id = ? AND version = ?
+```
+
+`changes === 0` → `409 conflict` + 附带 `GET /api/games/:id` 同等载荷。
+
+#### 6.7.3 UNDO 跨设备约束
+
+| 目标状态 | 允许撤销？ |
+|---|---|
+| 服务端已有 `game_event.id` | ✅ 任意 admin 设备（S3 无 lease 限制） |
+| 仅存在于他机 outbox（未 flush） | ❌ `validation_error` |
+| 本机 outbox pending | ✅ `undoTargetClientEventId`（batch 内解析，已有） |
+
+#### 6.7.4 客户端 reconcile
+
+`web/src/lib/outbox/reconcile-game.ts`（由 `merge-game.ts` 演进）：
+
+1. 以服务端 `events` 为基底
+2. 叠加**本机** `PENDING` outbox（合成临时事件）
+3. SSE `game_update` 到达 → 拉取或合并增量 → 清除已确认 outbox 行
+4. 409 / 版本落后 → 后台 `GET /api/games/:id`，不阻塞 UI 点击
+
+#### 6.7.5 明确不做的
+
+- 活动级 / roster 级多人编辑锁
+- 设备级 `recorded_by_device_id` 审计字段（可选 v4；Phase 5 不加）
 
 ---
 
@@ -954,4 +1064,5 @@ sudo systemctl start pitchmaster-v2
 
 | 日期 | 变更 | 兼容性 | 迁移说明 |
 |---|---|---|---|
+| 2026-06-19 | Phase 5B multi-writer：`game.version`、events 免 lease、API 暴露 `clientEventId` | 向前兼容 | migration `0002_game_version` |
 | 2026-MM-DD | 初版 schema | - | 全新项目，无历史数据迁移 |
