@@ -41,11 +41,19 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test (backend)
-        run: npm test -w pitchmaster-backend
+      - name: Test
+        run: npm test
 
       - name: Build (backend + web)
         run: npm run build
+
+      - name: Verify release artifacts
+        run: |
+          set -euo pipefail
+          test -f backend/dist/index.js
+          test -f backend/dist/db/migrations/0000_initial.sql
+          test -f web/dist/index.html
+          echo "✓ migrations + dist artifacts present"
 
       - name: Package release tarball
         run: |

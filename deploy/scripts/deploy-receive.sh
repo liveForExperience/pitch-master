@@ -81,6 +81,9 @@ done
 
 if [[ $ok -eq 0 ]]; then
   log "  ✘ 健康检查全部失败"
+  log "  --- journalctl (last 30 lines) ---"
+  journalctl -u "${SERVICE}" -n 30 --no-pager 2>/dev/null || true
+  log "  --- end journalctl ---"
   if [[ -n "$PREVIOUS_RELEASE" && -d "$PREVIOUS_RELEASE" ]]; then
     log "  ↩ 回滚 current → $(basename "$PREVIOUS_RELEASE")"
     ln -sfn "$PREVIOUS_RELEASE" "${CURRENT}"
