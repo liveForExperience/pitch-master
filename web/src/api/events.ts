@@ -30,6 +30,19 @@ export const addRoster = (teamId: string, names: string[], adminToken: string) =
     adminToken,
   });
 
+export const updateTeamName = (teamId: string, name: string, adminToken: string) =>
+  apiRequest<{ id: string; name: string; colorHex: string }>(`/api/teams/${teamId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+    adminToken,
+  });
+
+export const removeRosterMember = (rosterId: string, adminToken: string) =>
+  apiRequest<{ id: string; teamId: string; name: string }>(`/api/roster/${rosterId}`, {
+    method: 'DELETE',
+    adminToken,
+  });
+
 export const createGame = (
   eventId: string,
   teamAId: string,

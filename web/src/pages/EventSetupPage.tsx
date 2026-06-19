@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchEvent } from '../api/events';
+import {
+  addRoster,
+  fetchEvent,
+  removeRosterMember as removeRosterMemberApi,
+  updateTeamName,
+} from '../api/events';
 import type { EventDetail } from '../api/types';
 import { RosterImportPanel } from '../components/roster/RosterImportPanel';
-import { TeamImportChips } from '../components/roster/TeamImportChips';
-import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
+import { TeamSetupCard } from '../components/roster/TeamSetupCard';
+import { PageShell } from '../components/ui/layout';
 import { useT } from '../i18n';
+import { mergeIntoPool, nameReturnsToPool } from '../lib/roster-pool';
 import {
   clearRosterImportPool,
   loadRosterImportPool,
@@ -68,86 +74,103 @@ export function EventSetupPage() {
     await reload();
   };
 
-  const addPlayers = async (teamId: string) => {
+  const addPlayers = async (teamId: string, chipNames: string[]) => {
     const raw = draftNames[teamId] ?? '';
-    const names = raw.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
-    if (!names.length) return;
-    const { addRoster } = await import('../api/events');
-    await addRoster(teamId, names, token);
-    setDraftNames((d) => ({ ...d, [teamId]: '' }));
+    const manualNames = raw.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
+    const allNames = [...chipNames, ...manualNames];
+    if (!allNames.length) return;
+
+    await addRoster(teamId, allNames, token);
+
+    if (chipNames.length) {
+      setImportPool((prev) => {
+        const next = prev.filter((n) => !chipNames.includes(n));
+        if (event?.id) saveRosterImportPool(event.id, next);
+        return next;
+      });
+    }
+    if (manualNames.length) {
+      setDraftNames((d) => ({ ...d, [teamId]: '' }));
+    }
     await reload();
   };
 
-  const addFromImport = async (teamId: string, names: string[]) => {
-    const { addRoster } = await import('../api/events');
-    await addRoster(teamId, names, token);
-    setImportPool((prev) => {
-      const next = prev.filter((n) => !names.includes(n));
-      if (event?.id) saveRosterImportPool(event.id, next);
-      return next;
-    });
+  const renameTeam = async (teamId: string, name: string) => {
+    await updateTeamName(teamId, name, token);
     await reload();
+  };
+
+  const removePlayer = async (teamId: string, rosterId: string, playerName: string) => {
+    try {
+      await removeRosterMemberApi(rosterId, token);
+      if (event && nameReturnsToPool(playerName, event.teams, teamId)) {
+        setImportPool((prev) => {
+          const next = mergeIntoPool(prev, playerName);
+          saveRosterImportPool(event.id, next);
+          return next;
+        });
+      }
+      await reload();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('setup.removePlayerError');
+      setError(message);
+    }
   };
 
   return (
     <PageShell title={t('setup.title')} backTo={`/events/${shortCode}`}>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && (
+        <p className="rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
 
       <RosterImportPanel pool={importPool} onPoolChange={updateImportPool} />
 
-      <Card>
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <label className="mb-2 block text-xs font-medium text-textSec">
+          {t('setup.newTeamPlaceholder')}
+        </label>
         <div className="flex gap-2">
           <input
-            className="flex-1 rounded-xl border border-border bg-surface px-3 py-3 text-textPri"
+            className="min-w-0 flex-1 rounded-lg border border-border bg-elevated px-3 py-2.5 text-sm text-textPri outline-none focus:border-primary"
             placeholder={t('setup.newTeamPlaceholder')}
             value={newTeam}
             onChange={(e) => setNewTeam(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void addTeam();
+            }}
           />
           <button
             type="button"
-            className="rounded-xl bg-primary px-4 font-semibold text-textInv"
+            className="shrink-0 rounded-lg bg-textPri px-4 py-2.5 text-sm font-semibold text-textInv active:scale-[0.98] disabled:opacity-40"
+            disabled={!newTeam.trim()}
             onClick={() => void addTeam()}
           >
             {t('common.add')}
           </button>
         </div>
-      </Card>
+      </section>
 
-      {event?.teams.map((team) => (
-        <Card key={team.id}>
-          <div className="mb-2 flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full" style={{ background: team.colorHex }} />
-            <h3 className="font-semibold">{team.name}</h3>
-          </div>
-          <ul className="mb-3 space-y-1 text-sm">
-            {team.roster.map((p) => (
-              <li key={p.id}>{p.name}</li>
-            ))}
-          </ul>
-
-          <TeamImportChips
-            teamName={team.name}
-            pool={importPool}
-            rosterNames={team.roster.map((p) => p.name)}
-            onAdd={(names) => addFromImport(team.id, names)}
+      <div className="space-y-3">
+        {event?.teams.map((team) => (
+          <TeamSetupCard
+            key={team.id}
+            team={team}
+            importPool={importPool}
+            draftValue={draftNames[team.id] ?? ''}
+            adminToken={token}
+            onDraftChange={(value) => setDraftNames((d) => ({ ...d, [team.id]: value }))}
+            onRename={renameTeam}
+            onAddPlayers={addPlayers}
+            onRemovePlayer={removePlayer}
           />
-
-          <textarea
-            className="mb-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-textPri"
-            rows={2}
-            placeholder={t('setup.addRosterPlaceholder')}
-            value={draftNames[team.id] ?? ''}
-            onChange={(e) => setDraftNames((d) => ({ ...d, [team.id]: e.target.value }))}
-          />
-          <PrimaryButton onClick={() => void addPlayers(team.id)}>
-            {t('setup.addRoster')}
-          </PrimaryButton>
-        </Card>
-      ))}
+        ))}
+      </div>
 
       <button
         type="button"
-        className="w-full text-center text-sm text-primary"
+        className="w-full py-2 text-center text-sm font-medium text-primary"
         onClick={() => nav(`/events/${shortCode}`)}
       >
         {t('setup.done')}

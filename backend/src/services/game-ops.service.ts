@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, or } from 'drizzle-orm';
 import type { AppDb } from '../db/client.js';
 import { events, gameEvents, games, rosters, teams } from '../db/schema.js';
 import { broadcast } from '../lib/sse-broker.js';
@@ -105,6 +105,36 @@ export async function addRosterMembers(db: AppDb, teamId: string, names: string[
     created.push({ id, teamId, name: trimmed });
   }
   return created;
+}
+
+export async function updateTeam(db: AppDb, teamId: string, input: { name: string }) {
+  const trimmed = input.name.trim();
+  if (!trimmed) throw new ValidationError('name is required');
+
+  const [team] = await db.select().from(teams).where(eq(teams.id, teamId)).limit(1);
+  if (!team) throw new NotFoundError('Team not found');
+
+  await db.update(teams).set({ name: trimmed }).where(eq(teams.id, teamId));
+  return { id: teamId, eventId: team.eventId, name: trimmed, colorHex: team.colorHex };
+}
+
+export async function removeRosterMember(db: AppDb, rosterId: string) {
+  const [member] = await db.select().from(rosters).where(eq(rosters.id, rosterId)).limit(1);
+  if (!member) throw new NotFoundError('Roster member not found');
+
+  const [referenced] = await db
+    .select({ id: gameEvents.id })
+    .from(gameEvents)
+    .where(
+      or(eq(gameEvents.scorerRosterId, rosterId), eq(gameEvents.assistantRosterId, rosterId)),
+    )
+    .limit(1);
+  if (referenced) {
+    throw new ConflictError('Cannot remove player with recorded game events');
+  }
+
+  await db.delete(rosters).where(eq(rosters.id, rosterId));
+  return { id: rosterId, teamId: member.teamId, name: member.name };
 }
 
 export async function createGame(

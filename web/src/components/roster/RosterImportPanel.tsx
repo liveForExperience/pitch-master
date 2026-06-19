@@ -1,5 +1,5 @@
+import { Trash } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Card, PrimaryButton } from '../ui/layout';
 import { useT } from '../../i18n';
 import { parseWechatSignupText } from '../../lib/roster-import';
 
@@ -44,14 +44,14 @@ export function RosterImportPanel({ pool, onPoolChange }: Props) {
   };
 
   return (
-    <Card>
+    <section className="overflow-hidden rounded-xl border border-border bg-surface">
       <button
         type="button"
-        className="flex w-full items-center justify-between text-left"
+        className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors hover:bg-chipBg/40"
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="font-semibold text-textPri">{t('roster.title')}</span>
-        <span className="text-sm text-textSec">
+        <span className="text-sm font-semibold tracking-tight text-textPri">{t('roster.title')}</span>
+        <span className="font-mono text-xs tabular-nums text-textSec">
           {pool.length
             ? t('roster.pending', { count: pool.length })
             : open
@@ -61,10 +61,10 @@ export function RosterImportPanel({ pool, onPoolChange }: Props) {
       </button>
 
       {open && (
-        <div className="mt-3 space-y-3 border-t border-border pt-3">
-          <p className="text-xs text-textSec">{t('roster.help')}</p>
+        <div className="space-y-4 border-t border-border px-4 py-4">
+          <p className="text-xs leading-relaxed text-textSec">{t('roster.help')}</p>
           <textarea
-            className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-textPri"
+            className="w-full resize-none rounded-lg border border-border bg-elevated px-3 py-2.5 text-sm leading-relaxed text-textPri outline-none focus:border-primary"
             rows={5}
             placeholder={t('roster.placeholder')}
             value={paste}
@@ -73,26 +73,35 @@ export function RosterImportPanel({ pool, onPoolChange }: Props) {
               setParseHint('');
             }}
           />
-          <PrimaryButton className="min-h-12" onClick={parseAndMerge}>
+          <button
+            type="button"
+            className="w-full rounded-lg bg-textPri px-4 py-2.5 text-sm font-semibold text-textInv active:scale-[0.98]"
+            onClick={parseAndMerge}
+          >
             {t('roster.parse')}
-          </PrimaryButton>
+          </button>
           {parseHint && <p className="text-xs text-textSec">{parseHint}</p>}
 
           {pool.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-medium text-textSec">{t('roster.poolHeader')}</p>
-              <ul className="flex flex-wrap gap-2">
+            <div className="rounded-lg border border-border bg-elevated/80 p-3">
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-textSec">{t('roster.poolHeader')}</p>
+                <span className="font-mono text-[11px] tabular-nums text-textSec">{pool.length}</span>
+              </div>
+              <ul className="flex min-w-0 flex-wrap gap-1.5">
                 {pool.map((name) => (
-                  <li key={name}>
-                    <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-chipBg px-3 py-1 text-sm">
-                      <span className="truncate">{name}</span>
+                  <li key={name} className="min-w-0 max-w-full">
+                    <span className="flex w-max max-w-full min-w-0 items-center gap-1 rounded-lg border border-border bg-surface py-1 pl-2.5 pr-1 text-sm text-textPri">
+                      <span className="min-w-0 truncate" title={name}>
+                        {name}
+                      </span>
                       <button
                         type="button"
-                        className="shrink-0 text-textSec hover:text-danger"
-                        aria-label={t('roster.remove', { name })}
+                        className="flex shrink-0 items-center rounded-md px-1.5 py-1 text-textSec transition-colors hover:bg-chipBg hover:text-danger"
+                        aria-label={t('roster.deleteFromPool', { name })}
                         onClick={() => removeFromPool(name)}
                       >
-                        ×
+                        <Trash size={13} weight="bold" />
                       </button>
                     </span>
                   </li>
@@ -102,6 +111,6 @@ export function RosterImportPanel({ pool, onPoolChange }: Props) {
           )}
         </div>
       )}
-    </Card>
+    </section>
   );
 }
