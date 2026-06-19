@@ -9,7 +9,7 @@ import {
   verifyAdminToken,
 } from '../lib/auth-crypto.js';
 import { newId, nowMs } from '../lib/id.js';
-import { AuthError } from '../lib/errors.js';
+import { AuthError, ConflictError, NotFoundError } from '../lib/errors.js';
 
 export async function resolveEventAdmin(
   db: AppDb,
@@ -77,4 +77,18 @@ export async function createEvent(db: AppDb, name: string) {
   });
 
   return { id, shortCode, adminToken, pin, createdAt };
+}
+
+/** 管理员手动结束活动（唯一归档触发源） */
+export async function finishEvent(db: AppDb, eventId: string) {
+  const [event] = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
+  if (!event) throw new NotFoundError('Event not found');
+  if (event.status === 'FINISHED') throw new ConflictError('Event already finished');
+
+  const finishedAt = nowMs();
+  await db
+    .update(events)
+    .set({ status: 'FINISHED', finishedAt })
+    .where(eq(events.id, eventId));
+  return { eventId, finishedAt };
 }

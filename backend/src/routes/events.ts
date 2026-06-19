@@ -3,8 +3,8 @@ import { getDb } from '../db/client.js';
 import { requireEventAdmin } from '../lib/admin-auth.js';
 import { fail, ok } from '../lib/api-response.js';
 import { readJson } from '../lib/http.js';
-import { createEvent } from '../services/event.service.js';
-import { NotFoundError, ValidationError } from '../lib/errors.js';
+import { applyNewAdminToken, mapServiceError } from '../lib/route-errors.js';
+import { createEvent, finishEvent } from '../services/event.service.js';
 import {
   createGame,
   createTeam,
@@ -27,7 +27,8 @@ eventsRoute.get('/events/:shortCode', async (c) => {
     const data = await getEventByShortCode(db, c.req.param('shortCode'));
     return ok(c, data);
   } catch (err) {
-    if (err instanceof NotFoundError) return fail(c, 'not_found', err.message, 404);
+    const mapped = mapServiceError(c, err);
+    if (mapped) return mapped;
     throw err;
   }
 });
@@ -42,9 +43,7 @@ eventsRoute.post('/events/:id/teams', async (c) => {
   if (!body.name?.trim()) return fail(c, 'validation_error', 'name is required', 400);
 
   const data = await createTeam(db, eventId, { name: body.name.trim(), colorHex: body.colorHex });
-  const res = ok(c, data, 201);
-  if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
-  return res;
+  return applyNewAdminToken(ok(c, data, 201), auth.newAdminToken);
 });
 
 eventsRoute.post('/events/:id/games', async (c) => {
@@ -68,11 +67,26 @@ eventsRoute.post('/events/:id/games', async (c) => {
       teamBId: body.teamBId,
       plannedDurationMs: body.plannedDurationMs,
     });
-    const res = ok(c, data, 201);
-    if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
-    return res;
+    return applyNewAdminToken(ok(c, data, 201), auth.newAdminToken);
   } catch (err) {
-    if (err instanceof ValidationError) return fail(c, 'validation_error', err.message, 400);
+    const mapped = mapServiceError(c, err);
+    if (mapped) return mapped;
+    throw err;
+  }
+});
+
+eventsRoute.post('/events/:id/finish', async (c) => {
+  const eventId = c.req.param('id');
+  const db = getDb();
+  const auth = await requireEventAdmin(c, db, eventId);
+  if (auth instanceof Response) return auth;
+
+  try {
+    const data = await finishEvent(db, eventId);
+    return applyNewAdminToken(ok(c, data), auth.newAdminToken);
+  } catch (err) {
+    const mapped = mapServiceError(c, err);
+    if (mapped) return mapped;
     throw err;
   }
 });

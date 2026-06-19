@@ -1,32 +1,33 @@
 #!/usr/bin/env bash
 # 一键启动 v2 双端开发服务器（backend :3000 + web :5173）
-# 用法：bash bin/dev.sh
+# 用法：npm run dev
 #
-# - 任意一端崩溃 / Ctrl+C 都会同时停掉对端，避免孤儿进程。
-# - 日志走标准输出，未来要存盘可改成 tee。
+# 启动前自动：
+#   1. 检查并安装 workspace 依赖（含 vite-plugin-pwa）
+#   2. 释放 3000 与 5173–5180 上的旧进程（避免 Vite 静默换端口、PWA 虚拟模块失效）
+# Ctrl+C 或任一子进程退出时，同时停止对端。
 
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
-if [[ ! -d backend/node_modules ]]; then
-  echo "[dev] backend/node_modules 不存在，先安装："
-  (cd backend && npm install)
-fi
-if [[ ! -d web/node_modules ]]; then
-  echo "[dev] web/node_modules 不存在，先安装："
-  (cd web && npm install)
-fi
+# shellcheck source=dev-lib.sh
+source "${ROOT}/bin/dev-lib.sh"
+
+ensure_deps "$ROOT"
+free_dev_ports
 
 pids=()
 cleanup() {
   echo
   echo "[dev] stopping ${#pids[@]} child processes..."
+  local pid
   for pid in "${pids[@]}"; do
     kill "$pid" 2>/dev/null || true
   done
   wait 2>/dev/null || true
+  free_dev_ports
   exit 0
 }
 trap cleanup INT TERM
@@ -41,5 +42,7 @@ echo "[dev] web     → http://localhost:5173"
 (cd web && npm run dev) &
 pids+=("$!")
 
-wait -n
+echo "[dev] open http://localhost:5173 in browser (do not use 5174+)"
+
+wait_any_child "${pids[@]}"
 cleanup

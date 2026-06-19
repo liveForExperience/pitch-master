@@ -1,22 +1,26 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import {
+  ACTIVE_LIMIT,
+  archiveRecentEvent,
+  rememberRecentEvent,
+  removeStoredEvent,
+  type RecentEvent,
+} from './session-logic';
 
-export type RecentEvent = {
-  id: string;
-  shortCode: string;
-  name: string;
-  pin: string;
-  visitedAt: number;
-};
+export type { RecentEvent };
 
 type SessionState = {
   adminTokens: Record<string, string>;
   recentEvents: RecentEvent[];
+  archivedEvents: RecentEvent[];
   setAdminToken: (eventId: string, token: string) => void;
   getAdminToken: (eventId: string) => string | null;
-  rememberEvent: (evt: Omit<RecentEvent, 'visitedAt'>) => void;
+  rememberEvent: (evt: Omit<RecentEvent, 'visitedAt'> & { visitedAt?: number }) => void;
+  archiveEvent: (shortCode: string) => void;
   removeRecentEvent: (shortCode: string) => void;
   getRecentEvents: () => RecentEvent[];
+  getArchivedEvents: () => RecentEvent[];
 };
 
 export const useSessionStore = create<SessionState>()(
@@ -24,22 +28,44 @@ export const useSessionStore = create<SessionState>()(
     (set, get) => ({
       adminTokens: {},
       recentEvents: [],
+      archivedEvents: [],
+
       setAdminToken: (eventId, token) =>
         set((s) => ({ adminTokens: { ...s.adminTokens, [eventId]: token } })),
+
       getAdminToken: (eventId) => get().adminTokens[eventId] ?? null,
+
       rememberEvent: (evt) =>
         set((s) => ({
-          recentEvents: [
-            { ...evt, visitedAt: Date.now() },
-            ...s.recentEvents.filter((e) => e.shortCode !== evt.shortCode),
-          ].slice(0, 20),
+          recentEvents: rememberRecentEvent(s.recentEvents, evt),
         })),
+
+      archiveEvent: (shortCode) =>
+        set((s) => {
+          const next = archiveRecentEvent(s.recentEvents, s.archivedEvents, shortCode);
+          return next ?? s;
+        }),
+
       removeRecentEvent: (shortCode) =>
-        set((s) => ({
-          recentEvents: s.recentEvents.filter((e) => e.shortCode !== shortCode),
-        })),
+        set((s) => removeStoredEvent(s.recentEvents, s.archivedEvents, shortCode)),
+
       getRecentEvents: () => get().recentEvents,
+      getArchivedEvents: () => get().archivedEvents,
     }),
-    { name: 'pitchmaster-session' },
+    {
+      name: 'pitchmaster-session',
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = persisted as SessionState & { archivedEvents?: RecentEvent[] };
+        if (version < 1) {
+          return {
+            ...state,
+            recentEvents: (state.recentEvents ?? []).slice(0, ACTIVE_LIMIT),
+            archivedEvents: state.archivedEvents ?? [],
+          };
+        }
+        return state;
+      },
+    },
   ),
 );

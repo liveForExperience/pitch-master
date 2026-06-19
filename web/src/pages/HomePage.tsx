@@ -2,19 +2,45 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchEvent } from '../api/events';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
-import { removeRecentEvent } from '../lib/storage';
+import { isEventEnded } from '../lib/event-status';
+import { archiveEvent, removeRecentEvent } from '../lib/storage';
 import { useSessionStore } from '../stores/session';
+
+function EventListItem({ name, shortCode }: { name: string; shortCode: string }) {
+  return (
+    <Link
+      to={`/events/${shortCode}`}
+      className="flex items-center justify-between rounded-xl bg-chipBg px-3 py-3"
+    >
+      <span className="font-medium">{name}</span>
+      <span className="font-mono text-xs text-textSec">{shortCode}</span>
+    </Link>
+  );
+}
 
 export function HomePage() {
   const recent = useSessionStore((s) => s.recentEvents);
+  const archived = useSessionStore((s) => s.archivedEvents);
   const nav = useNavigate();
   const [joinCode, setJoinCode] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
-    const list = useSessionStore.getState().recentEvents;
-    for (const e of list) {
-      fetchEvent(e.shortCode).catch(() => removeRecentEvent(e.shortCode));
-    }
+    const sync = async () => {
+      const { recentEvents, archivedEvents } = useSessionStore.getState();
+      const all = [...recentEvents, ...archivedEvents];
+      for (const e of all) {
+        try {
+          const data = await fetchEvent(e.shortCode);
+          if (isEventEnded(data)) {
+            archiveEvent(e.shortCode);
+          }
+        } catch {
+          removeRecentEvent(e.shortCode);
+        }
+      }
+    };
+    void sync();
   }, []);
 
   const goJoin = () => {
@@ -63,23 +89,64 @@ export function HomePage() {
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-textSec">最近活动</h2>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-textSec">
+          找回管理权限
+        </h2>
+        <p className="mb-3 text-xs text-textSec">
+          换设备后输入分享码和 PIN，可重新获得录入与配置权限。
+        </p>
+        <Link
+          to="/admin/restore"
+          className="block rounded-xl bg-chipBg px-3 py-3 text-center text-sm font-semibold text-primary"
+        >
+          凭 PIN 恢复管理
+        </Link>
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-textSec">
+          进行中的活动
+        </h2>
+        <p className="mb-3 text-xs text-textSec">本机最近创建或访问的活动；手动「结束活动」后才会归档。</p>
         {recent.length === 0 ? (
-          <p className="text-sm text-textSec">本机创建过的活动会出现在这里。</p>
+          <p className="text-sm text-textSec">暂无进行中的活动，可新建或输入分享码加入。</p>
         ) : (
           <ul className="space-y-2">
             {recent.map((e) => (
               <li key={e.shortCode}>
-                <Link
-                  to={`/events/${e.shortCode}`}
-                  className="flex items-center justify-between rounded-xl bg-chipBg px-3 py-3"
-                >
-                  <span className="font-medium">{e.name}</span>
-                  <span className="font-mono text-xs text-textSec">{e.shortCode}</span>
-                </Link>
+                <EventListItem name={e.name} shortCode={e.shortCode} />
               </li>
             ))}
           </ul>
+        )}
+      </Card>
+
+      <Card>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between text-left"
+          onClick={() => setShowArchived((v) => !v)}
+          disabled={archived.length === 0}
+        >
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-textSec">
+            已归档{archived.length > 0 ? `（${archived.length}）` : ''}
+          </h2>
+          {archived.length > 0 && (
+            <span className="text-xs text-primary">{showArchived ? '收起' : '展开'}</span>
+          )}
+        </button>
+        {archived.length === 0 ? (
+          <p className="mt-2 text-sm text-textSec">暂无已结束的活动。</p>
+        ) : (
+          showArchived && (
+            <ul className="mt-3 space-y-2">
+              {archived.map((e) => (
+                <li key={e.shortCode}>
+                  <EventListItem name={e.name} shortCode={e.shortCode} />
+                </li>
+              ))}
+            </ul>
+          )
         )}
       </Card>
     </PageShell>

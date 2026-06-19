@@ -233,12 +233,13 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | GET | `/api/time` | 公开 | 返回 `{serverNow: 1718712345678}` 用于时钟校准 |
 | POST | `/api/events` | 公开 | 创建活动；返回 `{id, shortCode, adminToken, pin}` |
 | GET | `/api/events/:shortCode` | 公开 | 获取活动详情（含 teams + games 列表，不含 adminToken） |
-| PATCH | `/api/events/:id` | Admin | 更新名字 / 标记结束 |
+| POST | `/api/events/:id/finish` | Admin | 手动结束活动 → `{eventId, finishedAt}`；客户端归档唯一触发源 |
+| POST | `/api/events/:id/restore-token?pin=` | 公开（PIN） | PIN 正确时轮换 adminToken → `{restored, adminToken?}` |
 | POST | `/api/events/:id/teams` | Admin | 创建队伍 `{name, colorHex?}` |
-| PATCH | `/api/teams/:id` | Admin | 更新 |
-| DELETE | `/api/teams/:id` | Admin | 删除（队伍下无场次时允许） |
+| PATCH | `/api/teams/:id` | Admin | **未实现**（Phase 2+） |
+| DELETE | `/api/teams/:id` | Admin | **未实现**（Phase 2+） |
 | POST | `/api/teams/:id/roster` | Admin | 批量加人 `{names: ['张三','李四']}` |
-| DELETE | `/api/roster/:id` | Admin | 移除队员（未参与场次时） |
+| DELETE | `/api/roster/:id` | Admin | **未实现**（Phase 2+） |
 | POST | `/api/events/:id/games` | Admin | 创建场次 `{teamAId, teamBId, plannedDurationMs?}` |
 | GET | `/api/games/:id` | 公开 | 详情（含事件流 + 派生比分） |
 | POST | `/api/games/:id/start` | Admin | 开赛（写 `started_at = now`） |
@@ -246,13 +247,13 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | POST | `/api/games/:id/resume` | Admin | 恢复 |
 | POST | `/api/games/:id/finish` | Admin | 结束 |
 | POST | `/api/games/:id/events` | Admin | 单条事件（`PLAYING`/`PAUSED`/`FINISHED` 均可，用于赛后补录） |
-| POST | `/api/games/:id/events/batch` | Admin | 批量事件（离线 replay） |
+| POST | `/api/games/:id/events/batch` | Admin | **未实现**（Phase 2 离线 replay，见 PLAN T2.3） |
 | DELETE | `/api/games/:id/events/:eventId` | Admin | 撤销事件（写入 UNDO；`FINISHED` 亦可，用于赛后修正） |
 | GET | `/api/games/:id/stream` | 公开 | SSE 订阅 |
-| GET | `/api/games/:id/report` | 公开 | 单场战报数据 JSON（比分 + 进球流水 + 单场 MVP） |
-| GET | `/api/games/:id/poster.png` | 公开 | 单场海报（PNG） |
-| GET | `/api/events/:id/report?topN=5` | 公开 | 活动战报数据 JSON（场次结果 + 积分榜 + 射手榜 + 助攻榜 + 活动 MVP），`topN` 默认 5、范围 1-20 |
-| GET | `/api/events/:id/poster.png?topN=5` | 公开 | 活动海报（PNG，长图自适应高度），`topN` 同上 |
+| GET | `/api/games/:id/report` | 公开 | **未实现**（Phase 2 战报 JSON） |
+| GET | `/api/games/:id/poster.png` | 公开 | **未实现**（Phase 2 单场海报 PNG） |
+| GET | `/api/events/:id/report?topN=5` | 公开 | **未实现**（Phase 2 活动战报 JSON） |
+| GET | `/api/events/:id/poster.png?topN=5` | 公开 | **未实现**（Phase 2 活动海报 PNG） |
 | GET | `/api/health` | 公开 | 健康检查 `{status, service, version, uptimeSeconds, serverTime}` |
 
 ### 4.3 关键请求/响应样例
@@ -661,6 +662,8 @@ H5 复用 satori 模板的同一套 React 组件（`PosterCard`、`StandingsTabl
 
 ## 8. 前端关键模块
 
+> **PWA 分期（C4 已决 2026-06-19）**：Phase 1 已落地 `vite-plugin-pwa`（manifest + Service Worker 注册 + 图标）；IndexedDB outbox、离线兜底页、后台 sync 在 Phase 2（见 PLAN T2.1–T2.2）。
+
 ### 8.1 状态管理（Zustand）
 
 - `useEventStore`：当前活动元数据
@@ -672,15 +675,15 @@ H5 复用 satori 模板的同一套 React 组件（`PosterCard`、`StandingsTabl
 ### 8.2 路由
 
 ```
-/                                          首页（活动列表）
-/events/new                                创建活动
-/events/:shortCode                         活动主页（分享码只读 + adminToken 管理）
+/                                          首页（新建 / 加入 / 找回 / 进行中 / 已归档）
+/events/new                                创建活动（4 步：含 PIN 凭证确认）
+/events/:shortCode                         活动主页（adminToken 管理 + 手动结束活动）
 /events/:shortCode/setup                   配置队伍与队员（仅 adminToken）
 /events/:shortCode/report                  战报 H5（Phase 2，未实现）
 /games/new?eventId=...                     新建场次（仅 adminToken）
 /games/:id/record                          录入页（仅 adminToken）
 /games/:id                                 场次只读详情（SSE 实时）
-/admin/restore                             凭 PIN 找回 adminToken（**未实现**，见 PLAN §4）
+/admin/restore?code=                       凭 PIN 找回 adminToken（分享码可预填）
 ```
 
 ### 8.3 UI 设计系统（与战报严格同源）
