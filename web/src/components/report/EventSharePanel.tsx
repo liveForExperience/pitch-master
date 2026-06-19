@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { buildEventShareText, eventReportPath } from '../../lib/share-report';
 import { eventPosterUrl } from '../../lib/poster-url';
-import { Card } from '../ui/card';
 import { ShareReportButton } from './ShareReportButton';
 
 export function EventSharePanel({
@@ -15,8 +14,8 @@ export function EventSharePanel({
   const reportPath = eventReportPath(code);
 
   return (
-    <Card className="space-y-3">
-      <h2 className="text-h2 font-bold text-textPri">分享活动战报</h2>
+    <section className="space-y-3 border-t border-border pt-6">
+      <p className="text-body font-bold text-textPri">分享战报</p>
       <ShareReportButton
         share={{
           title: `${eventName} · 活动战报`,
@@ -24,10 +23,14 @@ export function EventSharePanel({
           url: reportPath,
           posterUrl: eventPosterUrl(code),
         }}
+        label="分享战报"
       />
-      <Link to={reportPath} className="block text-center text-sm text-primary">
+      <Link
+        to={reportPath}
+        className="block text-center text-caption text-primary"
+      >
         打开战报 H5 预览
       </Link>
-    </Card>
+    </section>
   );
 }
