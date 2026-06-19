@@ -243,7 +243,8 @@ jobs:
 - ✅ Nginx site `pitchmaster-v2.conf` 已落地，`/api/* → :3000`，`/` → `current/web/dist`
 - ✅ GitHub Actions workflow `.github/workflows/deploy.yml` 已写入
 - ✅ ADR-0007 已签发
-- ⬜ GitHub Secrets 4 项待用户在仓库设置
-- ⬜ 首次 push 触发部署待验证
+- ✅ **merge → main 自动触发** Deploy（typecheck + 全量 test + build → scp → systemd restart）
+- ⚠️ 2026-06-19 PR #3 merge 部署失败：release 缺 `backend/dist/db/migrations/` → build 脚本已修复
+- ⬜ 修复 push 后待验证新一轮自动部署成功
 
 > ADR-0007（2026-06-19）决定将部署链路从 Phase 3 提前到 Phase 0 末实施。
