@@ -2,16 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   addRoster,
+  deleteTeam as deleteTeamApi,
   fetchEvent,
   removeRosterMember as removeRosterMemberApi,
   updateTeamName,
 } from '../api/events';
+import { ApiError } from '../api/client';
 import type { EventDetail } from '../api/types';
 import { RosterImportPanel } from '../components/roster/RosterImportPanel';
 import { TeamSetupCard } from '../components/roster/TeamSetupCard';
 import { Tour } from '../components/tour/Tour';
 import { EVENT_SETUP_TOUR_STEPS, TOUR_IDS } from '../components/tour/tour-config';
 import { usePageTour } from '../components/tour/use-page-tour';
+import { ConfirmDangerDialog } from '../components/ui/confirm-danger-dialog';
 import { PageShell } from '../components/ui/layout';
 import { useT } from '../i18n';
 import { mergeIntoPool, nameReturnsToPool } from '../lib/roster-pool';
@@ -31,6 +34,8 @@ export function EventSetupPage() {
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
   const [importPool, setImportPool] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [deleteTeamTarget, setDeleteTeamTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deletingTeam, setDeletingTeam] = useState(false);
 
   const reload = () =>
     fetchEvent(shortCode)
@@ -124,6 +129,53 @@ export function EventSetupPage() {
     }
   };
 
+  const requestDeleteTeam = (teamId: string, teamName: string) => {
+    setError('');
+    setDeleteTeamTarget({ id: teamId, name: teamName });
+  };
+
+  const confirmDeleteTeam = async () => {
+    if (!deleteTeamTarget) return;
+    setDeletingTeam(true);
+    setError('');
+    try {
+      // Return everyone on the deleted team back to the import pool so the
+      // admin doesn't lose the signup data they already typed/pasted.
+      const removedTeam = event?.teams.find((t) => t.id === deleteTeamTarget.id);
+      const namesToReturn =
+        removedTeam?.roster
+          .map((p) => p.name)
+          .filter((name) =>
+            event ? nameReturnsToPool(name, event.teams, removedTeam.id) : false,
+          ) ?? [];
+
+      await deleteTeamApi(deleteTeamTarget.id, token);
+
+      if (event && namesToReturn.length > 0) {
+        setImportPool((prev) => {
+          let next = prev;
+          for (const name of namesToReturn) {
+            next = mergeIntoPool(next, name);
+          }
+          saveRosterImportPool(event.id, next);
+          return next;
+        });
+      }
+      setDeleteTeamTarget(null);
+      await reload();
+    } catch (err) {
+      const message =
+        err instanceof ApiError && err.code === 'conflict'
+          ? t('setup.deleteTeam.cannotDelete')
+          : err instanceof Error
+            ? err.message
+            : t('setup.deleteTeam.error');
+      setError(message);
+    } finally {
+      setDeletingTeam(false);
+    }
+  };
+
   return (
     <PageShell title={t('setup.title')} backTo={`/events/${shortCode}`}>
       {error && (
@@ -180,6 +232,7 @@ export function EventSetupPage() {
               onRename={renameTeam}
               onAddPlayers={addPlayers}
               onRemovePlayer={removePlayer}
+              onDeleteTeam={requestDeleteTeam}
             />
           </div>
         ))}
@@ -199,6 +252,19 @@ export function EventSetupPage() {
         steps={EVENT_SETUP_TOUR_STEPS}
         open={tour.open}
         onClose={tour.close}
+      />
+
+      <ConfirmDangerDialog
+        open={Boolean(deleteTeamTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTeamTarget(null);
+        }}
+        title={t('setup.deleteTeam.title', { name: deleteTeamTarget?.name ?? '' })}
+        description={t('setup.deleteTeam.desc')}
+        confirmLabel={t('setup.deleteTeam.confirm')}
+        processingLabel={t('setup.deleteTeam.processing')}
+        processing={deletingTeam}
+        onConfirm={() => void confirmDeleteTeam()}
       />
     </PageShell>
   );

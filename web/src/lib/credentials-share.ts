@@ -18,21 +18,28 @@ export function buildCredentialsShareText(
 ): string {
   const code = input.shortCode.trim().toUpperCase();
   const url = reportPageUrl(eventWatchPath(code), input.origin);
-  const lines = [t('cred.shareText.title')];
+  const lines: string[] = [];
 
+  // Header — one line, optionally with event name appended.
   if (input.eventName?.trim()) {
-    lines.push(t('cred.shareText.event', { name: input.eventName.trim() }));
+    lines.push(t('cred.shareText.titleWithName', { name: input.eventName.trim() }));
+  } else {
+    lines.push(t('cred.shareText.title'));
   }
 
+  // Viewer section (safe to share with anyone).
   lines.push(
     '',
+    t('cred.shareText.viewerSection'),
     t('cred.shareText.codeLine', { code }),
-    t('cred.shareText.pinLine', { pin: input.pin }),
-    '',
-    t('cred.shareText.codeHint'),
-    t('cred.shareText.pinHint'),
-    '',
     url,
+  );
+
+  // Admin section (private — explicit warning baked into the section heading).
+  lines.push(
+    '',
+    t('cred.shareText.adminSection'),
+    t('cred.shareText.pinLine', { pin: input.pin }),
   );
 
   return lines.join('\n');

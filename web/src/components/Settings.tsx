@@ -67,9 +67,10 @@ export function SettingsButton({ className }: { className?: string }) {
       case TOUR_IDS.eventSetup:
         return shortCode ? `/events/${shortCode}/setup` : '/';
       case TOUR_IDS.record:
+      case TOUR_IDS.gameDetail:
         // No game id is known up front; land on the event page so the user
         // can pick a game — pendingTour stays set and fires when they enter
-        // a recording screen.
+        // the matching screen.
         return shortCode ? `/events/${shortCode}` : '/';
       default:
         return '/';
@@ -177,6 +178,14 @@ export function SettingsButton({ className }: { className?: string }) {
                   className="min-h-10 rounded-xl border border-border px-2 text-xs font-semibold text-textPri active:bg-elevated disabled:opacity-40"
                 >
                   {t('tour.replay.record')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => replayTour(TOUR_IDS.gameDetail)}
+                  disabled={!hasEventContext}
+                  className="col-span-2 min-h-10 rounded-xl border border-border px-2 text-xs font-semibold text-textPri active:bg-elevated disabled:opacity-40"
+                >
+                  {t('tour.replay.detail')}
                 </button>
               </div>
               {!hasEventContext && (

@@ -1,4 +1,4 @@
-import { PencilSimple, UserMinus, X } from '@phosphor-icons/react';
+import { PencilSimple, Trash, UserMinus, X } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import type { Team } from '../../api/types';
 import { useT } from '../../i18n';
@@ -13,6 +13,11 @@ type Props = {
   onRename: (teamId: string, name: string) => Promise<void>;
   onAddPlayers: (teamId: string, chipNames: string[]) => Promise<void>;
   onRemovePlayer: (teamId: string, rosterId: string, playerName: string) => Promise<void>;
+  /**
+   * Optional handler for deleting the entire team. Omit to hide the button
+   * (e.g. for finished events where edits are locked).
+   */
+  onDeleteTeam?: (teamId: string, teamName: string) => void;
 };
 
 export function TeamSetupCard({
@@ -24,6 +29,7 @@ export function TeamSetupCard({
   onRename,
   onAddPlayers,
   onRemovePlayer,
+  onDeleteTeam,
 }: Props) {
   const t = useT();
   const [editingName, setEditingName] = useState(false);
@@ -138,6 +144,16 @@ export function TeamSetupCard({
             >
               <PencilSimple size={16} weight="bold" />
             </button>
+            {onDeleteTeam && (
+              <button
+                type="button"
+                className="shrink-0 rounded-md p-1.5 text-textSec transition-colors hover:bg-danger/10 hover:text-danger"
+                aria-label={t('setup.deleteTeam.aria', { name: team.name })}
+                onClick={() => onDeleteTeam(team.id, team.name)}
+              >
+                <Trash size={16} weight="bold" />
+              </button>
+            )}
           </>
         )}
         <span className="shrink-0 font-mono text-xs tabular-nums text-textSec">

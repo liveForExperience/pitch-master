@@ -107,12 +107,15 @@ export const zh: Dict = {
   'cred.copied': '已复制',
   'cred.share': '分享',
   'cred.shared': '已分享',
-  'cred.shareText.title': '【PitchMaster 活动凭证】',
-  'cred.shareText.event': '活动：{name}',
+  'cred.shareSuccess.copied': '已复制，可粘贴到微信发送。',
+  'cred.shareSuccess.shared': '已唤起系统分享面板。',
+  'cred.shareWarning': '⚠️ PIN 是管理钥匙，只发给共同管理的人，勿发大群。',
+  'cred.shareText.title': '【PitchMaster 球场记分】',
+  'cred.shareText.titleWithName': '【PitchMaster 球场记分】{name}',
+  'cred.shareText.viewerSection': '👀 看比分（可公开）',
   'cred.shareText.codeLine': '分享码：{code}',
-  'cred.shareText.pinLine': 'PIN：{pin}',
-  'cred.shareText.codeHint': '分享码 → 队友只读看比分',
-  'cred.shareText.pinHint': 'PIN → 换手机找回录入权限（勿公开）',
+  'cred.shareText.adminSection': '🔐 管理钥匙（勿公开）',
+  'cred.shareText.pinLine': 'PIN：{pin}（换设备时凭 PIN + 分享码恢复管理权限）',
 
   // ── admin restore ────────────────────────────────────────────────────
   'restore.title': '找回管理权限',
@@ -200,6 +203,14 @@ export const zh: Dict = {
   'setup.removePlayer': '将 {name} 移出球队',
   'setup.removePlayerError': '该球员已有比赛记录，无法移出',
   'setup.noPlayersYet': '暂无队员',
+  'setup.deleteTeam.aria': '删除球队 {name}',
+  'setup.deleteTeam.title': '删除球队「{name}」？',
+  'setup.deleteTeam.desc':
+    '球队和该队全部队员都会被移除。若已在某场比赛里出场，则无法删除——请先删除对应比赛。已加入的队员会被退回到「待分配」池，可重新分配到其他队伍。',
+  'setup.deleteTeam.confirm': '确认删除',
+  'setup.deleteTeam.processing': '删除中…',
+  'setup.deleteTeam.cannotDelete': '该球队已被某场比赛使用，请先删除对应比赛再删除球队',
+  'setup.deleteTeam.error': '删除球队失败',
 
   // ── roster import ────────────────────────────────────────────────────
   'roster.title': '快速导入报名名单',
@@ -380,6 +391,7 @@ export const zh: Dict = {
   'tour.replay.event': '活动页引导',
   'tour.replay.setup': '队伍配置引导',
   'tour.replay.record': '录入页引导',
+  'tour.replay.detail': '比赛详情引导',
   'tour.replay.needEvent': '需要先有一场活动才能查看活动相关引导。',
 
   'tour.home.welcome.title': '欢迎使用 PitchMaster',
@@ -398,18 +410,21 @@ export const zh: Dict = {
   'tour.home.settings.desc': '切换中英文、深色/亮色，也可以在这里重新打开新手引导。',
 
   'tour.event.welcome.title': '活动主页',
-  'tour.event.welcome.desc': '这里是活动的中枢：凭证、比赛列表、配置队伍、结束活动都在这一页。',
+  'tour.event.welcome.desc': '这里是活动的中枢：凭证、配置队伍、比赛列表、管理活动都在这一页。',
   'tour.event.credentials.title': '分享码与 PIN',
   'tour.event.credentials.desc':
     '把分享码发给队友/家长就能只读观看；PIN 是换设备恢复管理权限的钥匙，建议截图保存。',
-  'tour.event.newGame.title': '新建场次',
-  'tour.event.newGame.desc': '选好两支队伍、比赛时长即可开赛。每场比赛独立计分、独立战报。',
   'tour.event.setup.title': '配置队伍与队员',
   'tour.event.setup.desc':
-    '在这里改队名、加队员、批量从微信接龙文本导入名单——可以反复进出，随时调整。',
-  'tour.event.finish.title': '结束整场活动',
-  'tour.event.finish.desc':
-    '所有比赛都结束后点这里，活动会归档到首页「已归档」，仍可查看战报但不再能录入。',
+    '点这里去改队名、加队员、批量从微信接龙文本导入名单——比赛过程中也能反复进出调整。',
+  'tour.event.newGame.title': '新建场次',
+  'tour.event.newGame.desc': '选好两支队伍、比赛时长即可开赛。每场比赛独立计分、独立战报。',
+  'tour.event.gamesList.title': '比赛列表',
+  'tour.event.gamesList.desc':
+    '每行展示状态和实时比分。管理员点行进入「录入」继续记进球；只读观众点行进入「详情」。右侧的垃圾桶可单独删掉某场比赛（不影响其他场次）。',
+  'tour.event.manage.title': '管理活动：结束 / 删除',
+  'tour.event.manage.desc':
+    '黄色「结束活动」会把活动归档到首页「已归档」，仍可看战报但不再能录入；红色「删除活动」是彻底删除整场活动及所有比赛，不可恢复，请谨慎使用。',
 
   'tour.setup.welcome.title': '队伍配置',
   'tour.setup.welcome.desc':
@@ -421,9 +436,22 @@ export const zh: Dict = {
   'tour.setup.newTeam.desc': '需要加新队伍时填名字、点添加，颜色会自动分配，之后还能改名。',
   'tour.setup.teamCard.title': '队伍卡片',
   'tour.setup.teamCard.desc':
-    '每张卡片支持：改队名、从待分配池里勾选加入、手动输入名字（逗号/换行分隔多人）、单个移出队员。',
+    '每张卡片支持：改队名（铅笔）、删除整支队伍（垃圾桶，仅当该队还没参加任何比赛时可用）、从待分配池勾选加入、手动输入名字（逗号/换行分隔多人）、单个移出队员。',
   'tour.setup.done.title': '完成返回',
   'tour.setup.done.desc': '配置好后点这里回到活动主页，就可以开始新建场次了。',
+
+  'tour.detail.welcome.title': '比赛详情',
+  'tour.detail.welcome.desc':
+    '这是单场只读详情页。任何持有分享码的人都能看到，适合发到群里给观众回看比分。',
+  'tour.detail.score.title': '比分与状态',
+  'tour.detail.score.desc':
+    '顶部展示比赛状态（待开始 / 进行中 / 已结束）、两队名称配色、实时比分和用时。比赛进行中数据会自动刷新。',
+  'tour.detail.feed.title': '事件流',
+  'tour.detail.feed.desc':
+    '按时间顺序列出每一粒进球：哪队、谁射门、谁助攻、第几分钟。撤销过的进球不会出现在这里。',
+  'tour.detail.share.title': '分享 / 战报预览',
+  'tour.detail.share.desc':
+    '左边「分享」一键转发文字+海报到微信/系统分享；右边「预览」打开战报 H5 页面，可以再分享或保存图。',
 
   'tour.record.welcome.title': '比赛录入',
   'tour.record.welcome.desc': '这是单人手机录入的主界面。下面带你认识 4 个关键区域。',
@@ -546,12 +574,16 @@ export const en: Dict = {
   'cred.copied': 'Copied',
   'cred.share': 'Share',
   'cred.shared': 'Shared',
-  'cred.shareText.title': '[PitchMaster event credentials]',
-  'cred.shareText.event': 'Event: {name}',
+  'cred.shareSuccess.copied': 'Copied — paste into WeChat or any chat app.',
+  'cred.shareSuccess.shared': 'System share sheet opened.',
+  'cred.shareWarning':
+    '⚠️ The PIN is an admin key. Send only to trusted co-admins, never to large groups.',
+  'cred.shareText.title': '[PitchMaster scoreboard]',
+  'cred.shareText.titleWithName': '[PitchMaster scoreboard] {name}',
+  'cred.shareText.viewerSection': '👀 Watch the score (safe to share)',
   'cred.shareText.codeLine': 'Share code: {code}',
-  'cred.shareText.pinLine': 'PIN: {pin}',
-  'cred.shareText.codeHint': 'Share code → read-only scoreboard',
-  'cred.shareText.pinHint': 'PIN → restore admin on new device (keep private)',
+  'cred.shareText.adminSection': '🔐 Admin key (keep private)',
+  'cred.shareText.pinLine': 'PIN: {pin} (PIN + code restores admin on a new device)',
 
   // ── admin restore ────────────────────────────────────────────────────
   'restore.title': 'Restore admin access',
@@ -643,6 +675,15 @@ export const en: Dict = {
   'setup.removePlayer': 'Remove {name} from team',
   'setup.removePlayerError': 'This player has game records and cannot be removed',
   'setup.noPlayersYet': 'No players yet',
+  'setup.deleteTeam.aria': 'Delete team {name}',
+  'setup.deleteTeam.title': 'Delete team "{name}"?',
+  'setup.deleteTeam.desc':
+    'The team and all of its players will be removed. If the team is already used in any game, deletion is blocked — delete those games first. Removed players go back to the "pending" pool so you can re-assign them to other teams.',
+  'setup.deleteTeam.confirm': 'Delete team',
+  'setup.deleteTeam.processing': 'Deleting…',
+  'setup.deleteTeam.cannotDelete':
+    'This team is already used by a game. Delete that game first, then retry.',
+  'setup.deleteTeam.error': 'Failed to delete team',
 
   // ── roster import ────────────────────────────────────────────────────
   'roster.title': 'Quick import from signup text',
@@ -828,6 +869,7 @@ export const en: Dict = {
   'tour.replay.event': 'Event tour',
   'tour.replay.setup': 'Roster tour',
   'tour.replay.record': 'Record tour',
+  'tour.replay.detail': 'Game detail tour',
   'tour.replay.needEvent': 'Create or join an event first to view event-related tours.',
 
   'tour.home.welcome.title': 'Welcome to PitchMaster',
@@ -851,19 +893,22 @@ export const en: Dict = {
 
   'tour.event.welcome.title': 'Event home',
   'tour.event.welcome.desc':
-    'Everything for one event lives here: credentials, games, roster setup, and the "finish" button.',
+    'Everything for one event lives here: credentials, roster setup, games, and the admin actions.',
   'tour.event.credentials.title': 'Share code & PIN',
   'tour.event.credentials.desc':
     'Share the code with viewers; keep the PIN — that\'s how you restore admin on another device. A screenshot is the safest backup.',
+  'tour.event.setup.title': 'Configure teams & roster',
+  'tour.event.setup.desc':
+    'Open this to rename teams, add players manually, or bulk-import from a WeChat signup list. Safe to revisit mid-event.',
   'tour.event.newGame.title': 'Start a new game',
   'tour.event.newGame.desc':
     'Pick two teams and a match length to kick off. Each game is scored and reported independently.',
-  'tour.event.setup.title': 'Configure teams & roster',
-  'tour.event.setup.desc':
-    'Rename teams, add players manually, or bulk-import from a WeChat signup list. You can revisit any time.',
-  'tour.event.finish.title': 'Finish the event',
-  'tour.event.finish.desc':
-    'Once all games are done, tap here to archive the event. Reports stay viewable; new recording is locked.',
+  'tour.event.gamesList.title': 'Games list',
+  'tour.event.gamesList.desc':
+    'Each row shows status and live score. Admin → row opens "Record" to log goals; viewers → row opens the read-only detail. The trash icon on the right deletes that single game (others are untouched).',
+  'tour.event.manage.title': 'Manage: finish or delete',
+  'tour.event.manage.desc':
+    'Yellow "Finish event" archives it (reports stay, recording locks). Red "Delete event" permanently removes the event and every game — irreversible, use carefully.',
 
   'tour.setup.welcome.title': 'Roster setup',
   'tour.setup.welcome.desc':
@@ -876,9 +921,22 @@ export const en: Dict = {
     'Need another team? Type a name and tap Add. Colours are auto-assigned and the name can be edited later.',
   'tour.setup.teamCard.title': 'Team card',
   'tour.setup.teamCard.desc':
-    'Each card lets you rename the team, pick players from the pending pool, type names manually (comma/newline separated), and remove individual players.',
+    'Each card lets you rename the team (pencil), delete the whole team (trash — only when it has not played any game yet), pick players from the pending pool, type names manually (comma/newline separated), and remove individual players.',
   'tour.setup.done.title': 'Done — back to event',
   'tour.setup.done.desc': 'When you\'re happy with the rosters, tap here to return and start a new game.',
+
+  'tour.detail.welcome.title': 'Game detail',
+  'tour.detail.welcome.desc':
+    'This is the single-game read-only page. Anyone with the share code can view it — perfect for posting in the group chat.',
+  'tour.detail.score.title': 'Score & status',
+  'tour.detail.score.desc':
+    'Top shows the match status (Ready / Playing / Finished), both team names with colours, the live score, and elapsed time. It refreshes automatically while playing.',
+  'tour.detail.feed.title': 'Event stream',
+  'tour.detail.feed.desc':
+    'Every goal in chronological order: which team, the scorer, the assist, and the minute. Undone goals do not appear here.',
+  'tour.detail.share.title': 'Share / preview report',
+  'tour.detail.share.desc':
+    'Left "Share" pushes a text + poster to WeChat or the system share sheet. Right "Preview" opens the H5 report page where you can re-share or save the image.',
 
   'tour.record.welcome.title': 'Game recording',
   'tour.record.welcome.desc': 'This is the single-handed recording screen. Here are the 4 areas you\'ll use.',

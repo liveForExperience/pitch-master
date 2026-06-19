@@ -6,8 +6,9 @@ import type { TourStep } from './Tour';
  */
 export const TOUR_IDS = {
   home: 'home@1',
-  eventAdmin: 'event-admin@1',
+  eventAdmin: 'event-admin@2',
   eventSetup: 'event-setup@1',
+  gameDetail: 'game-detail@1',
   record: 'record@1',
 } as const;
 
@@ -50,19 +51,24 @@ export const EVENT_ADMIN_TOUR_STEPS: TourStep[] = [
     descKey: 'tour.event.credentials.desc',
   },
   {
-    selector: '[data-tour="event-new-game"]',
-    titleKey: 'tour.event.newGame.title',
-    descKey: 'tour.event.newGame.desc',
-  },
-  {
     selector: '[data-tour="event-setup"]',
     titleKey: 'tour.event.setup.title',
     descKey: 'tour.event.setup.desc',
   },
   {
-    selector: '[data-tour="event-finish"]',
-    titleKey: 'tour.event.finish.title',
-    descKey: 'tour.event.finish.desc',
+    selector: '[data-tour="event-new-game"]',
+    titleKey: 'tour.event.newGame.title',
+    descKey: 'tour.event.newGame.desc',
+  },
+  {
+    selector: '[data-tour="event-games-list"]',
+    titleKey: 'tour.event.gamesList.title',
+    descKey: 'tour.event.gamesList.desc',
+  },
+  {
+    selector: '[data-tour="event-manage"]',
+    titleKey: 'tour.event.manage.title',
+    descKey: 'tour.event.manage.desc',
   },
 ];
 
@@ -87,6 +93,25 @@ export const EVENT_SETUP_TOUR_STEPS: TourStep[] = [
     selector: '[data-tour="setup-done"]',
     titleKey: 'tour.setup.done.title',
     descKey: 'tour.setup.done.desc',
+  },
+];
+
+export const GAME_DETAIL_TOUR_STEPS: TourStep[] = [
+  { titleKey: 'tour.detail.welcome.title', descKey: 'tour.detail.welcome.desc' },
+  {
+    selector: '[data-tour="detail-score"]',
+    titleKey: 'tour.detail.score.title',
+    descKey: 'tour.detail.score.desc',
+  },
+  {
+    selector: '[data-tour="detail-feed"]',
+    titleKey: 'tour.detail.feed.title',
+    descKey: 'tour.detail.feed.desc',
+  },
+  {
+    selector: '[data-tour="detail-share"]',
+    titleKey: 'tour.detail.share.title',
+    descKey: 'tour.detail.share.desc',
   },
 ];
 

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ShareNetwork } from '@phosphor-icons/react';
 import { PagePanel, PagePanelBody, PagePanelHeader } from './ui/page-panel';
 import { PrimaryButton } from './ui/layout';
+import { InlineAlert } from './ui/inline-alert';
 import { useT } from '../i18n';
 import {
   buildCredentialsShareText,
@@ -15,22 +16,41 @@ type Props = {
   className?: string;
 };
 
+type ShareOutcome = 'idle' | 'copied' | 'shared';
+
 export function EventCredentialsCard({ shortCode, pin, eventName, className }: Props) {
   const t = useT();
-  const [shared, setShared] = useState(false);
+  const [outcome, setOutcome] = useState<ShareOutcome>('idle');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const hideTimer = useRef<number | null>(null);
 
   const shareText = buildCredentialsShareText({ shortCode, pin, eventName });
+
+  useEffect(
+    () => () => {
+      if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
+    },
+    [],
+  );
 
   const onShare = async () => {
     setBusy(true);
     setError('');
-    setShared(false);
+    setOutcome('idle');
+    if (hideTimer.current !== null) {
+      window.clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
     try {
-      await shareCredentialsText(shareText, t('cred.sectionTitle'), t);
-      setShared(true);
-      window.setTimeout(() => setShared(false), 2500);
+      const result = await shareCredentialsText(shareText, t('cred.sectionTitle'), t);
+      setOutcome(result);
+      // Keep the success + warning visible long enough to read (warning is the
+      // important bit) but auto-clear so the card returns to its quiet state.
+      hideTimer.current = window.setTimeout(() => {
+        setOutcome('idle');
+        hideTimer.current = null;
+      }, 8000);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : t('common.error.share'));
@@ -62,8 +82,19 @@ export function EventCredentialsCard({ shortCode, pin, eventName, className }: P
           onClick={() => void onShare()}
         >
           <ShareNetwork size={20} weight="bold" aria-hidden />
-          {shared ? t('cred.shared') : t('cred.share')}
+          {outcome !== 'idle' ? t('cred.shared') : t('cred.share')}
         </PrimaryButton>
+
+        {outcome !== 'idle' && (
+          <div className="space-y-2" role="status" aria-live="polite">
+            <InlineAlert tone="info">
+              {outcome === 'copied'
+                ? t('cred.shareSuccess.copied')
+                : t('cred.shareSuccess.shared')}
+            </InlineAlert>
+            <InlineAlert tone="warning">{t('cred.shareWarning')}</InlineAlert>
+          </div>
+        )}
 
         {error && <p className="text-xs text-danger">{error}</p>}
       </PagePanelBody>

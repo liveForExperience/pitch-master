@@ -266,7 +266,7 @@ export function EventPage() {
               </PagePanelBody>
             ) : (
               <>
-                <ul>
+                <ul data-tour="event-games-list">
                   {event.games.map((g) => {
                     const teamA = event.teams.find((tm) => tm.id === g.teamAId);
                     const teamB = event.teams.find((tm) => tm.id === g.teamBId);
@@ -309,7 +309,7 @@ export function EventPage() {
           )}
 
           {isAdmin && (
-            <PagePanel>
+            <PagePanel data-tour="event-manage">
               <PagePanelHeader
                 title={t('event.manageSection')}
                 subtitle={t('event.manageHint')}
@@ -321,7 +321,6 @@ export function EventPage() {
                       icon={Flag}
                       title={t('event.finish')}
                       tone="warning"
-                      data-tour="event-finish"
                       onClick={() => setFinishOpen(true)}
                     />
                   )}
