@@ -1,7 +1,6 @@
-# AGENTS.md · PitchMaster v2
+# AGENTS.md · PitchMaster
 
-> **唯一 AI 上下文文件**。本文件取代 v1 时期的 `GEMINI.md`、`.windsurfrules`、`README.md` 中的 AI 指引部分。
-> 任何 AI 编码代理（Cursor / Claude Code / Codex / Gemini / Copilot 等）在本仓库工作时**必须首先读完本文件**。
+> **唯一 AI 上下文文件**。任何 AI 编码代理（Cursor / Claude Code / Codex / Gemini / Copilot 等）在本仓库工作时**必须首先读完本文件**。
 >
 > 修改本文件需同步评估对 [`DEVELOPMENT_PLAN.md`](./DEVELOPMENT_PLAN.md) 和 [`docs/ARCHITECTURE_V2.md`](./docs/ARCHITECTURE_V2.md) 的影响。
 
@@ -9,9 +8,7 @@
 
 ## 1. 项目一句话
 
-**PitchMaster v2** 是给业余足球小圈子用的"现场实战记录器"——单人手机操作、零认知负担、断网可用、活动结束自动出战报。
-
-> 老版本（v1，Spring Boot + MySQL + React + FM 评分）已在 2026 年推倒重做并归档至 `legacy/`，**禁止参考 v1 代码做任何 v2 设计决策**。如需了解 v1 为何被废，见 `legacy/README.md`。
+**PitchMaster** 是给业余足球小圈子用的"现场实战记录器"——单人手机操作、零认知负担、断网可用、活动结束自动出战报。
 
 ---
 
@@ -41,10 +38,9 @@
 ├── docs/
 │   ├── ARCHITECTURE_V2.md     # 技术参考唯一真源
 │   └── DECISIONS.md           # ADR 记录
-├── legacy/                    # v1 归档，禁止参考
-├── backend/                   # v2 后端 (Node + Hono)
-├── web/                       # v2 前端 (React + Vite + PWA)
-└── deploy/                    # v2 部署脚本
+├── backend/                   # Node + Hono 后端
+├── web/                       # React + Vite + PWA 前端
+└── deploy/                    # 部署脚本
 ```
 
 ---
@@ -59,7 +55,7 @@
 
 ### 4.2 范围纪律（极其重要）
 
-> v2 的最大风险是再次膨胀回 v1。任何下列冲动 = 红线，需要打回：
+> 产品范围膨胀是最大风险。任何下列冲动 = 红线，需要打回：
 >
 > - "顺便加个用户登录吧"
 > - "顺便给球员加个评分吧"
@@ -115,7 +111,7 @@
 | 撤销 | 写入 `type=UNDO` + `undoTargetEventId`；不物理删除 |
 | 幂等 | 所有事件写入携带 `clientEventId` (UUID)；DB unique 约束 `(game_id, client_event_id)` |
 | 鉴权 | 写接口需 `Authorization: Bearer <adminToken>` 或 `?pin=XXXXXX` |
-| 单管理员假设 | v2 假定同一场比赛只一个设备录入；多设备同录 = v3+ 议题 |
+| 单管理员假设 | 同一场比赛只一个设备录入；多设备同录 = 后续议题 |
 | MVP 选取 | 进球+助攻最高者；并列取较早出现 |
 
 ---
@@ -148,7 +144,7 @@ sudo bash deploy/scripts/backup.sh     # 立即备份
 
 ## 7. 协作工作流
 
-1. 任何需求/bug，先在 `DEVELOPMENT_PLAN.md §4 待决事项` 或 `legacy/` 之外的 issue tracker 登记
+1. 任何需求/bug，先在 `DEVELOPMENT_PLAN.md §4 待决事项` 或 issue tracker 登记
 2. 实施前对照 §4.1-4.3 自检
 3. 写代码：小步提交、conventional-commits
 4. 写/改测试，本地 `npm test` 通过
@@ -159,14 +155,13 @@ sudo bash deploy/scripts/backup.sh     # 立即备份
 
 ## 8. 红线清单（违反即 reject）
 
-- ❌ 在 `legacy/` 之外引用 v1 Java 代码或 v1 数据库 schema
 - ❌ 引入"任何形式的 FM 评分 / 三维评分 / 互评"
 - ❌ 引入"用户注册系统"
 - ❌ 引入"多租户拦截器 / Tournament / Club"
-- ❌ 引入 MySQL / PostgreSQL（v2 锁定 SQLite）
+- ❌ 引入 MySQL / PostgreSQL（锁定 SQLite）
 - ❌ 引入 Spring Boot / Java
 - ❌ 写新功能不写测试 + 修改 `deriveScore` 不写测试
-- ❌ 海报 / 战报渲染搞客户端 html2canvas（v2 全部走 satori）
+- ❌ 海报 / 战报渲染搞客户端 html2canvas（全部走 satori）
 - ❌ 在 Routes 里写业务逻辑（Routes 只编排，业务在 Services）
 - ❌ 在前端写"乐观更新但不入 outbox"的逻辑（任何写操作必须先 outbox）
 
@@ -175,11 +170,8 @@ sudo bash deploy/scripts/backup.sh     # 立即备份
 ## 9. 给特定 AI 工具的额外说明
 
 ### Cursor / Claude Code / Codex CLI
-- 工作目录认 repo root；不要进 `legacy/` 改东西
+- 工作目录认 repo root
 - 终端命令优先 `pnpm` 若已配置；否则 `npm`
-
-### Windsurf / Gemini Code Assist
-- 旧的 `.windsurfrules` 与 `GEMINI.md` 已删除；本文件是唯一规则源
 
 ---
 

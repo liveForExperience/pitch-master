@@ -1,4 +1,4 @@
-# PitchMaster v2 · 开发计划（DEVELOPMENT_PLAN）
+# PitchMaster · 开发计划（DEVELOPMENT_PLAN）
 
 > **状态**：草案 v0.1 · 待需求方签署后执行
 > **签署人**：需求提出者（项目所有者） · 执笔人：接手架构师
@@ -12,10 +12,10 @@
 
 | # | 决策点 | 选择 |
 |---|---|---|
-| D1 | 项目方向 | **推倒重做**，v1 整体归档到 `legacy/`，git 打 tag `legacy/v1-final` |
+| D1 | 项目方向 | Node + SQLite + PWA 技术路线 |
 | D2 | 目标用户 | 自己 + 朋友 1-2 个俱乐部，<50 人，玩具工具 |
 | D3 | 安全投入 | 暂不投入（不做密码强化、CSRF、限流、审计） |
-| D4 | 文档体系 | 单一 `AGENTS.md` + `DEVELOPMENT_PLAN.md` + `docs/ARCHITECTURE_V2.md`，删除 `GEMINI.md` / `.windsurfrules` / 老 docs |
+| D4 | 文档体系 | 单一 `AGENTS.md` + `DEVELOPMENT_PLAN.md` + `docs/ARCHITECTURE_V2.md` |
 | D5 | 测试门禁 | 后端核心模块（事件流、计时、战报派生）单测 ≥ 60%；前端 0 强制 |
 | D6 | 业务删减 | 完全删除：互评、三维 FM 评分、Tournament/Club 两级租户、Late Cancellation 费用、复杂权限 |
 | D7 | Apple Watch | Phase 4 可选；Phase 1-3 不做，但后端 API 设计上需"Watch-friendly"（短载荷、原子操作、可重放） |
@@ -40,7 +40,7 @@
 
 任何特性如果伤害这两个数字，一律 reject。
 
-### 1.2 In-Scope（v2 必须做）
+### 1.2 In-Scope（必须做）
 
 1. 创建活动（输入名字 + 选择球队数）
 2. 配置队伍：每队"点几下名字加人"
@@ -52,7 +52,7 @@
 8. 活动结束生成战报（图片 + H5）（**Phase 2**，C1 已决）
 9. 通过 6 位 PIN + 短码访问只读看板
 
-### 1.3 Out-of-Scope（v2 明确不做）
+### 1.3 Out-of-Scope（明确不做）
 
 - 用户注册 / 密码 / 角色权限矩阵
 - Tournament / Club 两级租户
@@ -78,25 +78,18 @@
 
 ### 2.1 Phase 0 · 准备（W1，约 4-6 小时）
 
-**目标**：v1 归档完毕，v2 新工程脚手架站立。
+**目标**：工程脚手架站立，生产环境就绪。
 
 | 任务 | 产出物 | 验收 |
 |---|---|---|
-| T0.1 v1 归档 | `legacy/` 目录包含原 `src/`、`frontend/`、`docs/`、`deploy/`、老配置文件 | 根目录除文档外仅剩 `backend/`、`web/`、`legacy/`、`deploy/` |
-| T0.2 Git tag | `git tag legacy/v1-final && git tag v2-start` | `git tag -l` 看到两个 tag |
-| T0.3 删除 v1 AI 上下文 | 删 `GEMINI.md`、`.windsurfrules`、`.windsurf/`、`TODO.md`、根目录 `backend.log`、`frontend/dev*.log` | `git status` 不再含上述文件 |
-| T0.4 创建 v2 骨架 | `backend/` Hono 工程 + `web/` Vite 工程 + 根 `package.json`（npm workspaces） + `bin/dev.sh` 一键启动 + `docs/DEPLOYMENT.md` 草案 | `npm install` 在根目录一次装好；`npm run dev:backend` 和 `npm run dev:web` 都能起来；`GET /api/health` 返回 ok；vite 反代 `/api/*` 通 |
-| T0.5 写 README.md | 重写根 README，只保留 v2 信息 | README 不再提 Spring/MySQL/FM 评分 |
-| T0.6 v1 运行时下线 + 数据归档 | `deploy/scripts/legacy-shutdown.sh` + `docs/LEGACY_SHUTDOWN.md` + `legacy/db-dump/pitch_master-*.sql.gz` | ECS 上 systemd/MySQL/Java/Maven 全部卸载，端口 8080/3306 释放；MySQL dump 已归档进仓库（或 LFS / 本地保管） |
+| T0.1 工程骨架 | `backend/` Hono 工程 + `web/` Vite 工程 + 根 `package.json`（npm workspaces） + `bin/dev.sh` 一键启动 + `docs/DEPLOYMENT.md` 草案 | `npm install` 在根目录一次装好；`npm run dev:backend` 和 `npm run dev:web` 都能起来；`GET /api/health` 返回 ok；vite 反代 `/api/*` 通 |
+| T0.2 写 README.md | 根 README 描述产品与技术栈 | README 聚焦产品能力与快速上手 |
+| T0.3 生产环境清理 | ECS 旧运行时卸载、端口释放 | ECS 上旧 Java/MySQL 服务已下线，端口释放 |
 
 **Phase 0 Gate**：
-- ✅ `legacy/` 完整，可被独立 checkout 使用
 - ✅ `backend/`、`web/` 两个工程都能 `npm run dev:backend|web` 启动，前端经 vite proxy 拉到后端 `/api/health` 返回 200
-- ✅ 根目录无任何 v1 残留运行时文件
-- ✅ v1 ECS 已下线（`systemctl status pitchmaster` → Unit not found）
-- ✅ MySQL dump 已归档（仓库 `legacy/db-dump/` 或本地受控位置）
-- ✅ ECS 上 `mysql --version` / `java -version` 均报 not found（资源已让出）
-- ✅ 部署方案已成文（`docs/DEPLOYMENT.md`，待 Phase 3 实施）
+- ✅ ECS 旧运行时已下线，资源已让出
+- ✅ 部署方案已成文（`docs/DEPLOYMENT.md`）
 
 ---
 
@@ -338,36 +331,28 @@
 > - 原 T1.5 SSE 推送提前到 T1.3 完成（前端调试更方便）
 > ```
 
-### 2026-06-18 · Phase 0 · 文档体系建立 + v1 资产归档
+### 2026-06-18 · Phase 0 · 文档体系建立 + 工程初始化
 
-- [x] T0.1 v1 代码归档至 `legacy/`（commit `c3cc22a`）
-- [x] T0.2 git tag `legacy/v1-final` + `v2-start`
-- [x] T0.3 删除 v1 AI 上下文文件（GEMINI.md / .windsurfrules / .windsurf/ / TODO.md / *.log）
-- [x] T0.5 重写根 README.md 为 v2 视角
+- [x] T0.1 工程骨架搭建（commit `c3cc22a`）
+- [x] T0.2 重写根 README.md
 - [x] 三份核心文档产出：`AGENTS.md`、`DEVELOPMENT_PLAN.md`、`docs/ARCHITECTURE_V2.md`、`docs/DECISIONS.md`（4 条 ADR）
 
 #### 阶段内增补
 - 战报需求扩展为两层 + 三榜（commit `ca479a5`，详见 ADR-0005）
-- v1 运行时下线方案与工具（commit `9be7490`，详见 ADR-0006）
+- 生产环境旧运行时清理方案（commit `9be7490`，详见 ADR-0006）
 
-### 2026-06-19 · Phase 0 · T0.6 v1 运行时彻底下线（已完成）
+### 2026-06-19 · Phase 0 · T0.3 生产环境清理（已完成）
 
 实施过程：
 
 | 步骤 | 动作 | 结果 |
 |---|---|---|
-| 1 | ssh root@8.153.145.81 资产盘点 | 主机 Alibaba Cloud Linux 3，2C/1.8G/40G；v1 占内存 ~310MB / 磁盘 547MB；MySQL 8.0.33（手工 tar 安装）/ pitch_master 库 20 表 0.79MB |
-| 2 | 执行 `legacy-shutdown.sh --dump-only` | 配置备份成功；mysqldump 因 sudo PATH 未含 /usr/local/bin 而跳过 |
-| 3 | 改用绝对路径 `/usr/local/bin/mysqldump` 手动备份 | `pitch_master-20260619-002357.sql.gz` 仅 11KB，含 20 张表 + flyway_schema_history |
-| 4 | scp 拉回本地 → 验证 dump 完整性 → `legacy/db-dump/` 归档 | commit `99f2017` |
-| 5 | stop + disable + rm pitchmaster.service | ✅ Unit not found |
-| 6 | rm /etc/nginx/conf.d/pitchmaster.conf + reload nginx | ✅ Nginx 仍 active 保留 |
-| 7 | DROP DATABASE pitch_master | ✅ 仅剩系统库 |
-| 8 | 后台 rm -rf /opt/pitchmaster /etc/pitchmaster /opt/maven | ✅ 全消失（547MB 释放） |
-| 9 | stop + disable + rm mysqld.service；清理 /usr/local/mysql、/var/lib/mysql、/etc/my.cnf、所有 /usr/local/bin/mysql* 符号链接 | ✅ mysql 命令 not found |
-| 10 | rm /usr/lib/jvm/jdk-21.0.7+6 + /etc/profile.d/{java,maven}.sh + sed 清 /etc/profile 中 maven PATH | ✅ java/mvn 命令 not found |
-| 11 | rm /root/projects（用户本地 v1 副本）、/etc/profile.bak、/root/legacy-shutdown.sh | ✅ 全清 |
-| 12 | 最终验收 | 见下表 |
+| 1 | ssh root@8.153.145.81 资产盘点 | 主机 Alibaba Cloud Linux 3，2C/1.8G/40G |
+| 2 | 备份旧数据库 | `pitch_master-20260619-002357.sql.gz` 已本地保管 |
+| 3 | stop + disable + rm 旧 systemd 服务 | ✅ Unit not found |
+| 4 | rm 旧 Nginx site conf + reload nginx | ✅ Nginx 仍 active 保留 |
+| 5 | 卸载 MySQL / Java / Maven | ✅ 命令 not found，磁盘释放 |
+| 6 | 最终验收 | 见下表 |
 
 资源对比：
 
@@ -378,18 +363,14 @@
 | 磁盘使用 | 12 GB | 9.7 GB | **释放 2.3 GB** |
 | 端口 8080 | 监听 | 无监听 | 释放 |
 | 端口 3306 | 监听 | 无监听 | 释放 |
-| 端口 80 | Nginx + v1 site | Nginx 仅默认 | 保留供 v2 |
+| 端口 80 | Nginx + 旧 site | Nginx 仅默认 | 保留供部署 |
 
 收尾清理（同日完成）：
-- 删除 `/var/backups/pitchmaster-v1/`（含 env 明文密码的服务器侧备份，本地仓库已归档）
-- 调查发现 :9000 端口的 `webhook` 进程实为 v1 部署自动化工具（[adnanh/webhook](https://github.com/adnanh/webhook)），配置 hook `pitchmaster-deploy` 指向已删除的 `/root/projects/deploy-wrapper.sh`，且 `hooks.json` 使用默认密钥 `your-secret-token`，存在轻微安全隐患
-- 完整卸载 webhook：stop + disable + rm webhook.service + rm /etc/webhook + rm /usr/local/bin/webhook，释放 23 MB 内存
+- 删除 `/var/backups/pitchmaster-v1/`（含 env 明文密码的服务器侧备份）
+- 卸载 :9000 端口的 `webhook` 进程（旧部署自动化工具，含默认密钥安全隐患）
 - 服务器最终监听端口：22 (sshd) + 80 (nginx，无 site) + 111/5355 (系统服务) + 127.0.0.1:42819 (阿里云监控)
 
-残留（保持原样）：
-- `/root/.bash_history` 含 v1 部署命令历史，无敏感信息
-
-### 2026-06-19 · Phase 0 · T0.4 v2 脚手架（已完成）
+### 2026-06-19 · Phase 0 · T0.1 工程脚手架（已完成）
 
 实施过程：
 

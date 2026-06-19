@@ -1,6 +1,0 @@
-/* 已移除 Vite 默认样式，全部采用 Tailwind CSS 处理 */
-#root {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
