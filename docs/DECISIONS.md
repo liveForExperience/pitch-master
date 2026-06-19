@@ -243,4 +243,36 @@ ADR-0001 选定 systemd + Caddy 的部署形态作为远景。但实际进入 Ph
 
 ---
 
+## ADR-0008 · Phase 5 多人录入（S2/S3）— 已回滚
+
+**日期**：2026-06-19（立项）· 2026-06-19（回滚）
+**状态**：**Rejected**（需求方决定回退至 S1）
+**决策者**：需求方
+
+### 背景
+
+曾立项 Phase 5A（Editor Lease / S2）与 Phase 5B（Multi-Writer / S3），并已合并上线（commit `91701b2`）。内测反馈：租约交接 + 多写者 reconcile 复杂度高、现场收益有限。
+
+### 决策
+
+| 维度 | 选择 |
+|---|---|
+| **目标状态** | **S1**：单设备录入 + 多端 SSE 只读观战 |
+| **换机** | 继续用分享码 + PIN 恢复 `adminToken`（`/admin/restore`） |
+| **代码** | `git revert 91701b2` 移除 lease / version / multi-writer |
+| **线上 DB** | 已执行的 `0001`/`0002` migration 列可保留（SQLite 冗余列无害）；不追 down migration |
+
+### 后果
+
+- 产品回到「同一场比赛只一个管理员设备录入」假设（`ARCHITECTURE_V2.md` §6.4）
+- 删除：`editor-lease.service`、`EditorLeaseBanner`、`use-editor-lease`、`reconcile-game` 等
+- 多人协同录入列为 v3+ 候选，需重新 ADR 方可启动
+
+### 关联
+
+- Revert commit：`1cc1ee1`
+- `DEVELOPMENT_PLAN.md` §5 阶段日志
+
+---
+
 > 后续 ADR 在此追加，编号递增。

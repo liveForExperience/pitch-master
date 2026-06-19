@@ -545,6 +545,18 @@ Gate 待人工验收（D6 / C6 已决，merge 前由需求方执行）：
 
 不在范围：海报 PNG 多语言（服务端固定中文，与 §1.3 Out-of-Scope 对齐；如需 EN 海报由后续阶段决策）。
 
+### 2026-06-19 · Phase 5（S2/S3）回滚 → 维持 S1
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| 决策 | ✅ | 需求方：S3 过于复杂且不实用，回退 S1（单设备录入 + SSE 观战） |
+| 代码 | ✅ | `git revert 91701b2`（`1cc1ee1`）；移除 editor lease、game.version、multi-writer reconcile |
+| 测试 | ✅ | backend 62 / web 73 用例绿 |
+| 文档 | ✅ | `ADR-0008` 标记 Rejected；`AGENTS.md` 恢复单管理员假设 |
+| 部署 | ⬜ | 需 PR 合并 main 后 Actions 部署；线上 DB 冗余列可忽略 |
+
+换机路径不变：首页顶栏「管理员」图标 → `/admin/restore`（分享码 + PIN）。
+
 ---
 
 ## 6. 签署

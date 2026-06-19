@@ -50,6 +50,7 @@ export function SettingsButton({ className }: { className?: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t('settings.openLabel')}
+        title={t('settings.navTooltip')}
         className={cn(
           'inline-flex h-10 w-10 items-center justify-center rounded-full text-textSec active:bg-elevated',
           className,

@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { SettingsButton } from '../Settings';
+import { ArchivedNavButton } from '../ArchivedNavButton';
+import { RestoreNavButton } from '../RestoreNavButton';
 import { useT } from '../../i18n';
 
 export { Card } from './card';
@@ -32,7 +34,11 @@ export function PageShell({
             </Link>
           )}
           <h1 className="flex-1 truncate text-lg font-bold text-textPri">{title}</h1>
-          <SettingsButton className="-mr-2" />
+          <div className="flex shrink-0 items-center">
+            <ArchivedNavButton />
+            <RestoreNavButton />
+            <SettingsButton className="-mr-2" />
+          </div>
         </div>
       </header>
       <main className="space-y-4 p-4">{children}</main>

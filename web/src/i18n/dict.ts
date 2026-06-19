@@ -46,6 +46,13 @@ export const zh: Dict = {
   'settings.theme.light': '亮色',
   'settings.theme.dark': '夜间',
   'settings.openLabel': '打开设置',
+  'settings.navTooltip': '语言与外观会保存在本机。',
+
+  'archived.openLabel': '查看已归档活动',
+  'archived.navTooltip': '已结束的活动记录；手动「结束活动」后才会归档。',
+
+  'restore.openLabel': '凭 PIN 恢复管理',
+  'restore.navTooltip': '换设备后输入分享码和 PIN，可重新获得录入与配置权限。',
 
   // ── shell / nav ──────────────────────────────────────────────────────
   'shell.back': '← 返回',
@@ -67,6 +74,8 @@ export const zh: Dict = {
   'home.archived.titleWithCount': '已归档 · {count}',
   'home.archived.hint': '已结束的活动记录',
   'home.archived.empty': '暂无已结束的活动。',
+  'archived.search.placeholder': '搜索活动名称或分享码',
+  'archived.search.empty': '没有匹配的活动。',
   'home.expand': '展开',
   'home.collapse': '收起',
 
@@ -343,6 +352,15 @@ export const en: Dict = {
   'settings.theme.light': 'Light',
   'settings.theme.dark': 'Dark',
   'settings.openLabel': 'Open settings',
+  'settings.navTooltip': 'Language and theme are saved on this device.',
+
+  'archived.openLabel': 'View archived events',
+  'archived.navTooltip':
+    'Records of finished events. They appear here after you end an event manually.',
+
+  'restore.openLabel': 'Restore with PIN',
+  'restore.navTooltip':
+    'Switching devices? Enter the share code and PIN to regain recording rights.',
 
   // ── shell / nav ──────────────────────────────────────────────────────
   'shell.back': '← Back',
@@ -368,6 +386,8 @@ export const en: Dict = {
   'home.archived.titleWithCount': 'Archived · {count}',
   'home.archived.hint': 'Finished events',
   'home.archived.empty': 'No archived events yet.',
+  'archived.search.placeholder': 'Search by name or share code',
+  'archived.search.empty': 'No matching events.',
   'home.expand': 'Expand',
   'home.collapse': 'Collapse',
 

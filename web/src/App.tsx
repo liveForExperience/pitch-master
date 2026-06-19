@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
+import { ArchivedPage } from './pages/ArchivedPage';
 import { NewEventPage } from './pages/NewEventPage';
 import { EventPage } from './pages/EventPage';
 import { EventSetupPage } from './pages/EventSetupPage';
@@ -19,6 +20,7 @@ export function App() {
       <OfflineStatusBar />
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/archived" element={<ArchivedPage />} />
         <Route path="/admin/restore" element={<AdminRestorePage />} />
         <Route path="/events/new" element={<NewEventPage />} />
         <Route path="/events/:shortCode/report" element={<EventReportPage />} />
