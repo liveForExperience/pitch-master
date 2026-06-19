@@ -76,7 +76,7 @@ bash bin/dev.sh    # 一键启动 backend(:3000) + web(:5173)
 参见 [`DEVELOPMENT_PLAN.md §5 阶段实施日志`](./DEVELOPMENT_PLAN.md#5-阶段实施日志执行时由开发者追加)。
 
 - [x] Phase 0：v1 归档完成、文档体系建立、v1 运行时彻底下线、v2 脚手架就绪
-- [ ] Phase 1：MVP 在线版（待启动）
+- [x] Phase 1：MVP 在线版（核心流程已实现，Gate 人工验收进行中）
 - [ ] Phase 2：离线 + 战报（待启动）
 - [ ] Phase 3：上线（待启动）
 - [ ] Phase 4：Apple Watch（可选，待启动）

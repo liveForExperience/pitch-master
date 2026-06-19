@@ -24,8 +24,9 @@ Vite dev server 已配置 `/api/*` 反代到 `http://localhost:3000`（可被 `V
 | `npm run build` | 类型检查 + 产线打包到 `dist/` |
 | `npm run preview` | 预览打包产物 |
 | `npm run typecheck` | 仅类型检查 |
+| `npm test` | vitest 单元测试（game-events / API 解析 / 时间格式） |
 
-## Layout（脚手架阶段）
+## Layout（Phase 1）
 
 ```
 web/

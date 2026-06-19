@@ -4,14 +4,14 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
-  coverage: {
-    provider: 'v8',
-    reporter: ['text', 'html'],
-    include: ['src/services/**/*.ts'],
-    exclude: ['src/index.ts', 'src/**/*.d.ts'],
-    thresholds: {
-      lines: 60,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/services/**/*.ts', 'src/lib/short-code.ts'],
+      exclude: ['src/index.ts', 'src/**/*.d.ts'],
+      thresholds: {
+        lines: 60,
+      },
     },
-  },
   },
 });

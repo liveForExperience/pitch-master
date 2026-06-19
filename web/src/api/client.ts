@@ -1,12 +1,6 @@
-import type { ApiFailure, ApiSuccess } from './types';
+import { ApiError, parseApiResponse } from './parse-response';
 
-export class ApiError extends Error {
-  code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.code = code;
-  }
-}
+export { ApiError };
 
 type RequestOpts = RequestInit & { adminToken?: string | null; pin?: string };
 
@@ -23,15 +17,20 @@ export async function apiRequest<T>(path: string, opts: RequestOpts = {}): Promi
     headers.set('Content-Type', 'application/json');
   }
 
-  const res = await fetch(buildUrl(path, opts.pin), { ...opts, headers });
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path, opts.pin), { ...opts, headers });
+  } catch {
+    throw new ApiError('network_error', '无法连接服务器，请检查网络或确认后端已启动（bash bin/dev.sh）');
+  }
+
   const newToken = res.headers.get('X-New-Admin-Token');
   if (newToken) {
     window.dispatchEvent(new CustomEvent('pitchmaster:new-admin-token', { detail: newToken }));
   }
 
-  const body = (await res.json()) as ApiSuccess<T> | ApiFailure;
-  if (!body.ok) throw new ApiError(body.error.code, body.error.message);
-  return body.data;
+  const text = await res.text();
+  return parseApiResponse<T>(text, res.status);
 }
 
 export function newClientEventId(): string {

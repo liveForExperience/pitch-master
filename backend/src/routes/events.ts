@@ -4,9 +4,8 @@ import { requireEventAdmin } from '../lib/admin-auth.js';
 import { fail, ok } from '../lib/api-response.js';
 import { readJson } from '../lib/http.js';
 import { createEvent } from '../services/event.service.js';
+import { NotFoundError, ValidationError } from '../lib/errors.js';
 import {
-  NotFoundError,
-  ValidationError,
   createGame,
   createTeam,
   getEventByShortCode,

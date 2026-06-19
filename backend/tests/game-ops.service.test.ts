@@ -68,6 +68,57 @@ describe('game-ops.service integration', () => {
     expect(state.status).toBe('PLAYING');
   });
 
+  it('can undo a specific non-last goal', async () => {
+    const { db, game, pA } = await seedMatch();
+    await startGame(db, game.id);
+    const first = await recordGameEvent(db, game.id, {
+      clientEventId: 'g-first',
+      type: 'GOAL',
+      teamSide: 'A',
+      scorerRosterId: pA.id,
+      clientTs: Date.now(),
+    });
+    await recordGameEvent(db, game.id, {
+      clientEventId: 'g-second',
+      type: 'GOAL',
+      teamSide: 'A',
+      scorerRosterId: pA.id,
+      clientTs: Date.now(),
+    });
+
+    await undoGameEvent(db, game.id, first.event.id);
+    const state = await getGameState(db, game.id);
+    expect(state.scoreA).toBe(1);
+  });
+
+  it('allows post-finish goal correction and undo', async () => {
+    const { db, game, pA } = await seedMatch();
+    await startGame(db, game.id);
+    await recordGameEvent(db, game.id, {
+      clientEventId: 'g1',
+      type: 'GOAL',
+      teamSide: 'A',
+      scorerRosterId: pA.id,
+      clientTs: Date.now(),
+    });
+    await finishGame(db, game.id);
+
+    const supplemental = await recordGameEvent(db, game.id, {
+      clientEventId: 'g-post',
+      type: 'GOAL',
+      teamSide: 'A',
+      scorerRosterId: pA.id,
+      clientTs: Date.now(),
+    });
+    let state = await getGameState(db, game.id);
+    expect(state.status).toBe('FINISHED');
+    expect(state.scoreA).toBe(2);
+
+    await undoGameEvent(db, game.id, supplemental.event.id);
+    state = await getGameState(db, game.id);
+    expect(state.scoreA).toBe(1);
+  });
+
   it('is idempotent on duplicate clientEventId', async () => {
     const { db, game, pA } = await seedMatch();
     await startGame(db, game.id);

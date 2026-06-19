@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { getDb } from '../db/client.js';
 import { subscribe } from '../lib/sse-broker.js';
-import { getGameState, NotFoundError } from '../services/game-ops.service.js';
+import { getGameState } from '../services/game-ops.service.js';
+import { NotFoundError } from '../lib/errors.js';
 import { fail } from '../lib/api-response.js';
 
 export const streamRoute = new Hono();
