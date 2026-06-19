@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Card, PrimaryButton } from '../ui/layout';
+import { useT } from '../../i18n';
 import { parseWechatSignupText } from '../../lib/roster-import';
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export function RosterImportPanel({ pool, onPoolChange }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(pool.length > 0);
   const [paste, setPaste] = useState('');
   const [parseHint, setParseHint] = useState('');
@@ -16,9 +18,7 @@ export function RosterImportPanel({ pool, onPoolChange }: Props) {
     const { names, skippedLines, duplicateNames } = parseWechatSignupText(paste);
     if (names.length === 0) {
       setParseHint(
-        skippedLines.length
-          ? '未解析到球员，已跳过非名单行'
-          : '请先粘贴带序号的报名文本',
+        skippedLines.length ? t('roster.empty.skipped') : t('roster.empty.needText'),
       );
       return;
     }
@@ -33,9 +33,9 @@ export function RosterImportPanel({ pool, onPoolChange }: Props) {
     }
     onPoolChange(merged);
     setPaste('');
-    const parts: string[] = [`已加入 ${added} 人`];
-    if (skippedLines.length) parts.push(`跳过 ${skippedLines.length} 行`);
-    if (duplicateNames.length) parts.push(`重复 ${duplicateNames.length} 人`);
+    const parts: string[] = [t('roster.added', { count: added })];
+    if (skippedLines.length) parts.push(t('roster.skipped', { count: skippedLines.length }));
+    if (duplicateNames.length) parts.push(t('roster.duplicates', { count: duplicateNames.length }));
     setParseHint(parts.join(' · '));
   };
 
@@ -50,21 +50,23 @@ export function RosterImportPanel({ pool, onPoolChange }: Props) {
         className="flex w-full items-center justify-between text-left"
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="font-semibold text-textPri">快速导入报名名单</span>
+        <span className="font-semibold text-textPri">{t('roster.title')}</span>
         <span className="text-sm text-textSec">
-          {pool.length ? `${pool.length} 人待分配` : open ? '收起' : '展开'}
+          {pool.length
+            ? t('roster.pending', { count: pool.length })
+            : open
+              ? t('home.collapse')
+              : t('home.expand')}
         </span>
       </button>
 
       {open && (
         <div className="mt-3 space-y-3 border-t border-border pt-3">
-          <p className="text-xs text-textSec">
-            从微信群复制接龙文本粘贴到下方，每行序号后内容即一名球员（含 emoji、+1、门 等后缀原样保留）。
-          </p>
+          <p className="text-xs text-textSec">{t('roster.help')}</p>
           <textarea
-            className="w-full rounded-xl border border-border px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-textPri"
             rows={5}
-            placeholder="1. 张三&#10;2. 李四&#10;…"
+            placeholder={t('roster.placeholder')}
             value={paste}
             onChange={(e) => {
               setPaste(e.target.value);
@@ -72,13 +74,13 @@ export function RosterImportPanel({ pool, onPoolChange }: Props) {
             }}
           />
           <PrimaryButton className="min-h-12" onClick={parseAndMerge}>
-            解析并加入名单
+            {t('roster.parse')}
           </PrimaryButton>
           {parseHint && <p className="text-xs text-textSec">{parseHint}</p>}
 
           {pool.length > 0 && (
             <div>
-              <p className="mb-2 text-xs font-medium text-textSec">待分配球员</p>
+              <p className="mb-2 text-xs font-medium text-textSec">{t('roster.poolHeader')}</p>
               <ul className="flex flex-wrap gap-2">
                 {pool.map((name) => (
                   <li key={name}>
@@ -87,7 +89,7 @@ export function RosterImportPanel({ pool, onPoolChange }: Props) {
                       <button
                         type="button"
                         className="shrink-0 text-textSec hover:text-danger"
-                        aria-label={`移除 ${name}`}
+                        aria-label={t('roster.remove', { name })}
                         onClick={() => removeFromPool(name)}
                       >
                         ×

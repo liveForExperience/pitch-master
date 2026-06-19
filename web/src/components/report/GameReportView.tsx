@@ -16,6 +16,7 @@ import {
   type ShareReportInput,
 } from '../../lib/share-report';
 import { formatMs } from '../../lib/time-format';
+import { useT } from '../../i18n';
 
 function MonthDayTime(epochMs: number | null): string {
   if (!epochMs) return '';
@@ -31,11 +32,15 @@ function GoalRow({
   teamA,
   teamB,
   last,
+  ownGoalTag,
+  assistFmt,
 }: {
   goal: GameReport['goals'][number];
   teamA: { name: string; colorHex: string };
   teamB: { name: string; colorHex: string };
   last: boolean;
+  ownGoalTag: string;
+  assistFmt: (name: string) => string;
 }) {
   const isA = goal.teamSide === 'A';
   const color = isA ? teamA.colorHex : teamB.colorHex;
@@ -52,11 +57,11 @@ function GoalRow({
           <p className="truncate text-body font-semibold text-textPri">
             {goal.scorerName}
             {goal.type === 'OWN_GOAL' && (
-              <span className="ml-1 text-caption text-danger">（乌龙）</span>
+              <span className="ml-1 text-caption text-danger">{ownGoalTag}</span>
             )}
           </p>
           {goal.assistantName && (
-            <p className="text-caption text-textSec">助攻 · {goal.assistantName}</p>
+            <p className="text-caption text-textSec">{assistFmt(goal.assistantName)}</p>
           )}
         </div>
         {!isA && <TeamBar colorHex={color} height={24} />}
@@ -104,22 +109,29 @@ export function GameReportView({
   report: GameReport;
   eventShortCode?: string | null;
 }) {
+  const t = useT();
   const { game } = report;
-  const teamA = game.teamA ?? { id: '', name: 'A 队', colorHex: '#64748b' };
-  const teamB = game.teamB ?? { id: '', name: 'B 队', colorHex: '#64748b' };
+  const teamA = game.teamA ?? { id: '', name: 'A', colorHex: '#64748b' };
+  const teamB = game.teamB ?? { id: '', name: 'B', colorHex: '#64748b' };
 
   const verdict =
-    game.status !== 'FINISHED'
-      ? '比赛进行中'
-      : game.scoreA > game.scoreB
-        ? <>{teamA.name} <i className="font-serif italic">wins</i></>
-        : game.scoreA < game.scoreB
-          ? <>{teamB.name} <i className="font-serif italic">wins</i></>
-          : <i className="font-serif italic">Draw</i>;
+    game.status !== 'FINISHED' ? (
+      t('reports.gameInProgress')
+    ) : game.scoreA > game.scoreB ? (
+      <>
+        {teamA.name} <i className="font-serif italic">{t('reports.verdictWins')}</i>
+      </>
+    ) : game.scoreA < game.scoreB ? (
+      <>
+        {teamB.name} <i className="font-serif italic">{t('reports.verdictWins')}</i>
+      </>
+    ) : (
+      <i className="font-serif italic">{t('reports.verdictDraw')}</i>
+    );
 
   const share: ShareReportInput = {
-    title: `${teamA.name} vs ${teamB.name} · 单场战报`,
-    text: buildGameShareText(teamA.name, teamB.name, game.scoreA, game.scoreB),
+    title: `${teamA.name} vs ${teamB.name} · ${t('reports.gameTitle')}`,
+    text: buildGameShareText(teamA.name, teamB.name, game.scoreA, game.scoreB, t),
     url: gameReportPath(game.id),
     posterUrl: gamePosterUrl(game.id),
   };
@@ -133,23 +145,23 @@ export function GameReportView({
           <span>
             {verdict}
             {game.status === 'FINISHED' && (
-              <span className="ml-2 text-textSec">· 用时 {formatMs(game.durationMs)}</span>
+              <span className="ml-2 text-textSec">
+                {t('reports.gameDuration', { elapsed: formatMs(game.durationMs) })}
+              </span>
             )}
           </span>
         }
         share={share}
       >
-        <HeroScore
-          scoreA={game.scoreA}
-          scoreB={game.scoreB}
-          teamA={teamA}
-          teamB={teamB}
-        />
+        <HeroScore scoreA={game.scoreA} scoreB={game.scoreB} teamA={teamA} teamB={teamB} />
       </ReportHero>
 
-      <ReportSection title="GOALS · 进球流水" meta={`${report.goals.length} 球`}>
+      <ReportSection
+        title={t('reports.goals')}
+        meta={t('reports.goalsMeta', { count: report.goals.length })}
+      >
         {report.goals.length === 0 ? (
-          <p className="py-3 text-body text-textSec">暂无进球记录</p>
+          <p className="py-3 text-body text-textSec">{t('reports.goals.empty')}</p>
         ) : (
           <div className="border-t border-border">
             {report.goals.map((goal, i) => (
@@ -159,6 +171,8 @@ export function GameReportView({
                 teamA={teamA}
                 teamB={teamB}
                 last={i === report.goals.length - 1}
+                ownGoalTag={t('reports.ownGoalTag')}
+                assistFmt={(name) => t('reports.assist', { name })}
               />
             ))}
           </div>
@@ -166,7 +180,7 @@ export function GameReportView({
       </ReportSection>
 
       {report.gameMvp && (
-        <ReportSection title="MATCH MVP">
+        <ReportSection title={t('reports.mvp')}>
           <div className="flex items-baseline justify-between gap-3 pt-1">
             <div>
               <p className="text-3xl font-bold tracking-[-0.01em] text-textPri">
@@ -181,7 +195,7 @@ export function GameReportView({
         </ReportSection>
       )}
 
-      <ReportSection title="POSTER · 海报版战报">
+      <ReportSection title={t('reports.poster')}>
         <PosterPreview
           src={gamePosterUrl(game.id)}
           downloadName={`pitchmaster-game-${game.id}-report.png`}
@@ -195,14 +209,14 @@ export function GameReportView({
             to={`/games/${game.id}`}
             className="border-y border-border py-3 uppercase tracking-[0.14em]"
           >
-            比赛详情 →
+            {t('reports.gotoDetail')}
           </Link>
           {eventShortCode && (
             <Link
               to={`/events/${eventShortCode}/report`}
               className="border-y border-border py-3 uppercase tracking-[0.14em]"
             >
-              活动战报 →
+              {t('reports.gotoEventReport')}
             </Link>
           )}
         </div>

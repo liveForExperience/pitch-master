@@ -5,6 +5,7 @@ import type { GameDetail } from '../api/types';
 import { GameEventFeed } from '../components/GameEventFeed';
 import { Card, PageShell } from '../components/ui/layout';
 import { ShareReportButton } from '../components/report/ShareReportButton';
+import { useT } from '../i18n';
 import { gamePosterUrl } from '../lib/poster-url';
 import { buildGameShareText, gameReportPath } from '../lib/share-report';
 import { useGameStream } from '../lib/use-game-stream';
@@ -12,6 +13,7 @@ import { useLiveGameTimer } from '../lib/use-live-game-timer';
 import { formatMs } from '../lib/time-format';
 
 export function GameDetailPage() {
+  const t = useT();
   const { id = '' } = useParams();
   const [game, setGame] = useState<GameDetail | null>(null);
   const [error, setError] = useState('');
@@ -32,7 +34,7 @@ export function GameDetailPage() {
   const backTo = game?.eventShortCode ? `/events/${game.eventShortCode}` : '/';
 
   return (
-    <PageShell title="比赛详情" backTo={backTo}>
+    <PageShell title={t('detail.title')} backTo={backTo}>
       {error && <p className="text-sm text-danger">{error}</p>}
       {game && timer && (
         <>
@@ -45,22 +47,28 @@ export function GameDetailPage() {
             </p>
             <p className="text-xs text-textSec">
               {timer.status === 'FINISHED'
-                ? `已结束 · 用时 ${formatMs(timer.elapsedMs)}`
-                : `已用 ${formatMs(timer.elapsedMs)} / ${formatMs(timer.plannedDurationMs)}`}
+                ? t('detail.finished', { elapsed: formatMs(timer.elapsedMs) })
+                : t('detail.elapsed', {
+                    elapsed: formatMs(timer.elapsedMs),
+                    planned: formatMs(timer.plannedDurationMs),
+                  })}
             </p>
           </Card>
           <Card>
-            <h2 className="mb-2 font-semibold">事件流</h2>
+            <h2 className="mb-2 font-semibold">{t('detail.eventStream')}</h2>
             <GameEventFeed game={game} scorableOnly />
           </Card>
           <Card className="space-y-3">
-            <h2 className="font-semibold text-textPri">分享单场战报</h2>
+            <h2 className="font-semibold text-textPri">{t('detail.share.title')}</h2>
             <ShareReportButton
               share={{
-                title: `${game.teamA?.name ?? 'A'} vs ${game.teamB?.name ?? 'B'} · 单场战报`,
+                title: t('detail.share.subject', {
+                  teamA: game.teamA?.name ?? 'A',
+                  teamB: game.teamB?.name ?? 'B',
+                }),
                 text: buildGameShareText(
-                  game.teamA?.name ?? 'A 队',
-                  game.teamB?.name ?? 'B 队',
+                  game.teamA?.name ?? 'A',
+                  game.teamB?.name ?? 'B',
                   game.scoreA,
                   game.scoreB,
                 ),
@@ -72,12 +80,12 @@ export function GameDetailPage() {
               to={`/games/${id}/report`}
               className="block text-center text-sm text-primary"
             >
-              打开战报 H5 预览
+              {t('detail.share.preview')}
             </Link>
           </Card>
           {game.eventShortCode && (
             <p className="text-center text-xs text-textSec">
-              活动分享码{' '}
+              {t('detail.share.shortCode')}{' '}
               <Link to={`/events/${game.eventShortCode}`} className="font-mono text-primary">
                 {game.eventShortCode}
               </Link>
@@ -85,7 +93,7 @@ export function GameDetailPage() {
           )}
         </>
       )}
-      {!game && !error && <p className="text-sm text-textSec">加载中…</p>}
+      {!game && !error && <p className="text-sm text-textSec">{t('common.loading')}</p>}
     </PageShell>
   );
 }

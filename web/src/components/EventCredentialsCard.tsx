@@ -1,4 +1,5 @@
 import { Card } from './ui/layout';
+import { useT } from '../i18n';
 
 type Props = {
   shortCode: string;
@@ -7,20 +8,19 @@ type Props = {
 };
 
 export function EventCredentialsCard({ shortCode, pin, hint }: Props) {
+  const t = useT();
   return (
     <Card className="border-primary/30 bg-primary/5">
-      <p className="text-sm font-semibold text-textPri">请截图保存一下凭证</p>
-      <p className="mt-1 text-xs text-textSec">
-        {hint ?? '换手机后需用分享码 + PIN 找回管理权限；分享码也可发给其他人只读观看。'}
-      </p>
+      <p className="text-sm font-semibold text-textPri">{t('cred.savePrompt')}</p>
+      <p className="mt-1 text-xs text-textSec">{hint ?? t('cred.defaultHint')}</p>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-surface px-3 py-3">
-          <p className="text-xs text-textSec">分享码</p>
+          <p className="text-xs text-textSec">{t('cred.shareCode')}</p>
           <p className="font-mono text-xl font-bold tracking-widest text-primary">{shortCode}</p>
         </div>
         <div className="rounded-xl bg-surface px-3 py-3">
-          <p className="text-xs text-textSec">6 位 PIN</p>
+          <p className="text-xs text-textSec">{t('cred.pin')}</p>
           <p className="font-mono text-xl font-bold tracking-widest text-textPri">{pin}</p>
         </div>
       </div>

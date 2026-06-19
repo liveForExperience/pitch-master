@@ -1,4 +1,5 @@
 import type { GameDetail } from '../api/types';
+import { useT } from '../i18n';
 import {
   buildRosterNameMap,
   formatGameEventLabel,
@@ -10,9 +11,9 @@ type GameEventRow = GameDetail['events'][number];
 
 type Props = {
   game: GameDetail;
-  /** 只展示进球/乌龙/撤销，隐藏 START 等系统事件 */
+  /** Only show GOAL/OWN_GOAL/UNDO; hide system events like START. */
   scorableOnly?: boolean;
-  /** 管理员录入页：每条进球可删除或修改 */
+  /** Admin recording mode: each goal becomes editable/deletable. */
   editable?: boolean;
   onDelete?: (event: GameEventRow) => void;
   onEdit?: (event: GameEventRow) => void;
@@ -25,6 +26,7 @@ export function GameEventFeed({
   onDelete,
   onEdit,
 }: Props) {
+  const t = useT();
   const names = buildRosterNameMap(game);
   const teamA = game.teamA?.name;
   const teamB = game.teamB?.name;
@@ -38,7 +40,7 @@ export function GameEventFeed({
       });
 
   if (visible.length === 0) {
-    return <p className="text-sm text-textSec">暂无记录</p>;
+    return <p className="text-sm text-textSec">{t('feed.empty')}</p>;
   }
 
   const undone = getUndoneEventIds(game.events);
@@ -55,7 +57,7 @@ export function GameEventFeed({
           >
             <div className="min-w-0 flex-1">
               <span className={struck ? 'text-textSec line-through' : ''}>
-                {formatGameEventLabel(e, names, teamA, teamB)}
+                {formatGameEventLabel(e, names, teamA, teamB, t)}
               </span>
               {editable && (e.type === 'GOAL' || e.type === 'OWN_GOAL') && (
                 <div className="mt-2 flex gap-2">
@@ -64,14 +66,14 @@ export function GameEventFeed({
                     className="rounded-lg bg-chipBg px-3 py-1.5 text-xs font-medium text-textPri"
                     onClick={() => onEdit?.(e)}
                   >
-                    修改
+                    {t('common.edit')}
                   </button>
                   <button
                     type="button"
                     className="rounded-lg bg-danger/10 px-3 py-1.5 text-xs font-medium text-danger"
                     onClick={() => onDelete?.(e)}
                   >
-                    删除
+                    {t('common.delete')}
                   </button>
                 </div>
               )}

@@ -18,6 +18,48 @@
   src: url('/fonts/Newsreader-Italic-subset.woff') format('woff');
 }
 
+@layer base {
+  /*
+   * Theme tokens. Light is the default. `.dark` on <html> activates dark mode.
+   * `.theme-light` forces light values back on any subtree (used by shareable
+   * H5 report views so they always match the poster PNG).
+   */
+  :root,
+  .theme-light {
+    --color-surface: 255 255 255;
+    --color-elevated: 251 251 250;
+    --color-chip-bg: 244 242 238;
+    --color-text-pri: 31 35 40;
+    --color-text-sec: 107 107 107;
+    --color-text-inv: 255 255 255;
+    --color-border: 234 234 234;
+    --color-primary: 46 125 91;
+    --color-primary-dk: 30 90 63;
+    --color-primary-pale: 237 243 236;
+    --color-danger: 159 47 45;
+    --color-warning: 159 123 38;
+    --field-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    color-scheme: light;
+  }
+
+  .dark {
+    --color-surface: 14 18 24;
+    --color-elevated: 22 27 35;
+    --color-chip-bg: 28 35 45;
+    --color-text-pri: 236 239 243;
+    --color-text-sec: 139 149 163;
+    --color-text-inv: 14 18 24;
+    --color-border: 42 50 61;
+    --color-primary: 79 180 139;
+    --color-primary-dk: 58 155 115;
+    --color-primary-pale: 30 46 42;
+    --color-danger: 226 91 89;
+    --color-warning: 217 169 81;
+    --field-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238B95A3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    color-scheme: dark;
+  }
+}
+
 html,
 body,
 #root {
@@ -25,17 +67,19 @@ body,
 }
 
 body {
-  background: #ffffff;
-  color: #1f2328;
+  background-color: rgb(var(--color-elevated));
+  color: rgb(var(--color-text-pri));
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  /* Disable iOS double-tap zoom; viewport meta covers pinch zoom. */
+  touch-action: manipulation;
 }
 
 @layer components {
   .field-select {
-    @apply w-full rounded-xl border border-border px-3 py-3;
+    @apply w-full rounded-xl border border-border bg-surface px-3 py-3 text-textPri;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: var(--field-arrow);
     background-repeat: no-repeat;
     background-position: right 0.875rem center;
     background-size: 1rem;

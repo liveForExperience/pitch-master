@@ -13,6 +13,7 @@ import type { GameDetail } from '../api/types';
 import { GameEventFeed } from '../components/GameEventFeed';
 import { GoalPickPanel, type PickPhase } from '../components/GoalPickPanel';
 import { PageShell, PrimaryButton } from '../components/ui/layout';
+import { useT } from '../i18n';
 import { mergeGameWithOutbox, resolveUndoTarget } from '../lib/outbox/merge-game';
 import { formatMs } from '../lib/time-format';
 import { useGameStream } from '../lib/use-game-stream';
@@ -44,15 +45,16 @@ function RecordScoreHero({
   game: GameDetail;
   timer: ReturnType<typeof useLiveGameTimer>;
 }) {
-  const teamA = game.teamA ?? { name: 'A 队', colorHex: '#64748b' };
-  const teamB = game.teamB ?? { name: 'B 队', colorHex: '#64748b' };
+  const t = useT();
+  const teamA = game.teamA ?? { name: 'A', colorHex: '#64748b' };
+  const teamB = game.teamB ?? { name: 'B', colorHex: '#64748b' };
   const diff = game.scoreA - game.scoreB;
   const finished = game.game.status === 'FINISHED';
 
   const statusLine = finished
-    ? `FINISHED · ${formatMs(timer?.elapsedMs ?? 0)}`
+    ? `${t('record.statusFinished').toUpperCase()} · ${formatMs(timer?.elapsedMs ?? 0)}`
     : timer
-      ? `${formatMs(timer.elapsedMs)} · ${formatMs(timer.remainingMs)} LEFT · ${timer.status.toUpperCase()}`
+      ? `${formatMs(timer.elapsedMs)} · ${formatMs(timer.remainingMs)} ${t('record.statusLeft').toUpperCase()} · ${timer.status.toUpperCase()}`
       : game.game.status.toUpperCase();
 
   return (
@@ -90,6 +92,7 @@ function RecordScoreHero({
 }
 
 export function GameRecordPage() {
+  const t = useT();
   const { id = '' } = useParams();
   const nav = useNavigate();
   const [serverGame, setServerGame] = useState<GameDetail | null>(null);
@@ -196,7 +199,7 @@ export function GameRecordPage() {
       );
       setPick(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '操作失败');
+      setError(err instanceof Error ? err.message : t('common.error.generic'));
     }
   };
 
@@ -219,7 +222,7 @@ export function GameRecordPage() {
         setPick(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '删除失败');
+      setError(err instanceof Error ? err.message : t('record.error.delete'));
     }
   };
 
@@ -236,16 +239,16 @@ export function GameRecordPage() {
 
   if (!game) {
     return (
-      <PageShell title="录入" backTo="/">
-        {error ? <p className="text-sm text-danger">{error}</p> : <p className="text-sm text-textSec">加载中…</p>}
+      <PageShell title={t('record.title')} backTo="/">
+        {error ? <p className="text-sm text-danger">{error}</p> : <p className="text-sm text-textSec">{t('common.loading')}</p>}
       </PageShell>
     );
   }
 
   if (!token) {
     return (
-      <PageShell title="录入" backTo={eventShortCode ? `/events/${eventShortCode}` : '/'}>
-        <p className="text-sm text-textSec">正在跳转…</p>
+      <PageShell title={t('record.title')} backTo={eventShortCode ? `/events/${eventShortCode}` : '/'}>
+        <p className="text-sm text-textSec">{t('common.redirecting')}</p>
       </PageShell>
     );
   }
@@ -261,7 +264,9 @@ export function GameRecordPage() {
     >
       {error && <p className="text-sm text-danger">{error}</p>}
       {hasPending && (
-        <p className="text-xs text-warning">有 {pendingForGame.length} 条记录待同步…</p>
+        <p className="text-xs text-warning">
+          {t('record.pending', { count: pendingForGame.length })}
+        </p>
       )}
 
       <RecordScoreHero game={game} timer={timer} />
@@ -269,16 +274,16 @@ export function GameRecordPage() {
       <div className="grid grid-cols-2 gap-2">
         {game.game.status === 'READY' && (
           <PrimaryButton className="col-span-2" onClick={() => void onStart()}>
-            开始比赛
+            {t('record.start')}
           </PrimaryButton>
         )}
         {inProgress && (
           <>
             <PrimaryButton onClick={() => void onPauseResume()}>
-              {game.game.status === 'PLAYING' ? '暂停' : '继续'}
+              {game.game.status === 'PLAYING' ? t('record.pause') : t('record.resume')}
             </PrimaryButton>
             <PrimaryButton className="bg-warning" onClick={() => void onFinish()}>
-              结束
+              {t('record.finish')}
             </PrimaryButton>
           </>
         )}
@@ -288,20 +293,22 @@ export function GameRecordPage() {
         <div className="flex items-start gap-3 border-y border-border py-4">
           <Warning className="mt-0.5 shrink-0 text-warning" size={20} weight="duotone" />
           <div>
-            <p className="text-sm font-medium text-textPri">赛后修正</p>
-            <p className="mt-1 text-xs text-textSec">
-              比赛已结束，可补录进球，或在下方修改/删除任意一条记录。
-            </p>
+            <p className="text-sm font-medium text-textPri">{t('record.postEdit.title')}</p>
+            <p className="mt-1 text-xs text-textSec">{t('record.postEdit.body')}</p>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
         <PrimaryButton onClick={() => setPick({ side: 'A' })}>
-          {finished ? `${game.teamA?.name ?? 'A'} 补录` : 'A 队进球'}
+          {finished
+            ? t('record.goalAFix', { name: game.teamA?.name ?? 'A' })
+            : t('record.goalA')}
         </PrimaryButton>
         <PrimaryButton onClick={() => setPick({ side: 'B' })}>
-          {finished ? `${game.teamB?.name ?? 'B'} 补录` : 'B 队进球'}
+          {finished
+            ? t('record.goalAFix', { name: game.teamB?.name ?? 'B' })
+            : t('record.goalB')}
         </PrimaryButton>
       </div>
 
@@ -318,7 +325,7 @@ export function GameRecordPage() {
       />
 
       <section className="border-t border-border pt-4">
-        <p className="mb-3 text-xs text-textSec">点击「修改」或「删除」可调整任意一条进球记录</p>
+        <p className="mb-3 text-xs text-textSec">{t('record.feedHint')}</p>
         <GameEventFeed
           game={game}
           scorableOnly
@@ -329,7 +336,7 @@ export function GameRecordPage() {
       </section>
 
       <Link to={`/games/${id}`} className="block border-t border-border pt-4 text-center text-sm text-primary">
-        查看详情（只读链接可分享）
+        {t('record.viewDetail')}
       </Link>
     </PageShell>
   );

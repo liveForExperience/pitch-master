@@ -1,5 +1,6 @@
 import { ApiError, parseApiResponse } from './parse-response';
 import { randomUUID } from '../lib/uuid';
+import { t } from '../i18n';
 
 export { ApiError };
 
@@ -22,7 +23,7 @@ export async function apiRequest<T>(path: string, opts: RequestOpts = {}): Promi
   try {
     res = await fetch(buildUrl(path, opts.pin), { ...opts, headers });
   } catch {
-    throw new ApiError('network_error', '无法连接服务器，请检查网络或确认后端已启动（bash bin/dev.sh）');
+    throw new ApiError('network_error', t('common.error.network'));
   }
 
   const newToken = res.headers.get('X-New-Admin-Token');

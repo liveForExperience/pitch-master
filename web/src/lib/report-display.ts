@@ -1,4 +1,8 @@
+import { t as defaultT } from '../i18n';
+
 export type MatchResult = 'A_WIN' | 'B_WIN' | 'DRAW' | 'PENDING';
+
+type T = (key: string, params?: Record<string, string | number>) => string;
 
 export function getMatchResult(
   scoreA: number,
@@ -11,29 +15,30 @@ export function getMatchResult(
   return 'DRAW';
 }
 
-export function matchResultLabel(result: MatchResult, teamName?: string): string {
+export function matchResultLabel(
+  result: MatchResult,
+  teamName?: string,
+  t: T = defaultT,
+): string {
   switch (result) {
     case 'A_WIN':
-      return teamName ? `${teamName} 胜` : 'A 队胜';
+      return teamName ? t('result.win', { team: teamName }) : t('result.winA');
     case 'B_WIN':
-      return teamName ? `${teamName} 胜` : 'B 队胜';
+      return teamName ? t('result.win', { team: teamName }) : t('result.winB');
     case 'DRAW':
-      return '平局';
+      return t('result.draw');
     default:
-      return '未结束';
+      return t('result.pending');
   }
 }
 
-export function gameStatusLabel(status: string): string {
+export function gameStatusLabel(status: string, t: T = defaultT): string {
   switch (status) {
     case 'READY':
-      return '待开始';
     case 'PLAYING':
-      return '进行中';
     case 'PAUSED':
-      return '暂停';
     case 'FINISHED':
-      return '已结束';
+      return t(`status.${status}`);
     default:
       return status;
   }

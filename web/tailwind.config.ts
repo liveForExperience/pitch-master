@@ -1,22 +1,25 @@
 import type { Config } from 'tailwindcss';
 
+const rgb = (cssVar: string) => `rgb(var(${cssVar}) / <alpha-value>)`;
+
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        surface: '#FFFFFF',
-        elevated: '#FBFBFA',
-        chipBg: '#F4F2EE',
-        textPri: '#1F2328',
-        textSec: '#6B6B6B',
-        textInv: '#FFFFFF',
-        border: '#EAEAEA',
-        primary: '#2E7D5B',
-        primaryDk: '#1E5A3F',
-        primaryPale: '#EDF3EC',
-        danger: '#9F2F2D',
-        warning: '#9F7B26',
+        surface: rgb('--color-surface'),
+        elevated: rgb('--color-elevated'),
+        chipBg: rgb('--color-chip-bg'),
+        textPri: rgb('--color-text-pri'),
+        textSec: rgb('--color-text-sec'),
+        textInv: rgb('--color-text-inv'),
+        border: rgb('--color-border'),
+        primary: rgb('--color-primary'),
+        primaryDk: rgb('--color-primary-dk'),
+        primaryPale: rgb('--color-primary-pale'),
+        danger: rgb('--color-danger'),
+        warning: rgb('--color-warning'),
       },
       fontSize: {
         tap: ['1.75rem', { lineHeight: '2.25rem', fontWeight: '600' }],

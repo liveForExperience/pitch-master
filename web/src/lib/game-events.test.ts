@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   findLastActiveScorable,
   formatGameEventLabel,
@@ -7,6 +7,9 @@ import {
   listActiveScorableEvents,
 } from './game-events';
 import type { GameDetail } from '../api/types';
+import { __resetLocaleForTests } from '../i18n';
+
+beforeAll(() => __resetLocaleForTests('zh'));
 
 const baseGame = {
   teamA: { id: 't1', name: '红队', colorHex: '#f00', roster: [{ id: 'p1', name: '张三', jerseyNumber: null }] },

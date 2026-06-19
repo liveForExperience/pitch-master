@@ -1,6 +1,8 @@
 import type { GameDetail } from '../api/types';
+import { t as defaultT } from '../i18n';
 
 type GameEventRow = GameDetail['events'][number];
+type T = (key: string, params?: Record<string, string | number>) => string;
 
 export function getUndoneEventIds(events: GameDetail['events']): Set<string> {
   return new Set(
@@ -42,25 +44,33 @@ export function buildRosterNameMap(game: GameDetail): Map<string, string> {
   return map;
 }
 
+/**
+ * Render a one-line description for a game event. `t` defaults to the global
+ * locale-aware translator; tests can inject a stub.
+ */
 export function formatGameEventLabel(
   event: GameEventRow,
   names: Map<string, string>,
   teamA?: string,
   teamB?: string,
+  t: T = defaultT,
 ): string {
   const side = event.teamSide === 'A' ? teamA : event.teamSide === 'B' ? teamB : '';
+
   const scorer = event.scorerRosterId ? names.get(event.scorerRosterId) : null;
   const assistant = event.assistantRosterId ? names.get(event.assistantRosterId) : null;
 
   switch (event.type) {
     case 'GOAL':
-      if (scorer && assistant) return `${side} ${scorer} 进球（助攻 ${assistant}）`;
-      if (scorer) return `${side} ${scorer} 进球`;
-      return side ? `${side} 进球` : '进球';
+      if (scorer && assistant) {
+        return t('feed.goalAssist', { side: side ?? '', scorer, assistant });
+      }
+      if (scorer) return t('feed.goal', { side: side ?? '', scorer });
+      return side ? t('feed.goalAnon', { side }) : t('feed.goalAnonNoSide');
     case 'OWN_GOAL':
-      return side ? `${side} 乌龙球` : '乌龙球';
+      return side ? t('feed.ownGoal', { side }) : t('feed.ownGoalNoSide');
     case 'UNDO':
-      return '撤销';
+      return t('feed.undo');
     default:
       return event.type;
   }

@@ -2,13 +2,36 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#10b981" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#2E7D5B" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0E1218" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="PitchMaster" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <title>PitchMaster</title>
+    <script>
+      // Apply theme + lang before first paint to avoid a flash.
+      (function () {
+        try {
+          var saved = localStorage.getItem('pm:theme');
+          var prefersDark =
+            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = saved === 'light' || saved === 'dark' ? saved : prefersDark ? 'dark' : 'light';
+          if (theme === 'dark') document.documentElement.classList.add('dark');
+        } catch (e) {}
+        try {
+          var locale = localStorage.getItem('pm:locale');
+          if (locale !== 'zh' && locale !== 'en') {
+            locale = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
+          }
+          document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="bg-elevated text-textPri antialiased">
     <div id="root"></div>

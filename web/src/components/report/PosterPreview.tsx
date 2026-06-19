@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { shareReport, type ShareReportInput } from '../../lib/share-report';
+import { useT } from '../../i18n';
 
 /**
  * Editorial poster preview: tap the image to share, secondary action to save.
@@ -17,6 +18,7 @@ export function PosterPreview({
   /** Optional accessible label; not rendered visually */
   title?: string;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -44,14 +46,22 @@ export function PosterPreview({
         onClick={() => void trigger()}
         disabled={!share || busy}
         className="block w-full overflow-hidden rounded-xl border border-border bg-surface active:bg-elevated disabled:opacity-80"
-        aria-label={title ? `${title} · 点击分享` : '点击分享海报'}
+        aria-label={title ? t('poster.shareAlt', { title }) : t('poster.tapToShare')}
       >
-        <img src={src} alt={title ?? '海报预览'} className="block w-full" loading="lazy" />
+        <img src={src} alt={title ?? t('poster.imageAlt')} className="block w-full" loading="lazy" />
       </button>
       <div className="flex items-center justify-between text-caption text-textSec">
-        <span>{share ? (copied ? '链接已复制' : busy ? '准备分享…' : '点击图片分享') : '海报'}</span>
+        <span>
+          {share
+            ? copied
+              ? t('share.copied')
+              : busy
+                ? t('share.preparing')
+                : t('poster.tapToShare')
+            : t('poster.fallback')}
+        </span>
         <a href={src} download={downloadName} className="font-mono uppercase tracking-[0.14em] text-primary">
-          DOWNLOAD ↓
+          {t('poster.download')}
         </a>
       </div>
     </figure>

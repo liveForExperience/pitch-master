@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
+import { useT } from '../i18n';
 import { isEventEnded } from '../lib/event-status';
 import {
   archiveEvent,
@@ -24,6 +25,7 @@ import {
 import { useSessionStore } from '../stores/session';
 
 export function EventPage() {
+  const t = useT();
   const { shortCode = '' } = useParams();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [error, setError] = useState('');
@@ -83,7 +85,7 @@ export function EventPage() {
       setEvent(data);
       setFinishOpen(false);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '结束活动失败');
+      setError(err instanceof ApiError ? err.message : t('event.finish.error'));
     } finally {
       setFinishing(false);
     }
@@ -91,24 +93,20 @@ export function EventPage() {
 
   if (notFound) {
     return (
-      <PageShell title="找不到活动" backTo="/">
+      <PageShell title={t('event.notFound.title')} backTo="/">
         <Card>
           <p className="text-sm text-textPri">
-            分享码{' '}
-            <span className="font-mono font-semibold">{shortCode.toUpperCase()}</span>{' '}
-            打不开这场活动。
+            {t('event.notFound.body', { code: shortCode.toUpperCase() })}
           </p>
-          <p className="mt-2 text-xs text-textSec">
-            请核对是否输错；若活动已结束较久或换过手机，也可能需要重新创建。
-          </p>
+          <p className="mt-2 text-xs text-textSec">{t('event.notFound.hint')}</p>
           <div className="mt-4 space-y-2">
             <PrimaryButton>
               <Link to="/events/new" className="block w-full">
-                新建活动
+                {t('event.notFound.create')}
               </Link>
             </PrimaryButton>
             <Link to="/" className="block text-center text-sm text-primary">
-              返回首页
+              {t('event.notFound.home')}
             </Link>
           </div>
         </Card>
@@ -117,27 +115,27 @@ export function EventPage() {
   }
 
   return (
-    <PageShell title={event?.name ?? '活动'} backTo="/">
+    <PageShell title={event?.name ?? t('event.fallbackTitle')} backTo="/">
       {error && <p className="text-sm text-danger">{error}</p>}
-      {!event && !error && <p className="text-sm text-textSec">加载中…</p>}
+      {!event && !error && <p className="text-sm text-textSec">{t('event.loading')}</p>}
       {event && (
         <>
           {!isAdmin && (
             <Card className="border-primary/30 bg-primary/5">
-              <p className="text-sm font-medium text-textPri">只读观看模式</p>
+              <p className="text-sm font-medium text-textPri">{t('event.viewer.title')}</p>
               <p className="mt-1 text-xs text-textSec">
-                你通过分享码进入，只能查看比分与比赛进度。新建比赛、配置队员需管理员权限；若你是管理员，可
+                {t('event.viewer.bodyA')}
                 <Link to={`/admin/restore?code=${event.shortCode}`} className="text-primary">
-                  凭 PIN 找回
+                  {t('event.viewer.restoreLink')}
                 </Link>
-                。
+                {t('event.viewer.bodyB')}
               </p>
             </Card>
           )}
 
           {!isAdmin && (
             <Card>
-              <p className="text-sm text-textSec">分享码</p>
+              <p className="text-sm text-textSec">{t('event.shareCode')}</p>
               <p className="font-mono text-2xl font-bold text-primary">{event.shortCode}</p>
             </Card>
           )}
@@ -146,17 +144,15 @@ export function EventPage() {
             <EventCredentialsCard
               shortCode={event.shortCode}
               pin={storedPin}
-              hint="把分享码发给其他人只读观看；PIN 仅保存在本机，换设备需用截图或首页「找回管理权限」。"
+              hint={t('cred.adminHint')}
             />
           )}
 
           {isAdmin && !storedPin && (
             <Card>
-              <p className="text-sm text-textSec">分享码</p>
+              <p className="text-sm text-textSec">{t('event.shareCode')}</p>
               <p className="font-mono text-2xl font-bold text-primary">{event.shortCode}</p>
-              <p className="mt-2 text-xs text-textSec">
-                本机未保存 PIN，换设备后请用创建活动时的截图找回管理权限。
-              </p>
+              <p className="mt-2 text-xs text-textSec">{t('event.noPinHint')}</p>
             </Card>
           )}
 
@@ -166,14 +162,14 @@ export function EventPage() {
 
           <section className="border-t border-border pt-6">
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-body font-bold text-textPri">比赛列表</p>
+              <p className="text-body font-bold text-textPri">{t('event.games.title')}</p>
               <div className="flex items-center gap-3">
                 {event.games.length > 0 && (
                   <Link
                     to={`/events/${event.shortCode}/report`}
                     className="text-sm text-primary"
                   >
-                    分享战报
+                    {t('event.games.share')}
                   </Link>
                 )}
                 {isAdmin && !ended && (
@@ -181,20 +177,20 @@ export function EventPage() {
                     to={`/games/new?eventId=${event.id}&shortCode=${event.shortCode}`}
                     className="text-sm font-semibold text-primary"
                   >
-                    新建场次
+                    {t('event.games.new')}
                   </Link>
                 )}
               </div>
             </div>
             {event.games.length === 0 ? (
               <p className="text-sm text-textSec">
-                {isAdmin ? '还没有比赛，点右上角新建场次。' : '还没有比赛。'}
+                {isAdmin ? t('event.games.emptyAdmin') : t('event.games.emptyViewer')}
               </p>
             ) : (
               <ul className="divide-y divide-border">
                 {event.games.map((g) => {
-                  const a = event.teams.find((t) => t.id === g.teamAId)?.name ?? 'A';
-                  const b = event.teams.find((t) => t.id === g.teamBId)?.name ?? 'B';
+                  const a = event.teams.find((tm) => tm.id === g.teamAId)?.name ?? 'A';
+                  const b = event.teams.find((tm) => tm.id === g.teamBId)?.name ?? 'B';
                   return (
                     <li key={g.id}>
                       <Link
@@ -206,7 +202,7 @@ export function EventPage() {
                         </div>
                         <div className="mt-0.5 text-xs text-textSec">
                           {g.status}
-                          {isAdmin ? ' · 管理' : ' · 只读观看'}
+                          {isAdmin ? t('event.games.adminSuffix') : t('event.games.viewerSuffix')}
                         </div>
                       </Link>
                     </li>
@@ -220,7 +216,7 @@ export function EventPage() {
             <>
               <PrimaryButton>
                 <Link to={`/events/${shortCode}/setup`} className="block w-full">
-                  配置队伍与队员
+                  {t('event.setupCta')}
                 </Link>
               </PrimaryButton>
               <button
@@ -228,14 +224,14 @@ export function EventPage() {
                 onClick={() => setFinishOpen(true)}
                 className="min-h-12 w-full rounded-2xl border border-danger/30 px-4 py-3 text-sm font-semibold text-danger"
               >
-                结束活动
+                {t('event.finish')}
               </button>
             </>
           ) : isAdmin ? null : (
             <Card>
-              <h2 className="mb-2 font-semibold">参赛队伍</h2>
+              <h2 className="mb-2 font-semibold">{t('event.teams.title')}</h2>
               {event.teams.length === 0 ? (
-                <p className="text-sm text-textSec">尚未配置队伍</p>
+                <p className="text-sm text-textSec">{t('event.teams.empty')}</p>
               ) : (
                 <ul className="space-y-3">
                   {event.teams.map((team) => (
@@ -250,7 +246,7 @@ export function EventPage() {
                       <p className="text-sm text-textSec">
                         {team.roster.length > 0
                           ? team.roster.map((p) => p.name).join('、')
-                          : '暂无队员'}
+                          : t('event.teams.noRoster')}
                       </p>
                     </li>
                   ))}
@@ -261,17 +257,15 @@ export function EventPage() {
 
           <Dialog open={finishOpen} onOpenChange={setFinishOpen}>
             <DialogContent>
-              <DialogTitle>结束这场活动？</DialogTitle>
-              <DialogDescription>
-                结束后活动会移入首页「已归档」，仍可查看历史比分，但不能再新建比赛或录入。
-              </DialogDescription>
+              <DialogTitle>{t('event.finish.title')}</DialogTitle>
+              <DialogDescription>{t('event.finish.desc')}</DialogDescription>
               <div className="mt-4 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setFinishOpen(false)}
                   className="min-h-12 flex-1 rounded-xl border border-border px-3 text-sm font-semibold text-textSec"
                 >
-                  取消
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -279,7 +273,7 @@ export function EventPage() {
                   onClick={() => void confirmFinish()}
                   className="min-h-12 flex-1 rounded-xl bg-danger px-3 text-sm font-semibold text-textInv disabled:opacity-50"
                 >
-                  {finishing ? '处理中…' : '确认结束'}
+                  {finishing ? t('event.finish.processing') : t('event.finish.confirm')}
                 </button>
               </div>
             </DialogContent>
