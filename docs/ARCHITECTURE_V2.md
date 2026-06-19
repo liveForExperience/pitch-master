@@ -235,10 +235,10 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | POST | `/api/events/:id/finish` | Admin | 手动结束活动 → `{eventId, finishedAt}`；客户端归档唯一触发源 |
 | POST | `/api/events/:id/restore-token?pin=` | 公开（PIN） | PIN 正确时轮换 adminToken → `{restored, adminToken?}` |
 | POST | `/api/events/:id/teams` | Admin | 创建队伍 `{name, colorHex?}` |
-| PATCH | `/api/teams/:id` | Admin | **未实现**（Phase 2+） |
+| PATCH | `/api/teams/:id` | Admin | 修改队名 `{name}` |
 | DELETE | `/api/teams/:id` | Admin | **未实现**（Phase 2+） |
 | POST | `/api/teams/:id/roster` | Admin | 批量加人 `{names: ['张三','李四']}` |
-| DELETE | `/api/roster/:id` | Admin | **未实现**（Phase 2+） |
+| DELETE | `/api/roster/:id` | Admin | 移出队员；有比赛记录时拒绝 |
 | POST | `/api/events/:id/games` | Admin | 创建场次 `{teamAId, teamBId, plannedDurationMs?}` |
 | GET | `/api/games/:id` | 公开 | 详情（含事件流 + 派生比分） |
 | POST | `/api/games/:id/start` | Admin | 开赛（写 `started_at = now`） |

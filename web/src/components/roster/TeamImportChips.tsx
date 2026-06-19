@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Check } from '@phosphor-icons/react';
 import { importNamesAvailableForTeam } from '../../lib/roster-import';
 import { useT } from '../../i18n';
 
@@ -6,76 +6,46 @@ type Props = {
   teamName: string;
   pool: string[];
   rosterNames: string[];
-  onAdd: (names: string[]) => Promise<void>;
+  selected: ReadonlySet<string>;
+  onToggle: (name: string) => void;
 };
 
-export function TeamImportChips({ teamName, pool, rosterNames, onAdd }: Props) {
+export function TeamImportChips({ teamName, pool, rosterNames, selected, onToggle }: Props) {
   const t = useT();
   const available = importNamesAvailableForTeam(pool, rosterNames);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState(false);
 
   if (pool.length === 0) return null;
 
-  const toggle = (name: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  };
-
-  const submit = async () => {
-    const names = [...selected];
-    if (!names.length) return;
-    setBusy(true);
-    try {
-      await onAdd(names);
-      setSelected(new Set());
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <div className="mb-3 border-t border-border pt-3">
-      <p className="mb-2 text-xs font-medium text-textSec">
+    <div className="rounded-lg border border-border bg-surface p-3">
+      <p className="mb-2.5 text-xs font-medium text-textSec">
         {t('chips.title', { team: teamName })}
       </p>
       {available.length === 0 ? (
-        <p className="text-xs text-textSec">{t('chips.allOnTeam')}</p>
+        <p className="text-xs leading-relaxed text-textSec">{t('chips.allOnTeam')}</p>
       ) : (
-        <>
-          <div className="mb-2 flex flex-wrap gap-2">
-            {available.map((name) => {
-              const on = selected.has(name);
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => toggle(name)}
-                  className={`max-w-full truncate rounded-full border px-3 py-1.5 text-sm ${
-                    on
-                      ? 'border-primary bg-primaryPale text-primary'
-                      : 'border-border bg-surface text-textPri'
-                  }`}
-                >
+        <div className="flex min-w-0 flex-wrap gap-1.5">
+          {available.map((name) => {
+            const on = selected.has(name);
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => onToggle(name)}
+                className={`flex w-max max-w-full min-w-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition-colors active:scale-[0.98] ${
+                  on
+                    ? 'border-primary bg-primaryPale text-primary'
+                    : 'border-border bg-elevated text-textPri hover:border-primary/30'
+                }`}
+              >
+                {on && <Check size={12} weight="bold" className="shrink-0" />}
+                <span className="min-w-0 truncate" title={name}>
                   {name}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            disabled={busy || selected.size === 0}
-            onClick={() => void submit()}
-            className="text-sm font-medium text-primary disabled:opacity-40"
-          >
-            {busy ? t('chips.adding') : t('chips.addSelected', { count: selected.size })}
-          </button>
-        </>
+                </span>
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );

@@ -164,9 +164,17 @@ export const zh: Dict = {
   // ── event setup ──────────────────────────────────────────────────────
   'setup.title': '队伍配置',
   'setup.newTeamPlaceholder': '新队伍名称',
-  'setup.addRosterPlaceholder': '输入队员名，逗号或换行分隔',
+  'setup.addRosterPlaceholder': '手动添加队员',
+  'setup.addRosterHint': '逗号或换行分隔多名球员',
   'setup.addRoster': '添加队员',
+  'setup.addPlayersCount': '添加 {count} 人',
+  'setup.addingPlayers': '添加中…',
   'setup.done': '完成，返回活动页',
+  'setup.editTeamName': '修改队名',
+  'setup.remove': '移出',
+  'setup.removePlayer': '将 {name} 移出球队',
+  'setup.removePlayerError': '该球员已有比赛记录，无法移出',
+  'setup.noPlayersYet': '暂无队员',
 
   // ── roster import ────────────────────────────────────────────────────
   'roster.title': '快速导入报名名单',
@@ -182,6 +190,7 @@ export const zh: Dict = {
   'roster.empty.needText': '请先粘贴带序号的报名文本',
   'roster.poolHeader': '待分配球员',
   'roster.remove': '移除 {name}',
+  'roster.deleteFromPool': '从名单删除 {name}',
 
   // ── team import chips ────────────────────────────────────────────────
   'chips.title': '从导入名单添加到 {team}',
@@ -479,9 +488,17 @@ export const en: Dict = {
   // ── event setup ──────────────────────────────────────────────────────
   'setup.title': 'Roster setup',
   'setup.newTeamPlaceholder': 'New team name',
-  'setup.addRosterPlaceholder': 'Player names, separated by comma or new line',
+  'setup.addRosterPlaceholder': 'Add players manually',
+  'setup.addRosterHint': 'Separate names with commas or new lines',
   'setup.addRoster': 'Add players',
+  'setup.addPlayersCount': 'Add {count} players',
+  'setup.addingPlayers': 'Adding…',
   'setup.done': 'Done — back to event',
+  'setup.editTeamName': 'Edit team name',
+  'setup.remove': 'Remove',
+  'setup.removePlayer': 'Remove {name} from team',
+  'setup.removePlayerError': 'This player has game records and cannot be removed',
+  'setup.noPlayersYet': 'No players yet',
 
   // ── roster import ────────────────────────────────────────────────────
   'roster.title': 'Quick import from signup text',
@@ -498,6 +515,7 @@ export const en: Dict = {
   'roster.empty.needText': 'Paste numbered signup text first',
   'roster.poolHeader': 'Players to assign',
   'roster.remove': 'Remove {name}',
+  'roster.deleteFromPool': 'Delete {name} from pool',
 
   // ── team import chips ────────────────────────────────────────────────
   'chips.title': 'Assign from import pool to {team}',
