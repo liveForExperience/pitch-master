@@ -52,6 +52,7 @@ jobs:
           set -euo pipefail
           test -f backend/dist/index.js
           test -f backend/dist/db/migrations/0000_initial.sql
+          test -f backend/dist/assets/fonts/NotoSansSC-Regular-subset.woff
           test -f web/dist/index.html
           echo "✓ migrations + dist artifacts present"
 

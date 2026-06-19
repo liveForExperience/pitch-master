@@ -18,6 +18,8 @@ import {
   startGame,
   undoGameEvent,
 } from '../services/game-ops.service.js';
+import { replayGameEventsBatch, type BatchGameEventInput } from '../services/outbox.service.js';
+import { getGameReport } from '../services/report.service.js';
 
 export const gamesRoute = new Hono();
 
@@ -36,6 +38,17 @@ gamesRoute.get('/games/:id/state', async (c) => {
   const db = getDb();
   try {
     const data = await getGameState(db, c.req.param('id'));
+    return ok(c, data);
+  } catch (err) {
+    if (err instanceof NotFoundError) return fail(c, 'not_found', err.message, 404);
+    throw err;
+  }
+});
+
+gamesRoute.get('/games/:id/report', async (c) => {
+  const db = getDb();
+  try {
+    const data = await getGameReport(db, c.req.param('id'));
     return ok(c, data);
   } catch (err) {
     if (err instanceof NotFoundError) return fail(c, 'not_found', err.message, 404);
@@ -103,6 +116,36 @@ gamesRoute.post('/games/:id/finish', async (c) => {
     return res;
   } catch (err) {
     if (err instanceof ConflictError) return fail(c, 'conflict', err.message, 409);
+    throw err;
+  }
+});
+
+gamesRoute.post('/games/:id/events/batch', async (c) => {
+  const gameId = c.req.param('id');
+  const db = getDb();
+  const auth = await requireGameAdmin(c, db, gameId);
+  if (auth instanceof Response) return auth;
+
+  const body = await readJson<{ events?: BatchGameEventInput[] }>(c);
+  if (!body.events?.length) {
+    return fail(c, 'validation_error', 'events must be a non-empty array', 400);
+  }
+
+  for (const item of body.events) {
+    if (!item.clientEventId || !item.type || item.clientTs == null) {
+      return fail(c, 'validation_error', 'each event needs clientEventId, type, clientTs', 400);
+    }
+  }
+
+  try {
+    const data = await replayGameEventsBatch(db, gameId, body.events);
+    const res = ok(c, data);
+    if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
+    return res;
+  } catch (err) {
+    if (err instanceof NotFoundError) return fail(c, 'not_found', err.message, 404);
+    if (err instanceof ConflictError) return fail(c, 'conflict', err.message, 409);
+    if (err instanceof ValidationError) return fail(c, 'validation_error', err.message, 400);
     throw err;
   }
 });

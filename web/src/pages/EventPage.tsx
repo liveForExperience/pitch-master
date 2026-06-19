@@ -4,6 +4,7 @@ import { fetchEvent, finishEvent as finishEventApi } from '../api/events';
 import { ApiError } from '../api/client';
 import type { EventDetail } from '../api/types';
 import { EventCredentialsCard } from '../components/EventCredentialsCard';
+import { EventSharePanel } from '../components/report/EventSharePanel';
 import {
   Dialog,
   DialogContent,
@@ -157,17 +158,31 @@ export function EventPage() {
             </Card>
           )}
 
+          {event.games.length > 0 && (
+            <EventSharePanel eventName={event.name} shortCode={event.shortCode} />
+          )}
+
           <Card>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold">比赛列表</h2>
-              {isAdmin && !ended && (
-                <Link
-                  to={`/games/new?eventId=${event.id}&shortCode=${event.shortCode}`}
-                  className="text-sm text-primary"
-                >
-                  + 新建
-                </Link>
-              )}
+              <div className="flex items-center gap-3">
+                {event.games.length > 0 && (
+                  <Link
+                    to={`/events/${event.shortCode}/report`}
+                    className="text-sm text-primary"
+                  >
+                    战报
+                  </Link>
+                )}
+                {isAdmin && !ended && (
+                  <Link
+                    to={`/games/new?eventId=${event.id}&shortCode=${event.shortCode}`}
+                    className="text-sm text-primary"
+                  >
+                    + 新建
+                  </Link>
+                )}
+              </div>
             </div>
             {event.games.length === 0 ? (
               <p className="text-sm text-textSec">

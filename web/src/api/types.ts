@@ -67,3 +67,89 @@ export type GameDetail = {
   timer: TimerState;
   eventShortCode: string | null;
 };
+
+export type TeamBrief = { id: string; name: string; colorHex: string };
+
+export type TeamStanding = {
+  teamId: string;
+  teamName: string;
+  colorHex: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDiff: number;
+  points: number;
+  rank: number;
+};
+
+export type PlayerRankRow = {
+  rosterId: string;
+  name: string;
+  teamId: string;
+  teamName: string;
+  colorHex: string;
+  goals?: number;
+  assists?: number;
+  firstGoalAt?: number;
+  firstAssistAt?: number;
+};
+
+export type MvpRow = {
+  rosterId: string;
+  name: string;
+  teamName: string;
+  colorHex: string;
+  goals: number;
+  assists: number;
+};
+
+export type EventReport = {
+  event: {
+    id: string;
+    shortCode: string;
+    name: string;
+    createdAt: number;
+    finishedAt: number | null;
+  };
+  games: Array<{
+    id: string;
+    teamA: TeamBrief;
+    teamB: TeamBrief;
+    scoreA: number;
+    scoreB: number;
+    status: string;
+    durationMs: number;
+  }>;
+  standings: TeamStanding[];
+  topScorers: Array<PlayerRankRow & { goals: number; firstGoalAt: number }>;
+  topAssists: Array<PlayerRankRow & { assists: number; firstAssistAt: number }>;
+  mvp?: MvpRow;
+  meta: { topN: number; generatedAt: number };
+};
+
+export type GameReport = {
+  game: {
+    id: string;
+    eventId: string;
+    teamA?: TeamBrief;
+    teamB?: TeamBrief;
+    scoreA: number;
+    scoreB: number;
+    startedAt: number | null;
+    finishedAt: number | null;
+    durationMs: number;
+    status: string;
+  };
+  goals: Array<{
+    minute: number;
+    teamSide: 'A' | 'B';
+    scorerName: string;
+    assistantName?: string;
+    type: 'GOAL' | 'OWN_GOAL';
+  }>;
+  gameMvp?: MvpRow;
+  meta: { generatedAt: number };
+};

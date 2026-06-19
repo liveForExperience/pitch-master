@@ -8,8 +8,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'offline.html'],
       manifest: {
         name: 'PitchMaster',
         short_name: 'PitchMaster',
@@ -28,9 +31,8 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
-        navigateFallback: '/index.html',
       },
     }),
   ],

@@ -96,3 +96,30 @@ export const undoEvent = (gameId: string, eventId: string, adminToken: string) =
     method: 'DELETE',
     adminToken,
   });
+
+export type BatchReplayResult = {
+  applied: number;
+  scoreA: number;
+  scoreB: number;
+  idempotentHits: number;
+};
+
+export const batchGameEvents = (
+  gameId: string,
+  events: Array<{
+    clientEventId: string;
+    type: 'GOAL' | 'OWN_GOAL' | 'UNDO';
+    teamSide?: 'A' | 'B';
+    scorerRosterId?: string;
+    assistantRosterId?: string;
+    undoTargetEventId?: string;
+    undoTargetClientEventId?: string;
+    clientTs: number;
+  }>,
+  adminToken: string,
+) =>
+  apiRequest<BatchReplayResult>(`/api/games/${gameId}/events/batch`, {
+    method: 'POST',
+    body: JSON.stringify({ events }),
+    adminToken,
+  });

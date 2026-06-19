@@ -4,6 +4,9 @@ import { fetchGame } from '../api/events';
 import type { GameDetail } from '../api/types';
 import { GameEventFeed } from '../components/GameEventFeed';
 import { Card, PageShell } from '../components/ui/layout';
+import { ShareReportButton } from '../components/report/ShareReportButton';
+import { gamePosterUrl } from '../lib/poster-url';
+import { buildGameShareText, gameReportPath } from '../lib/share-report';
 import { useGameStream } from '../lib/use-game-stream';
 import { useLiveGameTimer } from '../lib/use-live-game-timer';
 import { formatMs } from '../lib/time-format';
@@ -49,6 +52,28 @@ export function GameDetailPage() {
           <Card>
             <h2 className="mb-2 font-semibold">事件流</h2>
             <GameEventFeed game={game} scorableOnly />
+          </Card>
+          <Card className="space-y-3">
+            <h2 className="font-semibold text-textPri">分享单场战报</h2>
+            <ShareReportButton
+              share={{
+                title: `${game.teamA?.name ?? 'A'} vs ${game.teamB?.name ?? 'B'} · 单场战报`,
+                text: buildGameShareText(
+                  game.teamA?.name ?? 'A 队',
+                  game.teamB?.name ?? 'B 队',
+                  game.scoreA,
+                  game.scoreB,
+                ),
+                url: gameReportPath(id),
+                posterUrl: gamePosterUrl(id),
+              }}
+            />
+            <Link
+              to={`/games/${id}/report`}
+              className="block text-center text-sm text-primary"
+            >
+              打开战报 H5 预览
+            </Link>
           </Card>
           {game.eventShortCode && (
             <p className="text-center text-xs text-textSec">

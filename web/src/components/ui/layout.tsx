@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 
+export { Card } from './card';
+
 export function PageShell({
   title,
   backTo,
@@ -23,14 +25,6 @@ export function PageShell({
       </header>
       <main className="space-y-4 p-4">{children}</main>
     </div>
-  );
-}
-
-export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <section className={`rounded-2xl border border-border bg-surface p-4 shadow-sm ${className}`}>
-      {children}
-    </section>
   );
 }
 

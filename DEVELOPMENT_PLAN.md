@@ -456,6 +456,20 @@ Gate 待人工验收（D6 / C6 已决，merge 前由需求方执行）：
 - 活动改名 API 未实现（见 §4.1 C2）
 - 线上 ECS 需 merge + 重新部署（D5）
 
+### 2026-06-19 · Phase 2 · 离线 + 战报（启动）
+
+| 任务 | 状态 | 说明 |
+|---|---|---|
+| T2.1 PWA 离线增强 | ✔ | injectManifest SW + offline.html + Background Sync + 网络探测条 |
+| T2.2 IndexedDB outbox | ✔ | `web/src/lib/outbox/` + Zustand + `OutboxSync` + 录入页乐观合并 |
+| T2.3 batch replay API | ✔ | `POST /api/games/:id/events/batch` + `outbox.service.ts` 单测 |
+| T2.4 战报派生 + API | ✔ | `report.service.ts` + `GET .../report` + 单测 |
+| T2.5 战报 UI 组件 + H5 | ✔ | tokens + 7 组件 + `/events/:shortCode/report` + `/games/:id/report` |
+| T2.6 satori 海报 | ✔ | satori + resvg + 字体子集 + PNG API + 单测 |
+| T2.7 分享集成 | ✔ | Web Share + topN 1–20 + 剪贴板 fallback + 活动/单场入口 |
+
+**分支**：`cursor/phase2-report-service`（T2.4 首期）
+
 ---
 
 ## 6. 签署
