@@ -187,7 +187,7 @@
 **T2.4 战报：派生数据 + API**
 - `report.service.ts`：实现 `computeStandings / topScorers / topAssists / eventMvp / gameMvp`（见 `ARCHITECTURE_V2.md` §7.2）
 - 单元测试：积分榜排序稳定性、并列时的 tie-breaker、空数据兜底
-- API：`GET /api/games/:id/report`、`GET /api/events/:id/report?topN=`
+- API：`GET /api/games/:id/report`、`GET /api/events/:id/report`（Top 5 固定）
 
 **T2.5 战报：UI 组件（共享给 App / H5 / 海报）**
 - 在 `web/src/components/ui/` 实现 `Card / Section / TeamBadge / RankBadge / StatusChip / StatRow / ScoreBoard`（见 `ARCHITECTURE_V2.md` §8.3.4）
@@ -198,13 +198,13 @@
 - 安装 `satori` + `@resvg/resvg-js` + `subset-font`
 - 字体子集化打包到 `backend/src/assets/fonts/`（Regular + Bold 各 ≤250KB）
 - 实现 `EventPosterTemplate`、`GamePosterTemplate`（与 T2.5 UI 组件结构同源）
-- API：`GET /api/games/:id/poster.png`、`GET /api/events/:id/poster.png?topN=`
-- 缓存：活动海报按 `(eventId, topN, lastEventTs)` 缓存 60s
+- API：`GET /api/games/:id/poster.png`、`GET /api/events/:id/poster.png`
+- 缓存：活动海报按 `v2:{eventId}:5:{lastEventTs}` 内存缓存 60s
 - 落到 `assets/snapshots/` 的 PNG 比对作为视觉回归测试
 
 **T2.7 分享集成**
 - 战报 H5 顶部 CTA："想下次也来踢吗？→ 进活动主页"
-- 活动主页 / 单场详情提供"分享战报"按钮：admin 可选 `topN` (1-20，默认 5)
+- 活动主页 / 单场详情提供"分享战报"按钮（Top 5 固定，无 topN 选择器）
 - Web Share API：图片 + 文案 + H5 链接（fallback 复制链接到剪贴板）
 
 #### Phase 2 Gate
@@ -213,10 +213,10 @@
 - ✅ 恢复网络 10 秒内，服务端能查到全部事件且顺序正确
 - ✅ 同一事件重复提交（模拟弱网重试）只生效 1 次（幂等）
 - ✅ 单场结束页一键出"单场战报"图片 + H5
-- ✅ 活动主页点击"出战报" → 选 `topN` → 3 秒内显示长图海报 + H5 链接
+- ✅ 活动主页点击"出战报" → 3 秒内显示 4:5 海报 + H5 链接
 - ✅ 积分榜单测覆盖：含平局、并列、零数据三种边界
 - ✅ H5 战报与 PNG 海报视觉一致（人工目视 + snapshot 比对）
-- ✅ 战报 PNG 字体大小 ≤ 500KB 合计（regular + bold 子集后）
+- ✅ 战报 PNG 字体子集合计 ≤ 500KB（静态 woff ~72KB + 运行时 PosterCJK）
 
 ---
 
@@ -466,9 +466,28 @@ Gate 待人工验收（D6 / C6 已决，merge 前由需求方执行）：
 | T2.4 战报派生 + API | ✔ | `report.service.ts` + `GET .../report` + 单测 |
 | T2.5 战报 UI 组件 + H5 | ✔ | tokens + 7 组件 + `/events/:shortCode/report` + `/games/:id/report` |
 | T2.6 satori 海报 | ✔ | satori + resvg + 字体子集 + PNG API + 单测 |
-| T2.7 分享集成 | ✔ | Web Share + topN 1–20 + 剪贴板 fallback + 活动/单场入口 |
+| T2.7 分享集成 | ✔ | Web Share + 剪贴板 fallback + 活动/单场入口（Top 5 固定） |
 
-**分支**：`cursor/phase2-report-service`（T2.4 首期）
+**分支**：`cursor/phase2-report-service` → PR #6 merge
+
+### 2026-06-19 · Phase 2 Gate + 部署
+
+- ✅ Phase 2 Gate 代码侧验收通过（backend 59 / web 42 tests）
+- ✅ PR #11 修复 backend lockfile → GitHub Actions Deploy 成功（run #27818078195）
+- ⬜ 真机：HTTP 录分 + 助攻选择（`randomUUID` fallback，PR #12）
+
+### 2026-06-19 · UI 视觉升级（Notion-体育 minimalist）
+
+四阶段独立 PR 链（#7 → #8 → #9 → #10 / 汇总 #12）：
+
+| 阶段 | 状态 | 说明 |
+|---|---|---|
+| UI-1 Token + 字体 | ✔ merge #7 | `tokens.ts` 墨绿 palette；Geist Mono + Newsreader 子集；去 emoji → Phosphor |
+| UI-2 海报 4:5 | 🚧 PR #8/#12 | 1080×1350/1620；`poster-font.ts` PosterCJK；hairline-only；缓存 `v2:` |
+| UI-3 H5 战报 | 🚧 PR #9/#12 | `components/report/` Hero + 4 布局族；分享 CTA 置顶 |
+| UI-4 App UI | 🚧 PR #10/#12 | Home hairline；录入页 Geist Mono Hero；CTA 文案锁定 |
+
+**分支**：`cursor/ui-phase4-app-ui`（含 UUID WebView 兼容 fix `d541100`）
 
 ---
 

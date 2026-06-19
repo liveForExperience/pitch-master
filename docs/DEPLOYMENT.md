@@ -221,16 +221,16 @@ jobs:
 
 ## 7. 实施 checklist（Phase 3 开工时按序执行）
 
-- [ ] 7.1 本地生成 `pitchmaster_deploy` ed25519 keypair
-- [ ] 7.2 在 ECS 上准备 `/opt/pitchmaster-v2/` 目录骨架与 systemd unit
-- [ ] 7.3 在 ECS 上安装 Node 20
-- [ ] 7.4 把 deploy key 公钥加入 `~/.ssh/authorized_keys`，带 `command=` 前缀
-- [ ] 7.5 在 GitHub 仓库设置 4 个 Secrets
-- [ ] 7.6 实现 `deploy/scripts/deploy-receive.sh`
-- [ ] 7.7 实现 `deploy/systemd/pitchmaster-v2.service`
-- [ ] 7.8 实现 `.github/workflows/deploy.yml`
-- [ ] 7.9 手动 `workflow_dispatch` 跑一次干跑验证
-- [ ] 7.10 push 一次空 commit 到 main，验证全链路自动触发
+- [x] 7.1 本地生成 `pitchmaster_deploy` ed25519 keypair
+- [x] 7.2 在 ECS 上准备 `/opt/pitchmaster-v2/` 目录骨架与 systemd unit
+- [x] 7.3 在 ECS 上安装 Node 20+
+- [x] 7.4 把 deploy key 公钥加入 `~/.ssh/authorized_keys`，带 `command=` 前缀
+- [x] 7.5 在 GitHub 仓库设置 Secrets
+- [x] 7.6 实现 `deploy/scripts/deploy-receive.sh`
+- [x] 7.7 实现 `deploy/systemd/pitchmaster-v2.service`
+- [x] 7.8 实现 `.github/workflows/deploy.yml`
+- [x] 7.9 手动 `workflow_dispatch` 干跑验证
+- [x] 7.10 push 到 main 自动触发全链路（PR #11 merge 后 run #27818078195 成功）
 - [ ] 7.11 故意改坏 health endpoint，验证回滚动作
 
 ---
@@ -244,7 +244,8 @@ jobs:
 - ✅ GitHub Actions workflow `.github/workflows/deploy.yml` 已写入
 - ✅ ADR-0007 已签发
 - ✅ **merge → main 自动触发** Deploy（typecheck + 全量 test + build → scp → systemd restart）
-- ⚠️ 2026-06-19 PR #3 merge 部署失败：release 缺 `backend/dist/db/migrations/` → build 脚本已修复
-- ⬜ 修复 push 后待验证新一轮自动部署成功
+- ✅ 2026-06-19 PR #3 merge 部署失败：release 缺 `backend/dist/db/migrations/` → build 脚本已修复
+- ✅ PR #11 同步 backend lockfile（`@fontsource/*`）→ Deploy run #27818078195 成功
+- ⬜ HTTPS（Caddy auto TLS）与备份演练（Phase 3 剩余项）
 
 > ADR-0007（2026-06-19）决定将部署链路从 Phase 3 提前到 Phase 0 末实施。

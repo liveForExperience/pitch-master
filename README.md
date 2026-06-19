@@ -39,7 +39,7 @@ nvm use            # 读取 .nvmrc (Node 20)
 bash bin/dev.sh    # 一键启动 backend(:3000) + web(:5173)
 ```
 
-浏览器打开 <http://localhost:5173>，首屏会显示 backend 健康检查结果。
+浏览器打开 <http://localhost:5173>，进入首页新建或加入活动。
 
 或分别启动：
 
@@ -61,13 +61,13 @@ bash bin/dev.sh    # 一键启动 backend(:3000) + web(:5173)
 ├── bin/dev.sh                # 一键启动两端
 ├── docs/
 │   ├── ARCHITECTURE_V2.md    # 技术蓝图（DDL / API / 算法）
-│   └── DECISIONS.md          # ADR 决策记录
+│   ├── DECISIONS.md          # ADR 决策记录
+│   └── DEPLOYMENT.md         # ECS 部署与 GitHub Actions
 ├── legacy/                   # v1 归档（已废弃）
 ├── backend/                  # v2 Node + Hono 后端
-└── web/                      # v2 React + Vite PWA 前端
+├── web/                      # v2 React + Vite PWA 前端
+└── deploy/                   # systemd / Nginx / GitHub Actions 部署脚本
 ```
-
-> `deploy/` 目录会在 Phase 3 部署阶段创建。
 
 ---
 
@@ -75,11 +75,16 @@ bash bin/dev.sh    # 一键启动 backend(:3000) + web(:5173)
 
 参见 [`DEVELOPMENT_PLAN.md §5 阶段实施日志`](./DEVELOPMENT_PLAN.md#5-阶段实施日志执行时由开发者追加)。
 
-- [x] Phase 0：v1 归档完成、文档体系建立、v1 运行时彻底下线、v2 脚手架就绪
-- [x] Phase 1：MVP 在线版（核心流程已实现，Gate 人工验收进行中）
-- [ ] Phase 2：离线 + 战报（待启动）
-- [ ] Phase 3：上线（待启动）
-- [ ] Phase 4：Apple Watch（可选，待启动）
+| 阶段 | 状态 | 说明 |
+|---|---|---|
+| Phase 0 | ✅ 完成 | v1 归档、脚手架、ECS 部署链路（ADR-0007） |
+| Phase 1 | ✅ 完成 | MVP 在线版：建活动 → 配队 → 开赛 → 记进球 → SSE 观战 |
+| Phase 2 | ✅ 完成 | 离线 outbox + batch replay + 战报 H5/海报 + PWA 增强 + 分享（PR #6） |
+| UI 视觉升级 | 🚧 PR 链 | Notion-体育 minimalist 四阶段（token / 海报 4:5 / H5 战报 / App UI），见 PR #7–#12 |
+| Phase 3 | 🟡 部分 | GitHub Actions → ECS 自动部署已跑通；HTTPS / 备份演练待补 |
+| Phase 4 | ⬜ 待定 | Apple Watch（可选） |
+
+**线上**：`http://8.153.145.81/`（HTTP，ECS + Nginx 反代 backend:3000）
 
 ---
 
