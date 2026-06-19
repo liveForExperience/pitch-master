@@ -10,6 +10,7 @@ import {
   createGame,
   createTeam,
   addRosterMembers,
+  deleteTeam,
   finishGame,
   getEventByShortCode,
   getGameState,
@@ -128,6 +129,29 @@ describe('game-ops guards', () => {
     await undoGameEvent(db, game.id, goal.event.id);
     const state = await getGameState(db, game.id);
     expect(state.scoreA).toBe(0);
+  });
+
+  it('deletes a team with no game references (rosters cascade)', async () => {
+    const { db, evt } = await seed();
+    const spareTeam = await createTeam(db, evt.id, { name: '绿' });
+    await addRosterMembers(db, spareTeam.id, ['临时1', '临时2']);
+
+    const result = await deleteTeam(db, spareTeam.id);
+    expect(result.id).toBe(spareTeam.id);
+
+    const after = await getEventByShortCode(db, evt.shortCode);
+    expect(after.teams.find((t) => t.id === spareTeam.id)).toBeUndefined();
+  });
+
+  it('refuses to delete a team that is referenced by a game', async () => {
+    const { db, game } = await seed();
+    await expect(deleteTeam(db, game.teamAId)).rejects.toBeInstanceOf(ConflictError);
+    await expect(deleteTeam(db, game.teamBId)).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('throws when deleting a missing team', async () => {
+    const { db } = setupTestDb();
+    await expect(deleteTeam(db, 'tm_missing')).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it('finishes from paused and freezes score', async () => {

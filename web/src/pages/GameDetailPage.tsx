@@ -8,6 +8,9 @@ import { InlineAlert } from '../components/ui/inline-alert';
 import { PageShell } from '../components/ui/layout';
 import { PagePanel, PagePanelBody, PagePanelHeader } from '../components/ui/page-panel';
 import { ReportShareGrid } from '../components/report/ReportShareGrid';
+import { Tour } from '../components/tour/Tour';
+import { GAME_DETAIL_TOUR_STEPS, TOUR_IDS } from '../components/tour/tour-config';
+import { usePageTour } from '../components/tour/use-page-tour';
 import { useT } from '../i18n';
 import { gamePosterUrl } from '../lib/poster-url';
 import { buildGameShareText, gameReportPath } from '../lib/share-report';
@@ -35,23 +38,27 @@ export function GameDetailPage() {
   const timer = useLiveGameTimer(game);
   const backTo = game?.eventShortCode ? `/events/${game.eventShortCode}` : '/';
 
+  const tour = usePageTour(TOUR_IDS.gameDetail, {
+    ready: Boolean(game && timer),
+  });
+
   return (
     <PageShell title={t('detail.title')} backTo={backTo}>
       {error && <InlineAlert>{error}</InlineAlert>}
       {game && timer && (
         <>
-          <PagePanel className="overflow-hidden">
+          <PagePanel data-tour="detail-score" className="overflow-hidden">
             <GameScoreHeader game={game} timer={timer} />
           </PagePanel>
 
-          <PagePanel>
+          <PagePanel data-tour="detail-feed">
             <PagePanelHeader title={t('detail.eventStream')} />
             <PagePanelBody>
               <GameEventFeed game={game} scorableOnly />
             </PagePanelBody>
           </PagePanel>
 
-          <PagePanel>
+          <PagePanel data-tour="detail-share">
             <PagePanelHeader title={t('detail.share.title')} />
             <PagePanelBody className="p-3">
               <ReportShareGrid
@@ -82,6 +89,13 @@ export function GameDetailPage() {
               </Link>
             </p>
           )}
+
+          <Tour
+            tourId={TOUR_IDS.gameDetail}
+            steps={GAME_DETAIL_TOUR_STEPS}
+            open={tour.open}
+            onClose={tour.close}
+          />
         </>
       )}
       {!game && !error && <p className="text-sm text-textSec">{t('common.loading')}</p>}

@@ -133,6 +133,26 @@ export async function updateTeam(db: AppDb, teamId: string, input: { name: strin
   return { id: teamId, eventId: team.eventId, name: trimmed, colorHex: team.colorHex };
 }
 
+export async function deleteTeam(db: AppDb, teamId: string) {
+  const [team] = await db.select().from(teams).where(eq(teams.id, teamId)).limit(1);
+  if (!team) throw new NotFoundError('Team not found');
+
+  // games.teamAId / teamBId have no ON DELETE CASCADE — refuse to delete a
+  // team that any game already references, otherwise the foreign key would
+  // be left dangling. Roster members do cascade, so removing those is safe.
+  const [referenced] = await db
+    .select({ id: games.id })
+    .from(games)
+    .where(or(eq(games.teamAId, teamId), eq(games.teamBId, teamId)))
+    .limit(1);
+  if (referenced) {
+    throw new ConflictError('Cannot delete a team that is used in a game');
+  }
+
+  await db.delete(teams).where(eq(teams.id, teamId));
+  return { id: teamId, eventId: team.eventId, name: team.name };
+}
+
 export async function removeRosterMember(db: AppDb, rosterId: string) {
   const [member] = await db.select().from(rosters).where(eq(rosters.id, rosterId)).limit(1);
   if (!member) throw new NotFoundError('Roster member not found');

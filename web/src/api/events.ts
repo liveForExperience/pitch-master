@@ -37,6 +37,12 @@ export const updateTeamName = (teamId: string, name: string, adminToken: string)
     adminToken,
   });
 
+export const deleteTeam = (teamId: string, adminToken: string) =>
+  apiRequest<{ id: string; eventId: string; name: string }>(`/api/teams/${teamId}`, {
+    method: 'DELETE',
+    adminToken,
+  });
+
 export const removeRosterMember = (rosterId: string, adminToken: string) =>
   apiRequest<{ id: string; teamId: string; name: string }>(`/api/roster/${rosterId}`, {
     method: 'DELETE',

@@ -3,12 +3,13 @@ import { cn } from '../../lib/cn';
 export function PagePanel({
   children,
   className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
+  ...rest
+}: React.HTMLAttributes<HTMLElement> & { children: React.ReactNode }) {
   return (
-    <section className={cn('overflow-hidden rounded-xl border border-border bg-surface', className)}>
+    <section
+      {...rest}
+      className={cn('overflow-hidden rounded-xl border border-border bg-surface', className)}
+    >
       {children}
     </section>
   );

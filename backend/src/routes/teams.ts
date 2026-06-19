@@ -6,6 +6,7 @@ import { readJson } from '../lib/http.js';
 import { applyNewAdminToken, mapServiceError } from '../lib/route-errors.js';
 import {
   addRosterMembers,
+  deleteTeam,
   removeRosterMember,
   updateTeam,
 } from '../services/game-ops.service.js';
@@ -25,6 +26,22 @@ teamsRoute.patch('/teams/:id', async (c) => {
 
   try {
     const data = await updateTeam(db, teamId, { name: body.name.trim() });
+    return applyNewAdminToken(ok(c, data), auth.newAdminToken);
+  } catch (err) {
+    const mapped = mapServiceError(c, err);
+    if (mapped) return mapped;
+    throw err;
+  }
+});
+
+teamsRoute.delete('/teams/:id', async (c) => {
+  const teamId = c.req.param('id');
+  const db = getDb();
+  const auth = await requireTeamAdmin(c, db, teamId);
+  if (auth instanceof Response) return auth;
+
+  try {
+    const data = await deleteTeam(db, teamId);
     return applyNewAdminToken(ok(c, data), auth.newAdminToken);
   } catch (err) {
     const mapped = mapServiceError(c, err);
