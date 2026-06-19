@@ -1,8 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchEvent } from '../api/events';
 import type { EventDetail } from '../api/types';
+import { RosterImportPanel } from '../components/roster/RosterImportPanel';
+import { TeamImportChips } from '../components/roster/TeamImportChips';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
+import {
+  clearRosterImportPool,
+  loadRosterImportPool,
+  saveRosterImportPool,
+} from '../lib/roster-import-store';
 import { useRequireAdmin } from '../lib/use-require-admin';
 
 export function EventSetupPage() {
@@ -11,6 +18,7 @@ export function EventSetupPage() {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [newTeam, setNewTeam] = useState('');
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
+  const [importPool, setImportPool] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   const reload = () =>
@@ -23,6 +31,24 @@ export function EventSetupPage() {
   }, [shortCode]);
 
   const token = useRequireAdmin(event?.id, `/events/${shortCode}`);
+
+  useEffect(() => {
+    if (!event?.id) return;
+    if (event.status === 'FINISHED') {
+      clearRosterImportPool(event.id);
+      setImportPool([]);
+      return;
+    }
+    setImportPool(loadRosterImportPool(event.id));
+  }, [event?.id, event?.status]);
+
+  const updateImportPool = useCallback(
+    (names: string[]) => {
+      setImportPool(names);
+      if (event?.id) saveRosterImportPool(event.id, names);
+    },
+    [event?.id],
+  );
 
   if (!token) {
     return (
@@ -50,9 +76,22 @@ export function EventSetupPage() {
     await reload();
   };
 
+  const addFromImport = async (teamId: string, names: string[]) => {
+    const { addRoster } = await import('../api/events');
+    await addRoster(teamId, names, token);
+    setImportPool((prev) => {
+      const next = prev.filter((n) => !names.includes(n));
+      if (event?.id) saveRosterImportPool(event.id, next);
+      return next;
+    });
+    await reload();
+  };
+
   return (
     <PageShell title="队伍配置" backTo={`/events/${shortCode}`}>
       {error && <p className="text-sm text-danger">{error}</p>}
+
+      <RosterImportPanel pool={importPool} onPoolChange={updateImportPool} />
 
       <Card>
         <div className="flex gap-2">
@@ -83,6 +122,14 @@ export function EventSetupPage() {
               <li key={p.id}>{p.name}</li>
             ))}
           </ul>
+
+          <TeamImportChips
+            teamName={team.name}
+            pool={importPool}
+            rosterNames={team.roster.map((p) => p.name)}
+            onAdd={(names) => addFromImport(team.id, names)}
+          />
+
           <textarea
             className="mb-2 w-full rounded-xl border border-border px-3 py-2 text-sm"
             rows={2}

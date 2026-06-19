@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { fetchEvent, finishEvent as finishEventApi } from '../api/events';
+import { clearRosterImportPool } from '../lib/roster-import-store';
 import { ApiError } from '../api/client';
 import type { EventDetail } from '../api/types';
 import { EventCredentialsCard } from '../components/EventCredentialsCard';
@@ -76,6 +77,7 @@ export function EventPage() {
     setError('');
     try {
       await finishEventApi(event.id, adminToken);
+      clearRosterImportPool(event.id);
       archiveEvent(event.shortCode);
       const data = await fetchEvent(event.shortCode);
       setEvent(data);

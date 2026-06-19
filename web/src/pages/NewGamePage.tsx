@@ -3,7 +3,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createGame, fetchEvent } from '../api/events';
 import type { EventDetail } from '../api/types';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
+import {
+  canCreateGame,
+  resolveOtherTeamId,
+  teamOptionsForSide,
+} from '../lib/new-game-teams';
 import { useRequireAdmin } from '../lib/use-require-admin';
+
+const DEFAULT_DURATION_MINUTES = 15;
 
 export function NewGamePage() {
   const [params] = useSearchParams();
@@ -13,11 +20,15 @@ export function NewGamePage() {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [teamAId, setTeamAId] = useState('');
   const [teamBId, setTeamBId] = useState('');
-  const [durationMinutes, setDurationMinutes] = useState(30);
-  const [customMinutes, setCustomMinutes] = useState('30');
+  const [durationMinutes, setDurationMinutes] = useState(DEFAULT_DURATION_MINUTES);
+  const [customMinutes, setCustomMinutes] = useState(String(DEFAULT_DURATION_MINUTES));
   const [error, setError] = useState('');
 
   const token = useRequireAdmin(eventId || undefined, `/events/${shortCode}`);
+  const teams = event?.teams ?? [];
+  const teamAOptions = teamOptionsForSide(teams, teamBId);
+  const teamBOptions = teamOptionsForSide(teams, teamAId);
+  const ready = canCreateGame(teamAId, teamBId, teams.length);
 
   useEffect(() => {
     if (!shortCode) return;
@@ -39,8 +50,8 @@ export function NewGamePage() {
   };
 
   const submit = async () => {
-    if (!token || !teamAId || !teamBId || teamAId === teamBId) {
-      setError('请选择两个不同的队伍');
+    if (!token || !ready) {
+      setError(teams.length < 2 ? '至少需要两支队伍才能开赛' : '请选择两个不同的队伍');
       return;
     }
     if (durationMinutes < 1) {
@@ -76,9 +87,14 @@ export function NewGamePage() {
         <select
           className="field-select mb-3"
           value={teamAId}
-          onChange={(e) => setTeamAId(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setTeamAId(next);
+            setTeamBId((prev) => resolveOtherTeamId(teams, next, prev));
+            setError('');
+          }}
         >
-          {event?.teams.map((t) => (
+          {teamAOptions.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
             </option>
@@ -88,9 +104,14 @@ export function NewGamePage() {
         <select
           className="field-select mb-3"
           value={teamBId}
-          onChange={(e) => setTeamBId(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setTeamBId(next);
+            setTeamAId((prev) => resolveOtherTeamId(teams, next, prev));
+            setError('');
+          }}
         >
-          {event?.teams.map((t) => (
+          {teamBOptions.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
             </option>
@@ -123,8 +144,13 @@ export function NewGamePage() {
           />
         </div>
 
+        {teams.length < 2 && (
+          <p className="mb-2 text-sm text-textSec">请先在活动里配置至少两支队伍。</p>
+        )}
         {error && <p className="mb-2 text-sm text-danger">{error}</p>}
-        <PrimaryButton onClick={() => void submit()}>创建比赛</PrimaryButton>
+        <PrimaryButton disabled={!ready} onClick={() => void submit()}>
+          创建比赛
+        </PrimaryButton>
       </Card>
     </PageShell>
   );

@@ -1,4 +1,5 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { DEFAULT_PLANNED_DURATION_MS } from '../lib/game-defaults.js';
 
 export const events = sqliteTable(
   'event',
@@ -63,7 +64,7 @@ export const games = sqliteTable(
       .default('READY'),
     startedAt: integer('started_at'),
     finishedAt: integer('finished_at'),
-    plannedDurationMs: integer('planned_duration_ms').notNull().default(30 * 60 * 1000),
+    plannedDurationMs: integer('planned_duration_ms').notNull().default(DEFAULT_PLANNED_DURATION_MS),
     pausedDurationMs: integer('paused_duration_ms').notNull().default(0),
     pauseStartedAt: integer('pause_started_at'),
     createdAt: integer('created_at').notNull(),

@@ -6,6 +6,7 @@ import { newId, nowMs } from '../lib/id.js';
 import { deriveScore } from './game.service.js';
 import { buildTimerState } from './timer.service.js';
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js';
+import { DEFAULT_PLANNED_DURATION_MS } from '../lib/game-defaults.js';
 import { normalizeShortCode } from '../lib/short-code.js';
 
 const DEFAULT_COLORS = [
@@ -121,7 +122,7 @@ export async function createGame(
     teamAId: input.teamAId,
     teamBId: input.teamBId,
     status: 'READY',
-    plannedDurationMs: input.plannedDurationMs ?? 30 * 60 * 1000,
+    plannedDurationMs: input.plannedDurationMs ?? DEFAULT_PLANNED_DURATION_MS,
     pausedDurationMs: 0,
     createdAt: nowMs(),
   });

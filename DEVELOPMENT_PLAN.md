@@ -276,10 +276,42 @@
 | ~~D4~~ | ~~战报 / report~~ | ~~已决~~ | **已决 2026-06-19：Phase 2（T2.4–T2.7）** |
 | D5 | merge 后重新部署 ECS | 需求方 | merge 后立即 |
 | D6 | merge 前后完整 Gate 验收 | 需求方 | **merge 前：需求方手动测试（C6 已决）；merge 后：部署后再验** |
+| ~~S1~~ | ~~微信报名文本快速导入球员~~ | ~~已决~~ | **已决 2026-06-19：见 §4.2，每行即一名球员；活动结束清空导入池** |
+
+### 4.2 方案 · 微信报名文本快速导入（S1 · 已决 2026-06-19）
+
+**背景**：微信群接龙/报名名单多为「序号 + 姓名」纯文本，手动逐条录入 roster 成本高。
+
+**目标**：
+1. 在 `EventSetupPage` 粘贴原始报名文本 → 解析出候选球员列表（可预览、可删）
+2. 保留现有「逗号/换行手动输入」添加方式
+3. 「从导入名单点选」：chip 多选后一键加入当前队伍 roster（仍走 `POST /api/teams/:id/roster`）
+
+**不在 v2 范围**：持久化导入池到 DB、跨活动球员库、自动分队。
+
+#### 解析规则（已签署）
+
+| 规则 | 处理 |
+|---|---|
+| 一行一名球员 | 去掉行首 `1.` / `1、` / `1)` 后，**整段剩余文本即球员名**（含 `+1`、`门`、emoji） |
+| 非名单行 | 丢弃含「人满」「截止」「接龙」等关键词的行 |
+| 空行 | 忽略 |
+| 重复姓名 | 同次粘贴内 exact 重复跳过 |
+| 导入池生命周期 | `sessionStorage` 按 `eventId`；**手动结束活动后清空** |
+
+#### 实现
+
+| 步骤 | 文件 |
+|---|---|
+| 解析 + 测试 | `web/src/lib/roster-import.ts` |
+| session 缓存 | `web/src/lib/roster-import-store.ts` |
+| 粘贴 UI | `web/src/components/roster/RosterImportPanel.tsx` |
+| 分队 chip | `web/src/components/roster/TeamImportChips.tsx` |
+| 结束活动清池 | `EventPage.tsx` `confirmFinish` |
+
+---
 
 ### 4.1 计划与实现差异（2026-06-19 · 已决）
-
-| ID | 差异描述 | 决议 |
 |---|---|---|
 | ~~C1~~ | Phase 1 目标曾写「出战报」 | **已决**：战报（API + H5 + 海报）在 **Phase 2 T2.4–T2.7** 完成；Phase 1 目标文案已改 |
 | ~~C2~~ | 结束活动 API 形态 | **已决**：以 `POST /api/events/:id/finish` 为准；**不**实现 `PATCH /api/events/:id`（ARCH 已同步） |
