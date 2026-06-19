@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { createEvent } from '../src/services/event.service.js';
+import { games } from '../src/db/schema.js';
 import {
   createGame,
   createTeam,
@@ -117,6 +119,12 @@ describe('game-ops.service integration', () => {
     await undoGameEvent(db, game.id, supplemental.event.id);
     state = await getGameState(db, game.id);
     expect(state.scoreA).toBe(1);
+  });
+
+  it('defaults planned duration to 15 minutes when omitted', async () => {
+    const { db, game } = await seedMatch();
+    const [row] = await db.select().from(games).where(eq(games.id, game.id));
+    expect(row!.plannedDurationMs).toBe(15 * 60 * 1000);
   });
 
   it('is idempotent on duplicate clientEventId', async () => {
