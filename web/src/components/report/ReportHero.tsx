@@ -1,33 +1,28 @@
 import { type ReactNode } from 'react';
 import { Eyebrow } from './layout';
-import { ShareReportButton } from './ShareReportButton';
-import type { ShareReportInput } from '../../lib/share-report';
-import { useT } from '../../i18n';
 import { cn } from '../../lib/cn';
 
 /**
  * Editorial hero for both `/events/:code/report` and `/games/:id/report`.
+ *
+ * The hero used to host a "分享战报" button, but the poster section below
+ * now owns all share / copy / save flows via the lightbox — keeping a
+ * separate top-level share CTA only confused users about which path saves
+ * the actual image. The hero is intentionally action-free now.
  */
 export function ReportHero({
   eyebrow,
   title,
   subtitle,
   stats,
-  share,
-  shareLabel,
   children,
 }: {
   eyebrow: string;
   title: string;
   subtitle?: ReactNode;
   stats?: Array<{ label: string; value: ReactNode; danger?: boolean }>;
-  share?: ShareReportInput;
-  shareLabel?: string;
   children?: ReactNode;
 }) {
-  const t = useT();
-  const effectiveLabel = shareLabel ?? t('share.label');
-
   return (
     <header className="space-y-5">
       <Eyebrow>{eyebrow}</Eyebrow>
@@ -61,15 +56,6 @@ export function ReportHero({
             </div>
           ))}
         </div>
-      )}
-
-      {share && (
-        <ShareReportButton
-          share={share}
-          variant="primary"
-          className="pt-1"
-          label={effectiveLabel}
-        />
       )}
     </header>
   );

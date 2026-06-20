@@ -209,7 +209,6 @@ export function EventReportView({ report }: { report: EventReport }) {
       <ReportHero
         eyebrow={`${MonthDay(report.event.createdAt)} · ${report.event.shortCode}`}
         title={report.event.name}
-        share={share}
         stats={[
           { label: 'GAMES', value: finishedGames },
           { label: 'GOALS', value: totalGoals },
