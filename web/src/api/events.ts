@@ -1,5 +1,5 @@
 import { apiRequest } from './client';
-import type { CreatedEvent, EventDetail, GameDetail } from './types';
+import type { AdminSession, CreatedEvent, EventDetail, GameDetail } from './types';
 
 export const fetchServerTime = () => apiRequest<{ serverNow: number }>('/api/time');
 
@@ -11,6 +11,11 @@ export const createEvent = (name: string) =>
 
 export const fetchEvent = (shortCode: string) =>
   apiRequest<EventDetail>(`/api/events/${shortCode.trim().toUpperCase()}`);
+
+export const fetchAdminSession = (shortCode: string, adminToken?: string | null) =>
+  apiRequest<AdminSession>(`/api/events/${encodeURIComponent(shortCode.trim().toUpperCase())}/admin-session`, {
+    adminToken: adminToken ?? undefined,
+  });
 
 export const createTeam = (
   eventId: string,

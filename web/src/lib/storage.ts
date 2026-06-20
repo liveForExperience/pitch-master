@@ -7,6 +7,14 @@ export function getAdminToken(eventId: string): string | null {
   return useSessionStore.getState().getAdminToken(eventId);
 }
 
+export function clearAdminToken(eventId: string): void {
+  useSessionStore.setState((s) => {
+    const next = { ...s.adminTokens };
+    delete next[eventId];
+    return { adminTokens: next };
+  });
+}
+
 export function setAdminToken(eventId: string, token: string): void {
   useSessionStore.getState().setAdminToken(eventId, token);
 }

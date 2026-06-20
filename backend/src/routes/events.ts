@@ -1,6 +1,9 @@
 import { Hono } from 'hono';
 import { getDb } from '../db/client.js';
-import { requireEventAdmin } from '../lib/admin-auth.js';
+import {
+  requireEventAdmin,
+  parseAdminCredentials,
+} from '../lib/admin-auth.js';
 import { fail, ok } from '../lib/api-response.js';
 import { readJson } from '../lib/http.js';
 import { applyNewAdminToken, mapServiceError } from '../lib/route-errors.js';
@@ -10,6 +13,7 @@ import {
   createTeam,
   getEventByShortCode,
 } from '../services/game-ops.service.js';
+import { getAdminSession } from '../services/admin-session.service.js';
 import { getEventReport } from '../services/report.service.js';
 
 export const eventsRoute = new Hono();
@@ -26,6 +30,20 @@ eventsRoute.get('/events/:shortCode', async (c) => {
   const db = getDb();
   try {
     const data = await getEventByShortCode(db, c.req.param('shortCode'));
+    return ok(c, data);
+  } catch (err) {
+    const mapped = mapServiceError(c, err);
+    if (mapped) return mapped;
+    throw err;
+  }
+});
+
+eventsRoute.get('/events/:shortCode/admin-session', async (c) => {
+  const db = getDb();
+  const shortCode = c.req.param('shortCode');
+  const { bearerToken } = parseAdminCredentials(c);
+  try {
+    const data = await getAdminSession(db, shortCode, { bearerToken });
     return ok(c, data);
   } catch (err) {
     const mapped = mapServiceError(c, err);

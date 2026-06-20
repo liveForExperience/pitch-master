@@ -22,6 +22,7 @@ import { EVENT_ADMIN_TOUR_STEPS, TOUR_IDS } from '../components/tour/tour-config
 import { usePageTour } from '../components/tour/use-page-tour';
 import { useT } from '../i18n';
 import { isEventEnded } from '../lib/event-status';
+import { useAdminSession } from '../lib/use-admin-session';
 import {
   archiveEvent,
   findStoredEvent,
@@ -46,6 +47,12 @@ export function EventPage() {
   const [deletingGame, setDeletingGame] = useState(false);
   const adminTokens = useSessionStore((s) => s.adminTokens);
 
+  const {
+    canWrite,
+    tokenRevoked,
+    refresh: refreshAdminSession,
+  } = useAdminSession(shortCode, event?.id);
+
   useEffect(() => {
     const code = shortCode.trim().toUpperCase();
     if (!code) return;
@@ -58,17 +65,6 @@ export function EventPage() {
         if (isEventEnded(data)) {
           archiveEvent(data.shortCode);
         }
-        const token = getAdminToken(data.id);
-        if (token && !isEventEnded(data)) {
-          const stored = findStoredEvent(data.shortCode);
-          rememberEvent({
-            id: data.id,
-            shortCode: data.shortCode,
-            name: data.name,
-            pin: stored?.pin ?? '',
-            createdAt: stored?.createdAt ?? data.createdAt,
-          });
-        }
       })
       .catch((err: Error) => {
         if (err instanceof ApiError && err.code === 'not_found') {
@@ -80,13 +76,24 @@ export function EventPage() {
       });
   }, [shortCode, adminTokens]);
 
-  const adminToken = event ? getAdminToken(event.id) : null;
-  const isAdmin = Boolean(adminToken);
+  useEffect(() => {
+    if (!event || !canWrite || isEventEnded(event)) return;
+    const stored = findStoredEvent(event.shortCode);
+    rememberEvent({
+      id: event.id,
+      shortCode: event.shortCode,
+      name: event.name,
+      pin: stored?.pin ?? '',
+      createdAt: stored?.createdAt ?? event.createdAt,
+    });
+  }, [event, canWrite]);
+
+  const adminToken = event && canWrite ? getAdminToken(event.id) : null;
   const storedPin = event ? findStoredEvent(event.shortCode)?.pin : undefined;
   const ended = event ? isEventEnded(event) : false;
 
   const tour = usePageTour(TOUR_IDS.eventAdmin, {
-    ready: Boolean(event) && isAdmin && !ended,
+    ready: Boolean(event) && canWrite && !ended,
   });
 
   const confirmFinish = async () => {
@@ -99,6 +106,7 @@ export function EventPage() {
       archiveEvent(event.shortCode);
       const data = await fetchEvent(event.shortCode);
       setEvent(data);
+      void refreshAdminSession();
       setFinishOpen(false);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('event.finish.error'));
@@ -183,22 +191,32 @@ export function EventPage() {
             )}
           </div>
 
-          {!isAdmin && (
+          {!canWrite && (
             <PagePanel>
               <PagePanelBody className="space-y-2">
-                <p className="text-sm font-medium text-textPri">{t('event.viewer.title')}</p>
+                <p className="text-sm font-medium text-textPri">
+                  {tokenRevoked
+                    ? t('event.viewer.tokenRevokedTitle')
+                    : t('event.viewer.title')}
+                </p>
                 <p className="text-xs leading-relaxed text-textSec">
-                  {t('event.viewer.bodyA')}
-                  <Link to={`/admin/restore?code=${event.shortCode}`} className="text-primary">
-                    {t('event.viewer.restoreLink')}
-                  </Link>
-                  {t('event.viewer.bodyB')}
+                  {tokenRevoked
+                    ? t('event.viewer.tokenRevokedBody')
+                    : (
+                      <>
+                        {t('event.viewer.bodyA')}
+                        <Link to={`/admin/restore?code=${event.shortCode}`} className="text-primary">
+                          {t('event.viewer.restoreLink')}
+                        </Link>
+                        {t('event.viewer.bodyB')}
+                      </>
+                    )}
                 </p>
               </PagePanelBody>
             </PagePanel>
           )}
 
-          {isAdmin && storedPin && (
+          {canWrite && storedPin && (
             <div data-tour="event-credentials">
               <EventCredentialsCard
                 shortCode={event.shortCode}
@@ -208,7 +226,7 @@ export function EventPage() {
             </div>
           )}
 
-          {isAdmin && !storedPin && (
+          {canWrite && !storedPin && (
             <section data-tour="event-credentials" className="space-y-1.5 px-1">
               <h2 className="text-base font-semibold tracking-tight text-textPri">
                 {t('cred.sectionTitle')}
@@ -220,7 +238,7 @@ export function EventPage() {
             </section>
           )}
 
-          {!isAdmin && (
+          {!canWrite && (
             <section className="space-y-1.5 px-1">
               <p className="text-xs text-textSec">{t('event.shareCode')}</p>
               <p className="font-mono text-2xl font-bold tracking-widest text-primary">
@@ -229,7 +247,7 @@ export function EventPage() {
             </section>
           )}
 
-          {isAdmin && !ended && (
+          {canWrite && !ended && (
             <PagePanel data-tour="event-setup">
               <PagePanelHeader
                 title={t('event.setupSection')}
@@ -250,9 +268,9 @@ export function EventPage() {
             {event.games.length === 0 ? (
               <PagePanelBody className="space-y-3">
                 <p className="text-sm text-textSec">
-                  {isAdmin ? t('event.games.emptyAdmin') : t('event.games.emptyViewer')}
+                  {canWrite ? t('event.games.emptyAdmin') : t('event.games.emptyViewer')}
                 </p>
-                {isAdmin && !ended && (
+                {canWrite && !ended && (
                   <PrimaryButton className="min-h-12 rounded-xl text-sm font-bold">
                     <Link
                       to={`/games/new?eventId=${event.id}&shortCode=${event.shortCode}`}
@@ -281,13 +299,13 @@ export function EventPage() {
                         status={g.status}
                         scoreA={g.scoreA}
                         scoreB={g.scoreB}
-                        isAdmin={isAdmin}
-                        onDelete={isAdmin ? () => setDeleteGameId(g.id) : undefined}
+                        isAdmin={canWrite}
+                        onDelete={canWrite ? () => setDeleteGameId(g.id) : undefined}
                       />
                     );
                   })}
                 </ul>
-                {isAdmin && !ended && (
+                {canWrite && !ended && (
                   <div className="border-t border-border p-4">
                     <PrimaryButton className="min-h-12 rounded-xl text-sm font-bold">
                       <Link
@@ -308,7 +326,7 @@ export function EventPage() {
             <EventSharePanel eventName={event.name} shortCode={event.shortCode} />
           )}
 
-          {isAdmin && (
+          {canWrite && (
             <PagePanel data-tour="event-manage">
               <PagePanelHeader
                 title={t('event.manageSection')}
@@ -335,7 +353,7 @@ export function EventPage() {
             </PagePanel>
           )}
 
-          {!isAdmin && (
+          {!canWrite && (
             <PagePanel>
               <PagePanelHeader title={t('event.teams.title')} />
               <PagePanelBody>

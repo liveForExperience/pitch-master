@@ -9,6 +9,7 @@ import {
   resolveOtherTeamId,
   teamOptionsForSide,
 } from '../lib/new-game-teams';
+import { getAdminToken } from '../lib/storage';
 import { useRequireAdmin } from '../lib/use-require-admin';
 
 const DEFAULT_DURATION_MINUTES = 15;
@@ -26,7 +27,8 @@ export function NewGamePage() {
   const [customMinutes, setCustomMinutes] = useState(String(DEFAULT_DURATION_MINUTES));
   const [error, setError] = useState('');
 
-  const token = useRequireAdmin(eventId || undefined, `/events/${shortCode}`);
+  const { canWrite, loading } = useRequireAdmin(shortCode, eventId || undefined, `/events/${shortCode}`);
+  const token = canWrite && eventId ? getAdminToken(eventId) : null;
   const teams = event?.teams ?? [];
   const teamAOptions = teamOptionsForSide(teams, teamBId);
   const teamBOptions = teamOptionsForSide(teams, teamAId);
@@ -75,6 +77,14 @@ export function NewGamePage() {
       setError(err instanceof Error ? err.message : t('newGame.error.create'));
     }
   };
+
+  if (loading || !eventId) {
+    return (
+      <PageShell title={t('newGame.title')} backTo={`/events/${shortCode}`}>
+        <p className="text-sm text-textSec">{t('common.loading')}</p>
+      </PageShell>
+    );
+  }
 
   if (!token) {
     return (
