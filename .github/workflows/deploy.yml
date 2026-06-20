@@ -28,10 +28,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       # setup-node 的 npm cache 只存 tarball；npm ci 仍会每次重建 node_modules。
@@ -44,7 +44,10 @@ jobs:
             node_modules
             backend/node_modules
             web/node_modules
-          key: ${{ runner.os }}-node20-nm-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-node22-nm-${{ hashFiles('package-lock.json') }}
+
+      - name: Log node_modules cache status
+        run: echo "node_modules cache hit=${{ steps.node-modules.outputs.cache-hit }}"
 
       - name: Install
         if: steps.node-modules.outputs.cache-hit != 'true'

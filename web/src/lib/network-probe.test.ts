@@ -14,10 +14,9 @@ describe('network-probe', () => {
   });
 
   it('probeOnline respects navigator.onLine', async () => {
-    const original = navigator.onLine;
-    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    vi.stubGlobal('navigator', { onLine: false });
     await expect(probeOnline(vi.fn())).resolves.toBe(false);
-    Object.defineProperty(navigator, 'onLine', { value: original, configurable: true });
+    vi.unstubAllGlobals();
   });
 
   it('countPendingOutbox counts flushable items', () => {
