@@ -74,6 +74,64 @@ function copyWithExecCommand(text: string): boolean {
   return ok;
 }
 
+/**
+ * Copy a PNG/JPEG blob to the system clipboard so the user can paste it
+ * straight into WeChat / WhatsApp / Photos / etc.
+ *
+ * Caveats baked in here on purpose:
+ * - WeChat's in-app webview almost never grants clipboard-image write; we
+ *   surface the failure so the lightbox can fall back to the long-press hint.
+ * - iOS Safari needs the call to happen inside a user gesture. We don't add
+ *   timers or awaits before write to keep the activation chain intact.
+ */
+export async function copyImageToClipboard(
+  blob: Blob,
+  t: T = defaultT,
+): Promise<void> {
+  if (
+    typeof navigator === 'undefined' ||
+    typeof ClipboardItem === 'undefined' ||
+    !navigator.clipboard?.write
+  ) {
+    throw new Error(t('common.error.clipboardImage'));
+  }
+
+  const mime = blob.type || 'image/png';
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ [mime]: blob })]);
+  } catch {
+    throw new Error(t('common.error.clipboardImage'));
+  }
+}
+
+export function canShareFile(file: File): boolean {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+    return false;
+  }
+  if (typeof navigator.canShare !== 'function') return false;
+  try {
+    return navigator.canShare({ files: [file] });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * iOS Safari saves to Files via `download`; on Android Chrome to Downloads.
+ * Inside WeChat the attribute is mostly ignored — caller should also surface
+ * the long-press hint as the universal fallback.
+ */
+export function triggerDownload(href: string, filename: string): void {
+  if (typeof document === 'undefined') return;
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = filename;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 export async function copyToClipboard(
   text: string,
   t: T = defaultT,

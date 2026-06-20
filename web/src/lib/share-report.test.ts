@@ -2,6 +2,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   buildEventShareText,
   buildGameShareText,
+  canShareFile,
+  copyImageToClipboard,
   copyToClipboard,
   eventReportPath,
   gameReportPath,
@@ -107,4 +109,85 @@ describe('share-report', () => {
       await expect(copyToClipboard('hello')).rejects.toThrow('当前环境无法复制到剪贴板');
     });
   });
+
+  describe('copyImageToClipboard', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    it('writes a ClipboardItem when API is available', async () => {
+      const write = vi.fn().mockResolvedValue(undefined);
+      const ClipboardItemMock = vi.fn().mockImplementation((items) => ({ items }));
+      vi.stubGlobal('navigator', { clipboard: { write } });
+      vi.stubGlobal('ClipboardItem', ClipboardItemMock);
+
+      const blob = new Blob(['x'], { type: 'image/png' });
+      await copyImageToClipboard(blob);
+
+      expect(ClipboardItemMock).toHaveBeenCalledWith({ 'image/png': blob });
+      expect(write).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws image-specific error when ClipboardItem is missing', async () => {
+      vi.stubGlobal('navigator', { clipboard: { write: vi.fn() } });
+      // No global ClipboardItem
+      const blob = new Blob(['x'], { type: 'image/png' });
+      await expect(copyImageToClipboard(blob)).rejects.toThrow(
+        '当前浏览器不支持复制图片，请改用「保存图片」或长按图片',
+      );
+    });
+
+    it('throws image-specific error when clipboard.write rejects', async () => {
+      const write = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
+      vi.stubGlobal('navigator', { clipboard: { write } });
+      vi.stubGlobal(
+        'ClipboardItem',
+        vi.fn().mockImplementation((items) => ({ items })),
+      );
+
+      const blob = new Blob(['x'], { type: 'image/png' });
+      await expect(copyImageToClipboard(blob)).rejects.toThrow(
+        '当前浏览器不支持复制图片',
+      );
+    });
+  });
+
+  describe('canShareFile', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('returns false when navigator.share is missing', () => {
+      vi.stubGlobal('navigator', {});
+      const file = new File([new Blob()], 'a.png', { type: 'image/png' });
+      expect(canShareFile(file)).toBe(false);
+    });
+
+    it('returns false when navigator.canShare is missing', () => {
+      vi.stubGlobal('navigator', { share: vi.fn() });
+      const file = new File([new Blob()], 'a.png', { type: 'image/png' });
+      expect(canShareFile(file)).toBe(false);
+    });
+
+    it('forwards to navigator.canShare and returns its result', () => {
+      const canShare = vi.fn().mockReturnValue(true);
+      vi.stubGlobal('navigator', { share: vi.fn(), canShare });
+      const file = new File([new Blob()], 'a.png', { type: 'image/png' });
+      expect(canShareFile(file)).toBe(true);
+      expect(canShare).toHaveBeenCalledWith({ files: [file] });
+    });
+
+    it('swallows canShare exceptions and returns false', () => {
+      vi.stubGlobal('navigator', {
+        share: vi.fn(),
+        canShare: () => {
+          throw new Error('boom');
+        },
+      });
+      const file = new File([new Blob()], 'a.png', { type: 'image/png' });
+      expect(canShareFile(file)).toBe(false);
+    });
+  });
+
 });

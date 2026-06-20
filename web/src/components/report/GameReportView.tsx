@@ -151,7 +151,6 @@ export function GameReportView({
             )}
           </span>
         }
-        share={share}
       >
         <HeroScore scoreA={game.scoreA} scoreB={game.scoreB} teamA={teamA} teamB={teamB} />
       </ReportHero>

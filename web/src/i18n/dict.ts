@@ -33,6 +33,7 @@ export const zh: Dict = {
     '无法连接服务器，请检查网络或确认后端已启动（bash bin/dev.sh）',
   'common.error.posterLoad': '海报加载失败',
   'common.error.clipboard': '当前环境无法复制到剪贴板',
+  'common.error.clipboardImage': '当前浏览器不支持复制图片，请改用「保存图片」或长按图片',
   'common.error.share': '分享失败',
   'common.error.prepareShare': '准备分享…',
 
@@ -365,11 +366,18 @@ export const zh: Dict = {
   'share.event.copy': '{name} 活动战报 · 分享码 {code}',
   'share.game.copy': '{teamA} {scoreA}:{scoreB} {teamB} · 单场战报',
   'share.openH5': '打开战报 H5 预览',
-  'poster.tapToShare': '点击图片分享',
+  'poster.tapToOpen': '点击放大查看',
   'poster.fallback': '海报',
   'poster.imageAlt': '海报预览',
-  'poster.shareAlt': '{title} · 点击分享',
-  'poster.download': 'DOWNLOAD ↓',
+  'poster.openAlt': '{title} · 点击放大查看',
+  'poster.lightbox.close': '关闭',
+  'poster.lightbox.longPressHint': '长按图片可保存到相册或转发到微信',
+  'poster.lightbox.copy': '复制图片',
+  'poster.lightbox.copying': '复制中…',
+  'poster.lightbox.copied': '已复制，去微信粘贴即可',
+  'poster.lightbox.save': '保存图片',
+  'poster.lightbox.share': '分享…',
+  'poster.lightbox.sharing': '分享中…',
 
   // ── offline ──────────────────────────────────────────────────────────
   'offline.line1': '离线模式 · 进球/撤销会暂存本机，恢复网络后自动同步',
@@ -493,6 +501,8 @@ export const en: Dict = {
     'Cannot reach the server. Check your network or restart the backend (bash bin/dev.sh).',
   'common.error.posterLoad': 'Failed to load poster',
   'common.error.clipboard': 'Clipboard is unavailable in this environment',
+  'common.error.clipboardImage':
+    'This browser cannot copy images. Use "Save image" or long-press the image instead.',
   'common.error.share': 'Share failed',
   'common.error.prepareShare': 'Preparing share…',
 
@@ -842,11 +852,19 @@ export const en: Dict = {
   'share.event.copy': '{name} · event report · code {code}',
   'share.game.copy': '{teamA} {scoreA}:{scoreB} {teamB} · game report',
   'share.openH5': 'Open report (H5)',
-  'poster.tapToShare': 'Tap image to share',
+  'poster.tapToOpen': 'Tap to enlarge',
   'poster.fallback': 'Poster',
   'poster.imageAlt': 'Poster preview',
-  'poster.shareAlt': '{title} · tap to share',
-  'poster.download': 'DOWNLOAD ↓',
+  'poster.openAlt': '{title} · tap to enlarge',
+  'poster.lightbox.close': 'Close',
+  'poster.lightbox.longPressHint':
+    'Long-press the image to save to Photos or forward to WeChat',
+  'poster.lightbox.copy': 'Copy image',
+  'poster.lightbox.copying': 'Copying…',
+  'poster.lightbox.copied': 'Copied — paste it into WeChat',
+  'poster.lightbox.save': 'Save image',
+  'poster.lightbox.share': 'Share…',
+  'poster.lightbox.sharing': 'Sharing…',
 
   // ── offline ──────────────────────────────────────────────────────────
   'offline.line1':
