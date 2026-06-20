@@ -49,9 +49,14 @@ export function EventPage() {
 
   const {
     canWrite,
+    loading: adminSessionLoading,
     tokenRevoked,
     refresh: refreshAdminSession,
   } = useAdminSession(shortCode, event?.id);
+
+  const sessionResolved = Boolean(event) && !adminSessionLoading;
+  const showAsAdmin = sessionResolved && canWrite;
+  const showAsViewer = sessionResolved && !canWrite;
 
   useEffect(() => {
     const code = shortCode.trim().toUpperCase();
@@ -77,7 +82,7 @@ export function EventPage() {
   }, [shortCode, adminTokens]);
 
   useEffect(() => {
-    if (!event || !canWrite || isEventEnded(event)) return;
+    if (!event || !showAsAdmin || isEventEnded(event)) return;
     const stored = findStoredEvent(event.shortCode);
     rememberEvent({
       id: event.id,
@@ -86,14 +91,14 @@ export function EventPage() {
       pin: stored?.pin ?? '',
       createdAt: stored?.createdAt ?? event.createdAt,
     });
-  }, [event, canWrite]);
+  }, [event, showAsAdmin]);
 
-  const adminToken = event && canWrite ? getAdminToken(event.id) : null;
+  const adminToken = showAsAdmin && event ? getAdminToken(event.id) : null;
   const storedPin = event ? findStoredEvent(event.shortCode)?.pin : undefined;
   const ended = event ? isEventEnded(event) : false;
 
   const tour = usePageTour(TOUR_IDS.eventAdmin, {
-    ready: Boolean(event) && canWrite && !ended,
+    ready: Boolean(event) && showAsAdmin && !ended,
   });
 
   const confirmFinish = async () => {
@@ -177,7 +182,10 @@ export function EventPage() {
     <PageShell title={event?.name ?? t('event.fallbackTitle')} backTo="/">
       {error && <InlineAlert>{error}</InlineAlert>}
       {!event && !error && <p className="text-sm text-textSec">{t('event.loading')}</p>}
-      {event && (
+      {event && adminSessionLoading && (
+        <p className="text-sm text-textSec">{t('common.loading')}</p>
+      )}
+      {event && !adminSessionLoading && (
         <div className="space-y-5 -mt-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
             <StatusChip
@@ -191,7 +199,7 @@ export function EventPage() {
             )}
           </div>
 
-          {!canWrite && (
+          {showAsViewer && (
             <PagePanel>
               <PagePanelBody className="space-y-2">
                 <p className="text-sm font-medium text-textPri">
@@ -216,7 +224,7 @@ export function EventPage() {
             </PagePanel>
           )}
 
-          {canWrite && storedPin && (
+          {showAsAdmin && storedPin && (
             <div data-tour="event-credentials">
               <EventCredentialsCard
                 shortCode={event.shortCode}
@@ -226,7 +234,7 @@ export function EventPage() {
             </div>
           )}
 
-          {canWrite && !storedPin && (
+          {showAsAdmin && !storedPin && (
             <section data-tour="event-credentials" className="space-y-1.5 px-1">
               <h2 className="text-base font-semibold tracking-tight text-textPri">
                 {t('cred.sectionTitle')}
@@ -238,7 +246,7 @@ export function EventPage() {
             </section>
           )}
 
-          {!canWrite && (
+          {showAsViewer && (
             <section className="space-y-1.5 px-1">
               <p className="text-xs text-textSec">{t('event.shareCode')}</p>
               <p className="font-mono text-2xl font-bold tracking-widest text-primary">
@@ -247,7 +255,7 @@ export function EventPage() {
             </section>
           )}
 
-          {canWrite && !ended && (
+          {showAsAdmin && !ended && (
             <PagePanel data-tour="event-setup">
               <PagePanelHeader
                 title={t('event.setupSection')}
@@ -268,9 +276,9 @@ export function EventPage() {
             {event.games.length === 0 ? (
               <PagePanelBody className="space-y-3">
                 <p className="text-sm text-textSec">
-                  {canWrite ? t('event.games.emptyAdmin') : t('event.games.emptyViewer')}
+                  {showAsAdmin ? t('event.games.emptyAdmin') : t('event.games.emptyViewer')}
                 </p>
-                {canWrite && !ended && (
+                {showAsAdmin && !ended && (
                   <PrimaryButton className="min-h-12 rounded-xl text-sm font-bold">
                     <Link
                       to={`/games/new?eventId=${event.id}&shortCode=${event.shortCode}`}
@@ -292,6 +300,8 @@ export function EventPage() {
                       <EventGameRow
                         key={g.id}
                         gameId={g.id}
+                        eventId={event.id}
+                        shortCode={event.shortCode}
                         teamAName={teamA?.name ?? 'A'}
                         teamAColor={teamA?.colorHex ?? '#64748b'}
                         teamBName={teamB?.name ?? 'B'}
@@ -299,13 +309,13 @@ export function EventPage() {
                         status={g.status}
                         scoreA={g.scoreA}
                         scoreB={g.scoreB}
-                        isAdmin={canWrite}
-                        onDelete={canWrite ? () => setDeleteGameId(g.id) : undefined}
+                        isAdmin={showAsAdmin}
+                        onDelete={showAsAdmin ? () => setDeleteGameId(g.id) : undefined}
                       />
                     );
                   })}
                 </ul>
-                {canWrite && !ended && (
+                {showAsAdmin && !ended && (
                   <div className="border-t border-border p-4">
                     <PrimaryButton className="min-h-12 rounded-xl text-sm font-bold">
                       <Link
@@ -326,7 +336,7 @@ export function EventPage() {
             <EventSharePanel eventName={event.name} shortCode={event.shortCode} />
           )}
 
-          {canWrite && (
+          {showAsAdmin && (
             <PagePanel data-tour="event-manage">
               <PagePanelHeader
                 title={t('event.manageSection')}
@@ -353,7 +363,7 @@ export function EventPage() {
             </PagePanel>
           )}
 
-          {!canWrite && (
+          {showAsViewer && (
             <PagePanel>
               <PagePanelHeader title={t('event.teams.title')} />
               <PagePanelBody>

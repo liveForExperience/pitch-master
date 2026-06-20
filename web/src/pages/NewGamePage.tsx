@@ -9,6 +9,7 @@ import {
   resolveOtherTeamId,
   teamOptionsForSide,
 } from '../lib/new-game-teams';
+import { buildGameRecordHref } from '../lib/game-routes';
 import { getAdminToken } from '../lib/storage';
 import { useRequireAdmin } from '../lib/use-require-admin';
 
@@ -72,7 +73,7 @@ export function NewGamePage() {
         token,
         durationMinutes * 60 * 1000,
       );
-      nav(`/games/${game.id}/record`);
+      nav(buildGameRecordHref(game.id, { shortCode, eventId }));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('newGame.error.create'));
     }

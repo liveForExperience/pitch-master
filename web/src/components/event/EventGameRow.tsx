@@ -5,9 +5,12 @@ import { TeamBadge } from '../ui/team-badge';
 import { useT } from '../../i18n';
 import { gameStatusLabel } from '../../lib/report-display';
 import { gameStatusVariant } from '../../lib/game-status-ui';
+import { buildGameRecordHref } from '../../lib/game-routes';
 
 type Props = {
   gameId: string;
+  eventId?: string;
+  shortCode?: string;
   teamAName: string;
   teamAColor: string;
   teamBName: string;
@@ -21,6 +24,8 @@ type Props = {
 
 export function EventGameRow({
   gameId,
+  eventId,
+  shortCode,
   teamAName,
   teamAColor,
   teamBName,
@@ -32,7 +37,12 @@ export function EventGameRow({
   onDelete,
 }: Props) {
   const t = useT();
-  const href = isAdmin ? `/games/${gameId}/record` : `/games/${gameId}`;
+  const href =
+    isAdmin && eventId && shortCode
+      ? buildGameRecordHref(gameId, { eventId, shortCode })
+      : isAdmin
+        ? `/games/${gameId}/record`
+        : `/games/${gameId}`;
 
   return (
     <li className="flex items-stretch border-b border-border last:border-b-0">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Warning } from '@phosphor-icons/react';
 import { newClientEventId } from '../api/client';
 import {
@@ -83,6 +83,9 @@ function RecordScoreHero({
 export function GameRecordPage() {
   const t = useT();
   const { id = '' } = useParams();
+  const [searchParams] = useSearchParams();
+  const shortCodeFromUrl = searchParams.get('shortCode') ?? '';
+  const eventIdFromUrl = searchParams.get('eventId') ?? '';
   const [serverGame, setServerGame] = useState<GameDetail | null>(null);
   const [error, setError] = useState('');
   const [pick, setPick] = useState<PickPhase>(null);
@@ -100,17 +103,17 @@ export function GameRecordPage() {
   );
 
   const recentEvents = useSessionStore((s) => s.recentEvents);
+  const eventId = game?.game.eventId ?? (eventIdFromUrl || undefined);
   const eventShortCode =
     game?.eventShortCode ??
-    recentEvents.find((e) => e.id === game?.game.eventId)?.shortCode ??
-    '';
+    (shortCodeFromUrl || (recentEvents.find((e) => e.id === eventId)?.shortCode ?? ''));
 
   const { canWrite, loading: adminLoading } = useRequireAdmin(
     eventShortCode,
-    game?.game.eventId,
+    eventId,
     eventShortCode ? `/events/${eventShortCode}` : `/games/${id}`,
   );
-  const token = canWrite && game ? getAdminToken(game.game.eventId) : null;
+  const token = canWrite && eventId ? getAdminToken(eventId) : null;
 
   const reload = useCallback(async () => {
     const detail = await fetchGame(id);
