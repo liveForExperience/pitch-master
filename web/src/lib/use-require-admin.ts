@@ -1,5 +1,9 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  deriveRequireAdminLoading,
+  shouldRedirectNonAdmin,
+} from './admin-session-logic';
 import { useAdminSession } from './use-admin-session';
 
 /** Redirect to read-only event page when server says this device is not admin. */
@@ -9,14 +13,22 @@ export function useRequireAdmin(
   redirectTo: string,
 ) {
   const nav = useNavigate();
-  const { canWrite, loading } = useAdminSession(shortCode, eventId);
+  const { canWrite, loading: sessionLoading } = useAdminSession(shortCode, eventId);
+  const loading = deriveRequireAdminLoading(sessionLoading, eventId, shortCode);
 
   useEffect(() => {
-    if (!eventId || loading) return;
-    if (!canWrite) {
-      nav(redirectTo, { replace: true });
+    if (
+      !shouldRedirectNonAdmin({
+        eventId,
+        shortCode,
+        loading: sessionLoading,
+        canWrite,
+      })
+    ) {
+      return;
     }
-  }, [eventId, canWrite, loading, nav, redirectTo]);
+    nav(redirectTo, { replace: true });
+  }, [eventId, shortCode, canWrite, sessionLoading, nav, redirectTo]);
 
   return { canWrite, loading };
 }

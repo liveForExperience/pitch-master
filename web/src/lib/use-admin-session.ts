@@ -1,23 +1,34 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchAdminSession } from '../api/events';
 import type { AdminSession } from '../api/types';
+import {
+  buildAdminSessionKey,
+  isAdminSessionLoading,
+  normalizeShortCode,
+} from './admin-session-logic';
 import { clearAdminToken, getAdminToken } from './storage';
 
 const POLL_MS = 30_000;
 
 export function useAdminSession(shortCode: string, eventId?: string | null) {
-  const code = shortCode.trim().toUpperCase();
+  const code = normalizeShortCode(shortCode);
   const adminToken = eventId ? getAdminToken(eventId) : null;
+  const key = useMemo(
+    () => buildAdminSessionKey(shortCode, eventId, adminToken),
+    [shortCode, eventId, adminToken],
+  );
+
   const [session, setSession] = useState<AdminSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [resolvedKey, setResolvedKey] = useState('');
+  const loading = isAdminSessionLoading(key, resolvedKey);
 
   const refresh = useCallback(async () => {
     if (!code) {
       setSession(null);
-      setLoading(false);
+      setResolvedKey('');
       return;
     }
-    setLoading(true);
+    const activeKey = buildAdminSessionKey(shortCode, eventId, adminToken);
     try {
       const data = await fetchAdminSession(code, adminToken);
       if (data.tokenStatus === 'invalid' && eventId) {
@@ -27,9 +38,9 @@ export function useAdminSession(shortCode: string, eventId?: string | null) {
     } catch {
       setSession(null);
     } finally {
-      setLoading(false);
+      setResolvedKey(activeKey);
     }
-  }, [code, adminToken, eventId]);
+  }, [code, adminToken, eventId, shortCode]);
 
   useEffect(() => {
     void refresh();
