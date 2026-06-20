@@ -28,13 +28,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Node 24
+      - name: Setup Node 20
         uses: actions/setup-node@v5
         with:
-          node-version: '24'
+          node-version: '20'
           cache: 'npm'
 
+      # setup-node 的 npm cache 只存 tarball；npm ci 仍会每次重建 node_modules。
+      # lockfile 未变时直接 restore node_modules，跳过 npm ci（~89s → ~15s）。
+      - name: Restore node_modules cache
+        id: node-modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            backend/node_modules
+            web/node_modules
+          key: ${{ runner.os }}-node20-nm-${{ hashFiles('package-lock.json') }}
+
       - name: Install
+        if: steps.node-modules.outputs.cache-hit != 'true'
         run: npm ci --no-audit --no-fund --prefer-offline
 
       # Build 与 Test 互不依赖；在同一 runner 内后台并行。
