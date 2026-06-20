@@ -38,7 +38,7 @@ jobs:
       # lockfile 未变时直接 restore node_modules，跳过 npm ci（~89s → ~15s）。
       - name: Restore node_modules cache
         id: node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             node_modules
