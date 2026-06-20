@@ -222,7 +222,8 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 
 - 所有响应统一：`{ ok: true, data: ... }` 或 `{ ok: false, error: { code, message } }`
 - HTTP 状态语义化（200/201/400/401/404/409/500）
-- 鉴权方式：写接口需要 `Authorization: Bearer <adminToken>` 或 `?pin=<6位PIN>`
+- 鉴权方式：写接口需要 `Authorization: Bearer <adminToken>` 或 `?pin=<6位PIN>`；无效 token 返回 **401**
+- 前端管理 UI 权限由 `GET /api/events/:shortCode/admin-session` 服务端校验决定，不依赖本地 token 是否存在
 - 时间戳：epoch ms (UTC)，前端显示时转本地时区
 
 ### 4.2 端点列表（完整）
@@ -232,9 +233,10 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | GET | `/api/time` | 公开 | 返回 `{serverNow: 1718712345678}` 用于时钟校准 |
 | POST | `/api/events` | 公开 | 创建活动；返回 `{id, shortCode, adminToken, pin}` |
 | GET | `/api/events/:shortCode` | 公开 | 获取活动详情（含 teams + games 列表及每场派生比分 `scoreA`/`scoreB`，不含 adminToken） |
+| GET | `/api/events/:shortCode/admin-session` | 公开（可选 Bearer） | 校验本地 token 是否仍为当前有效 admin → `{eventId, role: 'admin'\|'viewer', tokenStatus: 'none'\|'valid'\|'invalid'}` |
 | DELETE | `/api/events/:id` | Admin | 删除活动及下属队伍、场次、事件 |
 | POST | `/api/events/:id/finish` | Admin | 手动结束活动 → `{eventId, finishedAt}`；客户端归档唯一触发源 |
-| POST | `/api/events/:id/restore-token?pin=` | 公开（PIN） | PIN 正确时轮换 adminToken → `{restored, adminToken?}` |
+| POST | `/api/events/:id/restore-token?pin=` | 公开（PIN） | PIN 正确时轮换 adminToken（旧 token 全设备失效）→ `{restored, adminToken?}` |
 | POST | `/api/events/:id/teams` | Admin | 创建队伍 `{name, colorHex?}` |
 | PATCH | `/api/teams/:id` | Admin | 修改队名 `{name}` |
 | DELETE | `/api/teams/:id` | Admin | **未实现**（Phase 2+） |
@@ -319,11 +321,20 @@ data: {"elapsedMs":830000,"status":"PLAYING"}
   - `adminToken`：长随机字符串（32 字节 base64url），存 localStorage，写操作使用
   - `adminPin`：6 位数字（明文存 DB），用于"换设备"时拾回（用户手动输入）
 - DB 存 `admin_token_hash = sha256(adminToken + pin)`（不可逆，但 pin 在 DB 明文用于换设备校验）
+- **单 token 约束**：每个活动 DB 仅保存一份 `admin_token_hash`；PIN 恢复时轮换 hash，旧 token 立即全设备失效
 - 写接口校验顺序：
-  1. 优先校验 `Authorization: Bearer <token>` → 用 `sha256(token + db.pin)` 比对 `admin_token_hash`
-  2. 退化校验 `?pin=XXXXXX` → 直接比对 `db.admin_pin`，校验通过后返回新的 `adminToken` 给前端存
+  1. 优先校验 `Authorization: Bearer <token>` → 用 `sha256(token + db.pin)` 比对 `admin_token_hash`；失败 **401**
+  2. 退化校验 `?pin=XXXXXX` → 直接比对 `db.admin_pin`，校验通过后轮换 hash 并返回新 `adminToken`
 
-### 5.2 安全说明
+### 5.2 前端管理 UI 判定
+
+- 打开活动页时调用 `GET /api/events/:shortCode/admin-session`（可选带 Bearer）
+- 响应 `role`：`admin` → 显示管理操作 UI；`viewer` → 只读
+- `tokenStatus=invalid` → 清除本地 adminToken，提示「管理权限已在其他设备恢复」
+- 无 token 的分享码访问永远为 `viewer`；只能通过 `/admin/restore` 输入 PIN 获取新 token
+- 页面可见时 + 每 30s 轮询 admin-session，使 PIN 恢复后各设备状态在数秒内同步
+
+### 5.3 安全说明
 
 > ⚠️ 这是"玩具级"安全设计。明文 PIN 入库、无限速、无审计。仅适用于 §决策 D3 的小圈子场景。任何"对外开放注册"的想法都需要先重做这一节。
 

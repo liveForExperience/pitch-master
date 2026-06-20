@@ -1,17 +1,22 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAdminToken } from '../lib/storage';
+import { useAdminSession } from './use-admin-session';
 
-/** 无 adminToken 时重定向（分享码观众不可进入管理页） */
-export function useRequireAdmin(eventId: string | undefined, redirectTo: string) {
+/** Redirect to read-only event page when server says this device is not admin. */
+export function useRequireAdmin(
+  shortCode: string,
+  eventId: string | undefined,
+  redirectTo: string,
+) {
   const nav = useNavigate();
-  const token = eventId ? getAdminToken(eventId) : null;
+  const { canWrite, loading } = useAdminSession(shortCode, eventId);
 
   useEffect(() => {
-    if (eventId && !token) {
+    if (!eventId || loading) return;
+    if (!canWrite) {
       nav(redirectTo, { replace: true });
     }
-  }, [eventId, token, nav, redirectTo]);
+  }, [eventId, canWrite, loading, nav, redirectTo]);
 
-  return token;
+  return { canWrite, loading };
 }

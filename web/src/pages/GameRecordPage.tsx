@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Warning } from '@phosphor-icons/react';
 import { newClientEventId } from '../api/client';
 import {
@@ -24,6 +24,7 @@ import { formatMs } from '../lib/time-format';
 import { useGameStream } from '../lib/use-game-stream';
 import { useLiveGameTimer, useServerOffset } from '../lib/use-live-game-timer';
 import { getAdminToken } from '../lib/storage';
+import { useRequireAdmin } from '../lib/use-require-admin';
 import { useOutboxStore } from '../stores/outbox';
 import { useSessionStore } from '../stores/session';
 
@@ -82,7 +83,6 @@ function RecordScoreHero({
 export function GameRecordPage() {
   const t = useT();
   const { id = '' } = useParams();
-  const nav = useNavigate();
   const [serverGame, setServerGame] = useState<GameDetail | null>(null);
   const [error, setError] = useState('');
   const [pick, setPick] = useState<PickPhase>(null);
@@ -100,21 +100,22 @@ export function GameRecordPage() {
   );
 
   const recentEvents = useSessionStore((s) => s.recentEvents);
-  const token = game ? getAdminToken(game.game.eventId) : null;
   const eventShortCode =
     game?.eventShortCode ??
-    recentEvents.find((e) => e.id === game?.game.eventId)?.shortCode;
+    recentEvents.find((e) => e.id === game?.game.eventId)?.shortCode ??
+    '';
+
+  const { canWrite, loading: adminLoading } = useRequireAdmin(
+    eventShortCode,
+    game?.game.eventId,
+    eventShortCode ? `/events/${eventShortCode}` : `/games/${id}`,
+  );
+  const token = canWrite && game ? getAdminToken(game.game.eventId) : null;
 
   const reload = useCallback(async () => {
     const detail = await fetchGame(id);
     setServerGame(detail);
   }, [id]);
-
-  useEffect(() => {
-    if (game && !getAdminToken(game.game.eventId)) {
-      nav(`/games/${id}`, { replace: true });
-    }
-  }, [game, id, nav]);
 
   useEffect(() => {
     void reload().catch((err: Error) => setError(err.message));
@@ -240,7 +241,9 @@ export function GameRecordPage() {
   if (!token) {
     return (
       <PageShell title={t('record.title')} backTo={eventShortCode ? `/events/${eventShortCode}` : '/'}>
-        <p className="text-sm text-textSec">{t('common.redirecting')}</p>
+        <p className="text-sm text-textSec">
+          {adminLoading ? t('common.loading') : t('common.redirecting')}
+        </p>
       </PageShell>
     );
   }

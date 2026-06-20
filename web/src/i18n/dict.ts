@@ -150,6 +150,9 @@ export const zh: Dict = {
   'event.notFound.home': '返回首页',
   'event.loading': '加载中…',
   'event.viewer.title': '只读观看模式',
+  'event.viewer.tokenRevokedTitle': '管理权限已失效',
+  'event.viewer.tokenRevokedBody':
+    '此活动的管理密钥已在其他设备恢复。当前页面为只读观看，如需录入请用 PIN 重新恢复管理权限。',
   'event.viewer.bodyA': '你通过分享码进入，只能查看比分与比赛进度。新建比赛、配置队员需管理员权限；若你是管理员，可',
   'event.viewer.restoreLink': '凭 PIN 找回',
   'event.viewer.bodyB': '。',
@@ -629,6 +632,9 @@ export const en: Dict = {
   'event.notFound.home': 'Back to home',
   'event.loading': 'Loading…',
   'event.viewer.title': 'Read-only viewer mode',
+  'event.viewer.tokenRevokedTitle': 'Admin access expired on this device',
+  'event.viewer.tokenRevokedBody':
+    'Admin credentials were restored on another device. This page is read-only; use your PIN to restore admin access here if you need to record.',
   'event.viewer.bodyA':
     'You opened this event with a share code, so you can only watch the score and timer. Admin rights are required to create games or edit rosters; if you are the admin, you can',
   'event.viewer.restoreLink': 'restore with PIN',

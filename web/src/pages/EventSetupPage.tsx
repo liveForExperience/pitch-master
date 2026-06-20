@@ -23,6 +23,7 @@ import {
   loadRosterImportPool,
   saveRosterImportPool,
 } from '../lib/roster-import-store';
+import { getAdminToken } from '../lib/storage';
 import { useRequireAdmin } from '../lib/use-require-admin';
 
 export function EventSetupPage() {
@@ -46,7 +47,8 @@ export function EventSetupPage() {
     void reload();
   }, [shortCode]);
 
-  const token = useRequireAdmin(event?.id, `/events/${shortCode}`);
+  const { canWrite, loading } = useRequireAdmin(shortCode, event?.id, `/events/${shortCode}`);
+  const token = canWrite && event ? getAdminToken(event.id) : null;
 
   const tour = usePageTour(TOUR_IDS.eventSetup, {
     ready: Boolean(event && token),
@@ -69,6 +71,14 @@ export function EventSetupPage() {
     },
     [event?.id],
   );
+
+  if (loading || !event) {
+    return (
+      <PageShell title={t('setup.title')} backTo={`/events/${shortCode}`}>
+        <p className="text-sm text-textSec">{t('common.loading')}</p>
+      </PageShell>
+    );
+  }
 
   if (!token) {
     return (

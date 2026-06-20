@@ -5,6 +5,10 @@ import { setupTestDb } from './helpers/test-db.js';
 type ApiOk<T> = { ok: true; data: T };
 type ApiFail = { ok: false; error: { code: string; message: string } };
 
+function adminHeaders(adminToken: string) {
+  return { Authorization: `Bearer ${adminToken}` };
+}
+
 describe('events routes', () => {
   beforeEach(() => setupTestDb());
 
@@ -56,7 +60,7 @@ describe('events routes', () => {
 
     const finish = await app.request(`/api/events/${data.id}/finish`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${data.adminToken}` },
+      headers: adminHeaders(data.adminToken),
     });
     expect(finish.status).toBe(200);
     const finishBody = (await finish.json()) as ApiOk<{ eventId: string; finishedAt: number }>;
@@ -75,15 +79,15 @@ describe('events routes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: '重复结束' }),
     });
-    const { data } = (await created.json()) as ApiOk<{ id: string; adminToken: string }>;
+    const { data } = (await created.json()) as ApiOk<{ id: string; shortCode: string; adminToken: string }>;
 
     await app.request(`/api/events/${data.id}/finish`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${data.adminToken}` },
+      headers: adminHeaders(data.adminToken),
     });
     const again = await app.request(`/api/events/${data.id}/finish`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${data.adminToken}` },
+      headers: adminHeaders(data.adminToken),
     });
     expect(again.status).toBe(409);
   });
@@ -113,6 +117,67 @@ describe('events routes', () => {
     expect(restoreBody.data.restored).toBe(true);
     expect(restoreBody.data.adminToken).toMatch(/^tok_/);
     expect(restoreBody.data.adminToken).not.toBe(data.adminToken);
+  });
+
+  it('GET admin-session returns admin for valid token', async () => {
+    const app = createApp();
+    const created = await app.request('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '会话测试' }),
+    });
+    const { data } = (await created.json()) as ApiOk<{
+      shortCode: string;
+      adminToken: string;
+    }>;
+
+    const session = await app.request(`/api/events/${data.shortCode}/admin-session`, {
+      headers: adminHeaders(data.adminToken),
+    });
+    expect(session.status).toBe(200);
+    const body = (await session.json()) as ApiOk<{ role: string; tokenStatus: string }>;
+    expect(body.data.role).toBe('admin');
+    expect(body.data.tokenStatus).toBe('valid');
+  });
+
+  it('GET admin-session marks old token invalid after restore', async () => {
+    const app = createApp();
+    const created = await app.request('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '轮换测试' }),
+    });
+    const { data } = (await created.json()) as ApiOk<{
+      id: string;
+      shortCode: string;
+      adminToken: string;
+      pin: string;
+    }>;
+
+    await app.request(`/api/events/${data.id}/restore-token?pin=${data.pin}`, { method: 'POST' });
+
+    const session = await app.request(`/api/events/${data.shortCode}/admin-session`, {
+      headers: adminHeaders(data.adminToken),
+    });
+    const body = (await session.json()) as ApiOk<{ role: string; tokenStatus: string }>;
+    expect(body.data.tokenStatus).toBe('invalid');
+    expect(body.data.role).toBe('viewer');
+  });
+
+  it('POST /api/events/:id/finish rejects invalid token with 401', async () => {
+    const app = createApp();
+    const created = await app.request('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '401 测试' }),
+    });
+    const { data } = (await created.json()) as ApiOk<{ id: string }>;
+
+    const finish = await app.request(`/api/events/${data.id}/finish`, {
+      method: 'POST',
+      headers: adminHeaders('tok_invalid'),
+    });
+    expect(finish.status).toBe(401);
   });
 
   it('POST /api/events/:id/restore-token rejects wrong pin', async () => {

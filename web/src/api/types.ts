@@ -1,6 +1,12 @@
 export type ApiSuccess<T> = { ok: true; data: T };
 export type ApiFailure = { ok: false; error: { code: string; message: string } };
 
+export type AdminSession = {
+  eventId: string;
+  role: 'viewer' | 'admin';
+  tokenStatus: 'none' | 'valid' | 'invalid';
+};
+
 export type CreatedEvent = {
   id: string;
   shortCode: string;
