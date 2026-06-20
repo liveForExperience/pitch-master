@@ -48,7 +48,7 @@ export function EventGameRow({
         </div>
         <div className="flex items-center justify-between gap-2">
           <TeamBadge name={teamAName} colorHex={teamAColor} className="min-w-0 flex-1" />
-          <div className="shrink-0 font-score tabular-nums text-score leading-none text-textPri">
+          <div className="shrink-0 font-score tabular-nums text-[3.2rem] font-semibold leading-none text-textPri">
             {scoreA} : {scoreB}
           </div>
           <TeamBadge
