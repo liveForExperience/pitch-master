@@ -18,10 +18,9 @@ export const colors = {
 } as const;
 
 export const fonts = {
-  // PosterCJK is a dynamically-subsetted NotoSC slice that covers the
-  // event-specific CJK glyphs (event name, team names, player names). Satori
-  // falls back to the static NotoSC subset for any glyph PosterCJK lacks.
-  sans: 'PosterCJK, NotoSC',
+  // PosterCJK (Noto SC) + PosterCJKExt (Noto JP chunks) cover user-typed names;
+  // static NotoSC covers baked-in template keywords.
+  sans: 'PosterCJK, PosterCJKExt, NotoSC',
   mono: 'GeistMono, NotoSC',
   serif: 'Newsreader, NotoSC',
 } as const;

@@ -18,7 +18,8 @@ import {
   REPORT_TOP_N,
   resolveEventId,
 } from './report.service.js';
-import { buildDynamicCjkSubset } from './poster-font.js';
+import { loadAdditionalPosterAsset } from './poster-emoji.js';
+import { buildDynamicCjkFonts, dynamicCjkToSatoriFonts } from './poster-font.js';
 
 export { estimateEventPosterHeight };
 
@@ -89,17 +90,9 @@ function collectGameCjkTexts(report: GameReport): string[] {
 
 async function buildFontsForTexts(texts: string[]): Promise<SatoriFont[]> {
   const base = staticSatoriFonts();
-  const dyn = await buildDynamicCjkSubset(texts);
-  if (!dyn) return base;
-  // Dynamic subset is registered under its own family name so templates can
-  // declare `fontFamily: 'PosterCJK, NotoSC, ...'` and Satori will inter-family
-  // fallback to the static NotoSC buffers for any non-name glyphs (e.g. the
-  // hard-coded "助攻" / "乌龙" / business keywords).
-  return [
-    { name: 'PosterCJK', data: dyn, weight: 400, style: 'normal' },
-    { name: 'PosterCJK', data: dyn, weight: 700, style: 'normal' },
-    ...base,
-  ];
+  const dyn = dynamicCjkToSatoriFonts(await buildDynamicCjkFonts(texts));
+  if (dyn.length === 0) return base;
+  return [...dyn, ...base];
 }
 
 async function renderSvg(
@@ -112,6 +105,7 @@ async function renderSvg(
     width,
     height,
     fonts: await buildFontsForTexts(cjkTexts),
+    loadAdditionalAsset: loadAdditionalPosterAsset,
   });
 }
 
