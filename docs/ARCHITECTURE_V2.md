@@ -66,11 +66,13 @@ pitch-master/
 │   │   ├── routes/
 │   │   │   ├── events.ts
 │   │   │   ├── teams.ts
+│   │   │   ├── persons.ts          # R1：常客 CRUD + 改名
 │   │   │   ├── games.ts
 │   │   │   ├── events-stream.ts    # SSE
 │   │   │   └── poster.ts
 │   │   ├── services/
 │   │   │   ├── event.service.ts
+│   │   │   ├── person.service.ts   # R1：person CRUD + 改名同步 roster.name
 │   │   │   ├── game.service.ts
 │   │   │   ├── timer.service.ts
 │   │   │   ├── outbox.service.ts
@@ -104,10 +106,11 @@ pitch-master/
 │   │   │   ├── uuid.ts             # randomUUID HTTP/WebView fallback
 │   │   │   ├── roster-import.ts    # 微信报名文本解析（S1）
 │   │   │   ├── roster-import-store.ts  # sessionStorage 导入池
+│   │   │   ├── person-store.ts     # 常客最近使用 localStorage 缓存（R1）
 │   │   │   └── outbox/             # IndexedDB 队列
 │   │   ├── components/
 │   │   │   ├── ui/                 # 基础 UI 组件
-│   │   │   ├── roster/             # RosterImportPanel / TeamImportChips
+│   │   │   ├── roster/             # RosterImportPanel / TeamImportChips / PersonPicker（R1）
 │   │   │   └── report/             # 战报 H5 layout + Hero
 │   │   ├── pages/
 │   │   ├── stores/                 # Zustand
@@ -136,11 +139,18 @@ pitch-master/
 
 ```mermaid
 erDiagram
+    PERSON ||--o{ ROSTER : appears_as
     EVENT ||--o{ TEAM : has
     EVENT ||--o{ GAME : hosts
     TEAM ||--o{ ROSTER : has
     GAME ||--o{ GAME_EVENT : records
 
+    PERSON {
+        TEXT id PK "ulid"
+        TEXT display_name "展示名；可改名"
+        INTEGER created_at "epoch ms"
+        INTEGER updated_at "epoch ms"
+    }
     EVENT {
         TEXT id PK "ulid"
         TEXT short_code "6字符 base32 唯一"
@@ -161,7 +171,8 @@ erDiagram
     ROSTER {
         TEXT id PK "ulid"
         TEXT team_id FK
-        TEXT name
+        TEXT person_id FK "R1 必填"
+        TEXT name "冗余展示名；与 person.display_name 同步"
         INTEGER jersey_number "可空"
         INTEGER created_at
     }
@@ -198,10 +209,23 @@ erDiagram
 CREATE UNIQUE INDEX idx_event_short_code ON event(short_code);
 CREATE INDEX idx_team_event ON team(event_id);
 CREATE INDEX idx_roster_team ON roster(team_id);
+CREATE INDEX idx_roster_person ON roster(person_id);
+CREATE INDEX idx_person_updated ON person(updated_at);
 CREATE INDEX idx_game_event ON game(event_id);
 CREATE INDEX idx_game_event_game ON game_event(game_id, server_ts);
 CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
+CREATE UNIQUE INDEX idx_roster_team_person ON roster(team_id, person_id);
 ```
+
+> `idx_roster_team_person`：同一队伍内同一 person 只能有一条 roster（防止重复加人）。
+
+### 3.2.1 迁移策略（R1 · `000x_person.sql`）
+
+1. `CREATE TABLE person (...)`  
+2. `ALTER TABLE roster ADD COLUMN person_id TEXT`（可空，迁移中间态）  
+3. 对每条现有 roster：`INSERT person`（display_name = roster.name）→ 回填 `person_id`  
+4. `person_id` 设 `NOT NULL` + FK  
+5. 不修改 `game_event`（仍引用 roster.id）
 
 ### 3.3 派生数据（不存储，查询时计算）
 
@@ -210,9 +234,10 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | 当前比分 | `count(GOAL where team_side=A and not undone) + count(OWN_GOAL where team_side=B and not undone) - ...` |
 | 已用时（ms） | `now - started_at - paused_duration_ms - (pause_started_at ? now - pause_started_at : 0)` |
 | 剩余时间 | `planned_duration_ms - 已用时` |
-| MVP | 进球+助攻最多的 roster；并列取较早出现者 |
+| MVP | 进球+助攻最多的 **person**；并列取较早出现者 |
 | 赛后修正 | Admin 可对任意有效进球写入 UNDO（不限顺序）；修改 = 撤销原事件 + 写入新进球 |
-| 射手榜 | group by scorer_roster_id, count desc |
+| 射手榜 | group by **person_id**（经 scorer_roster_id → roster.person_id），count desc |
+| 助攻榜 | group by **person_id**（经 assistant_roster_id → roster.person_id），count desc |
 
 ---
 
@@ -240,7 +265,10 @@ CREATE UNIQUE INDEX idx_game_event_idem ON game_event(game_id, client_event_id);
 | POST | `/api/events/:id/teams` | Admin | 创建队伍 `{name, colorHex?}` |
 | PATCH | `/api/teams/:id` | Admin | 修改队名 `{name}` |
 | DELETE | `/api/teams/:id` | Admin | **未实现**（Phase 2+） |
-| POST | `/api/teams/:id/roster` | Admin | 批量加人 `{names: ['张三','李四']}` |
+| GET | `/api/persons` | Admin | 常客列表 `{persons: [{id, displayName, createdAt, updatedAt}]}`；默认按 `updatedAt` desc |
+| POST | `/api/persons` | Admin | 新建常客 `{displayName}` → 201 `{id, displayName, ...}` |
+| PATCH | `/api/persons/:id` | Admin | 改名 `{displayName}`；同步更新关联 `roster.name` |
+| POST | `/api/teams/:id/roster` | Admin | 加人：`{names?: string[]}` 和/或 `{personIds?: string[]}`（见 §4.3.1） |
 | DELETE | `/api/roster/:id` | Admin | 移出队员；有比赛记录时拒绝 |
 | POST | `/api/events/:id/games` | Admin | 创建场次 `{teamAId, teamBId, plannedDurationMs?}` |
 | GET | `/api/games/:id` | 公开 | 详情（含事件流 + 派生比分） |
@@ -310,6 +338,72 @@ data: {"type":"GOAL","gameEvent":{...},"scoreA":2,"scoreB":1,"elapsedMs":824000}
 event: timer_tick
 data: {"elapsedMs":830000,"status":"PLAYING"}
 ```
+
+### 4.3.1 Person 与 Roster（R1）
+
+**`POST /api/persons`**
+```json
+// Request
+{ "displayName": "张三" }
+
+// Response 201
+{
+  "ok": true,
+  "data": {
+    "id": "01HZ...",
+    "displayName": "张三",
+    "createdAt": 1718712345678,
+    "updatedAt": 1718712345678
+  }
+}
+```
+
+**`PATCH /api/persons/:id`**（改名）
+```json
+// Request
+{ "displayName": "张三丰" }
+
+// Response 200 — 同时更新该 person 下所有 roster.name
+{
+  "ok": true,
+  "data": {
+    "id": "01HZ...",
+    "displayName": "张三丰",
+    "updatedAt": 1718712999999
+  }
+}
+```
+
+**`POST /api/teams/:id/roster`**（扩展）
+```json
+// 方式 A：按名字新建 person + roster（兼容 S1 / 手打）
+{ "names": ["微信昵称A", "李四"] }
+
+// 方式 B：从常客选已有 person，在本队新建 roster
+{ "personIds": ["01HZ-person-1", "01HZ-person-2"] }
+
+// 方式 C：混合
+{ "names": ["新人"], "personIds": ["01HZ-person-1"] }
+
+// Response 201
+{
+  "ok": true,
+  "data": {
+    "added": [
+      { "id": "01HZ-roster-1", "teamId": "...", "personId": "...", "name": "张三" }
+    ]
+  }
+}
+```
+
+| 规则 | 处理 |
+|---|---|
+| 同一 `teamId` + `personId` 重复添加 | 409 Conflict |
+| `displayName` / `name` 去首尾空白；空串 | 400 validation_error |
+| `personIds` 中 id 不存在 | 404 Not Found |
+| 删除 roster | 不删除 person（person 可被其它队 roster 引用） |
+
+**Person 作用域**：全局（单 SQLite 实例内共享），非 per-event、非 per-user。与零账号体系一致——同一部署上的所有管理员共享同一常客库。
 
 ---
 
@@ -472,18 +566,22 @@ function computeStandings(event): TeamStanding[] {
 
 **射手榜（top scorers）**：
 - 统计所有 `FINISHED` 场次中、未被 `UNDO` 的 `GOAL` 事件
-- 按 `scorer_roster_id` group by，count desc
-- 同分按"首次进球时间"升序（先进者靠前）
-- 关联 `roster.name` + `team.name` + `team.color_hex`
+- 解析 `scorer_roster_id` → `roster.person_id`，按 **person_id** group by，count desc
+- 同分按「首次进球时间」升序（先进者靠前）
+- 展示 `person.display_name`；`teamNames[]` 收集该 person 在本活动内所有贡献过的队伍（去重）
 - 截断至 `REPORT_TOP_N`（5）
 
 **助攻榜（top assists）**：
 - 统计所有 `FINISHED` 场次中、未被 `UNDO` 且 `assistant_roster_id` 非空的事件
-- 其余同射手榜
+- 按 `assistant_roster_id` → `person_id` group by；其余同射手榜
 
 **活动 MVP**：
-- 每个 roster 计算 `goals + assists` 总分
+- 每个 **person** 计算 `goals + assists` 总分（跨其在本活动内全部 roster 出场）
 - 取最高者；并列时优先取首次进球时间更早者
+
+**单场 MVP / 进球流水**：
+- 仍按 roster 粒度计算单场 MVP（仅该场参赛 roster）
+- 进球流水 `scorerName` 解析为 `person.display_name`（经 roster.person_id）
 
 > ⚠️ 排序稳定性约束：同一份事件流多次渲染必须得到相同排序，禁止用 `Map` 迭代顺序作为隐含排序键。
 
@@ -499,14 +597,26 @@ interface EventReport {
   }>
   standings: TeamStanding[]               // §7.2 输出
   topScorers: Array<{
-    rosterId, name, teamId, teamName, colorHex,
+    personId: string,                      // R1：统计主键
+    rosterId: string,                      // 保留：代表 roster（首次进球所在或 tie-break）
+    name: string,                          // person.displayName
+    teamId: string,                        // 兼容：teamNames[0] 对应队
+    teamName: string,                      // 兼容：teamNames[0]
+    teamNames: string[],                   // R1：多队出场时全部队名
+    colorHex: string,                      // teamNames[0] 的队色
     goals: number, firstGoalAt: number    // epoch ms，用于排序
   }>
   topAssists: Array<{
-    rosterId, name, teamId, teamName, colorHex,
+    personId: string,
+    rosterId: string,
+    name: string,
+    teamId: string,
+    teamName: string,
+    teamNames: string[],
+    colorHex: string,
     assists: number, firstAssistAt: number
   }>
-  mvp?: { rosterId, name, teamName, colorHex, goals, assists }
+  mvp?: { personId, rosterId, name, teamName, teamNames, colorHex, goals, assists }
   meta: { topN: number, generatedAt: number }
 }
 ```
@@ -816,6 +926,28 @@ fontFamily: {
 - `web/src/lib/theme.test.ts`：toggle 行为、`.dark` class 应用、`localStorage` 持久化、同值短路。
 - 现有 `share-report.test.ts` / `report-display.test.ts` / `game-events.test.ts` 通过 `__resetLocaleForTests('zh')` 保持原断言；`report-display.test.ts` 同时覆盖 EN locale。
 
+### 8.7 Person Identity · 常客与改名（R1 · 2026-06-23）
+
+| 模块 | 文件 | 说明 |
+|---|---|---|
+| Person API 客户端 | `web/src/api/persons.ts` | `listPersons` / `createPerson` / `renamePerson` |
+| 最近使用缓存 | `web/src/lib/person-store.ts` | `localStorage:pm:recent-persons`；最近 20 个 personId；加速常客 picker |
+| 常客选择器 | `web/src/components/roster/PersonPicker.tsx` | 配队页 Tab：「常客」/「手动输入」；搜索 filter `displayName` |
+| 改名 | `web/src/components/roster/PersonRenameDialog.tsx` | 从 roster 行或常客列表触发 `PATCH` |
+| 配队集成 | `TeamSetupCard.tsx` / `EventSetupPage.tsx` | `personIds` 走扩展 roster API；手打/粘贴仍走 `names` |
+
+**交互原则（北极星约束）**：
+
+1. **录分页不改**：`GoalPickPanel` 仍展示当前 side 的 roster 按钮；合并仅在战报层
+2. **常客路径 ≤ 3 次点击**：常客 Tab → 点人 → 确认加入（默认跳过二次确认）
+3. **手打优先保留**：未找到常客时可直接输入，自动 `POST persons` + roster
+4. **改名入口**：roster 列表长按/编辑图标 → 改名对话框；改的是 **person**，全队 roster 同步
+
+**与 S1 导入的关系**：
+
+- 粘贴导入仍创建 **新 person**（v1 不做自动匹配已有常客，避免误合并）
+- 导入池 chip 点选加入队伍时，若管理员识别为同一人，应在加入后手动改名或 v2 提供「关联到已有 person」
+
 ---
 
 ## 9. 后端关键模块
@@ -823,6 +955,7 @@ fontFamily: {
 ### 9.1 Service 切分
 
 - `event.service.ts`：建活动、生成 shortCode/pin、查询
+- `person.service.ts`：常客 CRUD、改名、roster.name 同步（R1）
 - `game.service.ts`：建场、写事件、计算比分（核心）
 - `timer.service.ts`：start/pause/resume/finish + 派生 elapsed
 - `outbox.service.ts`：批量幂等写入
@@ -968,3 +1101,4 @@ sudo systemctl start pitchmaster-v2
 | 日期 | 变更 | 兼容性 | 迁移说明 |
 |---|---|---|---|
 | 2026-MM-DD | 初版 schema | - | 全新项目，无历史数据迁移 |
+| 2026-06-23 | R1：新增 `person` 表；`roster.person_id` FK；战报按 person 聚合 | 向后兼容 API 响应（新增字段） | `000x_person.sql`：每条旧 roster 自动生成 1:1 person；见 §3.2.1 |

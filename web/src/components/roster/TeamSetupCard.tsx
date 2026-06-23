@@ -1,8 +1,12 @@
 import { PencilSimple, Trash, UserMinus, X } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Team } from '../../api/types';
 import { useT } from '../../i18n';
+import { PersonPicker } from './PersonPicker';
+import { PersonRenameDialog } from './PersonRenameDialog';
 import { TeamImportChips } from './TeamImportChips';
+
+type AddTab = 'manual' | 'regulars';
 
 type Props = {
   team: Team;
@@ -12,12 +16,11 @@ type Props = {
   onDraftChange: (value: string) => void;
   onRename: (teamId: string, name: string) => Promise<void>;
   onAddPlayers: (teamId: string, chipNames: string[]) => Promise<void>;
+  onAddPersonIds: (teamId: string, personIds: string[]) => Promise<void>;
   onRemovePlayer: (teamId: string, rosterId: string, playerName: string) => Promise<void>;
-  /**
-   * Optional handler for deleting the entire team. Omit to hide the button
-   * (e.g. for finished events where edits are locked).
-   */
+  onPlayerRenamed: () => void;
   onDeleteTeam?: (teamId: string, teamName: string) => void;
+  tourAddPlayers?: boolean;
 };
 
 export function TeamSetupCard({
@@ -28,8 +31,11 @@ export function TeamSetupCard({
   onDraftChange,
   onRename,
   onAddPlayers,
+  onAddPersonIds,
   onRemovePlayer,
+  onPlayerRenamed,
   onDeleteTeam,
+  tourAddPlayers,
 }: Props) {
   const t = useT();
   const [editingName, setEditingName] = useState(false);
@@ -38,6 +44,16 @@ export function TeamSetupCard({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [selectedChips, setSelectedChips] = useState<Set<string>>(new Set());
+  const [addTab, setAddTab] = useState<AddTab>('manual');
+  const [selectedPersons, setSelectedPersons] = useState<Set<string>>(new Set());
+  const [renameTarget, setRenameTarget] = useState<{ personId: string; name: string } | null>(
+    null,
+  );
+
+  const rosterPersonIds = useMemo(
+    () => new Set(team.roster.map((p) => p.personId)),
+    [team.roster],
+  );
 
   useEffect(() => {
     if (!editingName) setNameDraft(team.name);
@@ -64,8 +80,8 @@ export function TeamSetupCard({
     .map((s) => s.trim())
     .filter(Boolean).length;
   const chipCount = selectedChips.size;
-  const addCount = chipCount + manualCount;
-  const canAdd = addCount > 0;
+  const manualAddCount = chipCount + manualCount;
+  const regularAddCount = selectedPersons.size;
 
   const toggleChip = (name: string) => {
     setSelectedChips((prev) => {
@@ -76,12 +92,32 @@ export function TeamSetupCard({
     });
   };
 
-  const submitPlayers = async () => {
-    if (!canAdd) return;
+  const togglePerson = (personId: string) => {
+    setSelectedPersons((prev) => {
+      const next = new Set(prev);
+      if (next.has(personId)) next.delete(personId);
+      else next.add(personId);
+      return next;
+    });
+  };
+
+  const submitManualPlayers = async () => {
+    if (manualAddCount === 0) return;
     setAdding(true);
     try {
       await onAddPlayers(team.id, [...selectedChips]);
       setSelectedChips(new Set());
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const submitRegularPlayers = async () => {
+    if (regularAddCount === 0) return;
+    setAdding(true);
+    try {
+      await onAddPersonIds(team.id, [...selectedPersons]);
+      setSelectedPersons(new Set());
     } finally {
       setAdding(false);
     }
@@ -164,8 +200,17 @@ export function TeamSetupCard({
       {team.roster.length > 0 ? (
         <ul className="divide-y divide-border">
           {team.roster.map((player) => (
-            <li key={player.id} className="flex items-center gap-3 px-4 py-2.5">
+            <li key={player.id} className="flex items-center gap-2 px-4 py-2.5">
               <span className="min-w-0 flex-1 truncate text-sm text-textPri">{player.name}</span>
+              <button
+                type="button"
+                disabled={!adminToken}
+                className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-textSec transition-colors hover:bg-chipBg hover:text-textPri disabled:opacity-40"
+                aria-label={t('personRename.aria', { name: player.name })}
+                onClick={() => setRenameTarget({ personId: player.personId, name: player.name })}
+              >
+                <PencilSimple size={14} weight="bold" />
+              </button>
               <button
                 type="button"
                 disabled={removingId === player.id || !adminToken}
@@ -188,40 +233,101 @@ export function TeamSetupCard({
         <p className="px-4 py-3 text-sm text-textSec">{t('setup.noPlayersYet')}</p>
       )}
 
-      <div className="space-y-3 border-t border-border bg-elevated/60 px-4 py-4">
-        <TeamImportChips
-          teamName={team.name}
-          pool={importPool}
-          rosterNames={team.roster.map((p) => p.name)}
-          selected={selectedChips}
-          onToggle={toggleChip}
-        />
-
-        <div className="space-y-2">
-          <label className="block text-xs font-medium text-textSec">
-            {t('setup.addRosterPlaceholder')}
-          </label>
-          <textarea
-            className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2.5 text-sm leading-relaxed text-textPri outline-none transition-colors focus:border-primary"
-            rows={2}
-            placeholder={t('setup.addRosterHint')}
-            value={draftValue}
-            onChange={(e) => onDraftChange(e.target.value)}
-          />
+      <div
+        className="space-y-3 border-t border-border bg-elevated/60 px-4 py-4"
+        data-tour={tourAddPlayers ? 'setup-add-players' : undefined}
+      >
+        <div className="flex gap-1 rounded-lg bg-chipBg p-1">
           <button
             type="button"
-            disabled={adding || !canAdd}
-            className="w-full rounded-lg bg-textPri px-4 py-2.5 text-sm font-semibold text-textInv transition-transform active:scale-[0.98] disabled:opacity-40"
-            onClick={() => void submitPlayers()}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              addTab === 'manual' ? 'bg-surface text-textPri shadow-sm' : 'text-textSec'
+            }`}
+            onClick={() => setAddTab('manual')}
           >
-            {adding
-              ? t('setup.addingPlayers')
-              : addCount > 1
-                ? t('setup.addPlayersCount', { count: addCount })
-                : t('setup.addRoster')}
+            {t('setup.tabManual')}
+          </button>
+          <button
+            type="button"
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              addTab === 'regulars' ? 'bg-surface text-textPri shadow-sm' : 'text-textSec'
+            }`}
+            onClick={() => setAddTab('regulars')}
+          >
+            {t('setup.tabRegulars')}
           </button>
         </div>
+
+        {addTab === 'manual' ? (
+          <>
+            <TeamImportChips
+              teamName={team.name}
+              pool={importPool}
+              rosterNames={team.roster.map((p) => p.name)}
+              selected={selectedChips}
+              onToggle={toggleChip}
+            />
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-textSec">
+                {t('setup.addRosterPlaceholder')}
+              </label>
+              <textarea
+                className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2.5 text-sm leading-relaxed text-textPri outline-none transition-colors focus:border-primary"
+                rows={2}
+                placeholder={t('setup.addRosterHint')}
+                value={draftValue}
+                onChange={(e) => onDraftChange(e.target.value)}
+              />
+              <button
+                type="button"
+                disabled={adding || manualAddCount === 0}
+                className="w-full rounded-lg bg-textPri px-4 py-2.5 text-sm font-semibold text-textInv transition-transform active:scale-[0.98] disabled:opacity-40"
+                onClick={() => void submitManualPlayers()}
+              >
+                {adding
+                  ? t('setup.addingPlayers')
+                  : manualAddCount > 1
+                    ? t('setup.addPlayersCount', { count: manualAddCount })
+                    : t('setup.addRoster')}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <PersonPicker
+              teamName={team.name}
+              rosterPersonIds={rosterPersonIds}
+              selected={selectedPersons}
+              onToggle={togglePerson}
+            />
+            <button
+              type="button"
+              disabled={adding || regularAddCount === 0}
+              className="w-full rounded-lg bg-textPri px-4 py-2.5 text-sm font-semibold text-textInv transition-transform active:scale-[0.98] disabled:opacity-40"
+              onClick={() => void submitRegularPlayers()}
+            >
+              {adding
+                ? t('setup.addingPlayers')
+                : regularAddCount > 1
+                  ? t('setup.addPlayersCount', { count: regularAddCount })
+                  : t('setup.addRegular')}
+            </button>
+          </>
+        )}
       </div>
+
+      {renameTarget && (
+        <PersonRenameDialog
+          key={renameTarget.personId}
+          personId={renameTarget.personId}
+          currentName={renameTarget.name}
+          open={Boolean(renameTarget)}
+          onOpenChange={(open) => {
+            if (!open) setRenameTarget(null);
+          }}
+          onRenamed={onPlayerRenamed}
+        />
+      )}
     </article>
   );
 }

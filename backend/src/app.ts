@@ -8,6 +8,7 @@ import { teamsRoute } from './routes/teams.js';
 import { gamesRoute } from './routes/games.js';
 import { streamRoute } from './routes/stream.js';
 import { posterRoute } from './routes/poster.js';
+import { personsRoute } from './routes/persons.js';
 import { fail } from './lib/api-response.js';
 
 export function createApp() {
@@ -23,6 +24,7 @@ export function createApp() {
   app.route('/api', gamesRoute);
   app.route('/api', streamRoute);
   app.route('/api', posterRoute);
+  app.route('/api', personsRoute);
 
   app.notFound((c) => fail(c, 'not_found', `Route not found: ${c.req.path}`, 404));
 

@@ -28,12 +28,19 @@ export const createTeam = (
     adminToken,
   });
 
-export const addRoster = (teamId: string, names: string[], adminToken: string) =>
-  apiRequest<{ added: Array<{ id: string; name: string }> }>(`/api/teams/${teamId}/roster`, {
-    method: 'POST',
-    body: JSON.stringify({ names }),
-    adminToken,
-  });
+export const addRoster = (
+  teamId: string,
+  input: { names?: string[]; personIds?: string[] },
+  adminToken: string,
+) =>
+  apiRequest<{ added: Array<{ id: string; personId: string; name: string }> }>(
+    `/api/teams/${teamId}/roster`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+      adminToken,
+    },
+  );
 
 export const updateTeamName = (teamId: string, name: string, adminToken: string) =>
   apiRequest<{ id: string; name: string; colorHex: string }>(`/api/teams/${teamId}`, {

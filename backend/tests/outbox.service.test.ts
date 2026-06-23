@@ -21,8 +21,8 @@ describe('outbox.service batch replay', () => {
     const evt = await createEvent(db, '离线测试');
     const teamA = await createTeam(db, evt.id, { name: '红队' });
     const teamB = await createTeam(db, evt.id, { name: '蓝队' });
-    const [pA] = await addRosterMembers(db, teamA.id, ['张三']);
-    const [pB] = await addRosterMembers(db, teamB.id, ['李四']);
+    const [pA] = await addRosterMembers(db, teamA.id, { names: ['张三'] });
+    const [pB] = await addRosterMembers(db, teamB.id, { names: ['李四'] });
     const game = await createGame(db, evt.id, { teamAId: teamA.id, teamBId: teamB.id });
     await startGame(db, game.id);
     return { db, game, pA: pA!, pB: pB! };

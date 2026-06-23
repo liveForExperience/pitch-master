@@ -31,9 +31,9 @@ const red = await createTeam(db, evt.id, { name: '红队', colorHex: '#C44536' }
 const blue = await createTeam(db, evt.id, { name: '蓝队', colorHex: '#3964B0' });
 const green = await createTeam(db, evt.id, { name: '绿队', colorHex: '#3E8E5A' });
 
-const [r1, r2, r3] = await addRosterMembers(db, red.id, ['张三', '王勇', '李雷']);
-const [b1, b2, b3] = await addRosterMembers(db, blue.id, ['韩梅梅', '陈宇', '李四']);
-const [g1] = await addRosterMembers(db, green.id, ['王五']);
+const [r1, r2, r3] = await addRosterMembers(db, red.id, { names: ['张三', '王勇', '李雷'] });
+const [b1, b2, b3] = await addRosterMembers(db, blue.id, { names: ['韩梅梅', '陈宇', '李四'] });
+const [g1] = await addRosterMembers(db, green.id, { names: ['王五'] });
 
 // Game 1: red 3-2 blue
 const g1m = await createGame(db, evt.id, { teamAId: red.id, teamBId: blue.id });

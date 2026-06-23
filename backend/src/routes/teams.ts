@@ -56,13 +56,24 @@ teamsRoute.post('/teams/:id/roster', async (c) => {
   const auth = await requireTeamAdmin(c, db, teamId);
   if (auth instanceof Response) return auth;
 
-  const body = await readJson<{ names?: string[] }>(c);
-  if (!body.names?.length) return fail(c, 'validation_error', 'names array is required', 400);
+  const body = await readJson<{ names?: string[]; personIds?: string[] }>(c);
+  if (!body.names?.length && !body.personIds?.length) {
+    return fail(c, 'validation_error', 'names or personIds is required', 400);
+  }
 
-  const data = await addRosterMembers(db, teamId, body.names);
-  const res = ok(c, { added: data }, 201);
-  if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
-  return res;
+  try {
+    const data = await addRosterMembers(db, teamId, {
+      names: body.names,
+      personIds: body.personIds,
+    });
+    const res = ok(c, { added: data }, 201);
+    if (auth.newAdminToken) res.headers.set('X-New-Admin-Token', auth.newAdminToken);
+    return res;
+  } catch (err) {
+    const mapped = mapServiceError(c, err);
+    if (mapped) return mapped;
+    throw err;
+  }
 });
 
 teamsRoute.delete('/roster/:id', async (c) => {

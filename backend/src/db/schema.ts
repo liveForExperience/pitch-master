@@ -32,6 +32,17 @@ export const teams = sqliteTable(
   (t) => [index('idx_team_event').on(t.eventId)],
 );
 
+export const persons = sqliteTable(
+  'person',
+  {
+    id: text('id').primaryKey(),
+    displayName: text('display_name').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [index('idx_person_updated').on(t.updatedAt)],
+);
+
 export const rosters = sqliteTable(
   'roster',
   {
@@ -39,11 +50,18 @@ export const rosters = sqliteTable(
     teamId: text('team_id')
       .notNull()
       .references(() => teams.id, { onDelete: 'cascade' }),
+    personId: text('person_id')
+      .notNull()
+      .references(() => persons.id),
     name: text('name').notNull(),
     jerseyNumber: integer('jersey_number'),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => [index('idx_roster_team').on(t.teamId)],
+  (t) => [
+    index('idx_roster_team').on(t.teamId),
+    index('idx_roster_person').on(t.personId),
+    uniqueIndex('idx_roster_team_person').on(t.teamId, t.personId),
+  ],
 );
 
 export const games = sqliteTable(
@@ -98,6 +116,7 @@ export const gameEvents = sqliteTable(
 
 export type EventRow = typeof events.$inferSelect;
 export type TeamRow = typeof teams.$inferSelect;
+export type PersonRow = typeof persons.$inferSelect;
 export type RosterRow = typeof rosters.$inferSelect;
 export type GameRow = typeof games.$inferSelect;
 export type GameEventRow = typeof gameEvents.$inferSelect;

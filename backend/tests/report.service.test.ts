@@ -133,15 +133,15 @@ describe('topScorers and topAssists', () => {
       name: '红队',
       colorHex: '#ef4444',
       roster: [
-        { id: 'p1', name: '张三' },
-        { id: 'p2', name: '李四' },
+        { id: 'p1', name: '张三', personId: 'person1' },
+        { id: 'p2', name: '李四', personId: 'person2' },
       ],
     },
     {
       id: 't2',
       name: '蓝队',
       colorHex: '#3b82f6',
-      roster: [{ id: 'p3', name: '王五' }],
+      roster: [{ id: 'p3', name: '王五', personId: 'person3' }],
     },
   ];
 
@@ -159,12 +159,42 @@ describe('topScorers and topAssists', () => {
 
     const stats = aggregatePlayerStats(games, rosterById);
     expect(topScorers(stats, 5)).toEqual([
-      expect.objectContaining({ rosterId: 'p1', goals: 2, firstGoalAt: 100 }),
-      expect.objectContaining({ rosterId: 'p3', goals: 1, firstGoalAt: 300 }),
+      expect.objectContaining({ personId: 'person1', rosterId: 'p1', goals: 2, firstGoalAt: 100 }),
+      expect.objectContaining({ personId: 'person3', rosterId: 'p3', goals: 1, firstGoalAt: 300 }),
     ]);
     expect(topAssists(stats, 5)).toEqual([
-      expect.objectContaining({ rosterId: 'p2', assists: 1, firstAssistAt: 100 }),
+      expect.objectContaining({ personId: 'person2', rosterId: 'p2', assists: 1, firstAssistAt: 100 }),
     ]);
+  });
+
+  it('merges stats for same person across two teams', () => {
+    const rosterTeams = [
+      {
+        id: 't1',
+        name: '红队',
+        colorHex: '#ef4444',
+        roster: [{ id: 'r1', name: '张三', personId: 'person1' }],
+      },
+      {
+        id: 't2',
+        name: '蓝队',
+        colorHex: '#3b82f6',
+        roster: [{ id: 'r2', name: '张三', personId: 'person1' }],
+      },
+    ];
+    const rosterById = buildRosterLookup(rosterTeams);
+    const games = [
+      finishedGame('g1', 't1', 't2', [goal('e1', 'A', 'r1', 100)]),
+      finishedGame('g2', 't2', 't1', [goal('e2', 'A', 'r2', 200)]),
+    ];
+    const stats = aggregatePlayerStats(games, rosterById);
+    const scorers = topScorers(stats, 5);
+    expect(scorers).toHaveLength(1);
+    expect(scorers[0]).toMatchObject({
+      personId: 'person1',
+      goals: 2,
+      teamNames: ['红队', '蓝队'],
+    });
   });
 
   it('returns empty lists for zero data', () => {
@@ -178,12 +208,14 @@ describe('computeEventMvp', () => {
   it('picks highest goals+assists with first-goal tie-break', () => {
     const stats = new Map([
       [
-        'p1',
+        'person1',
         {
+          personId: 'person1',
           rosterId: 'p1',
           name: '张三',
           teamId: 't1',
           teamName: '红队',
+          teamNames: ['红队'],
           colorHex: '#ef4444',
           goals: 2,
           assists: 0,
@@ -192,12 +224,14 @@ describe('computeEventMvp', () => {
         },
       ],
       [
-        'p2',
+        'person2',
         {
+          personId: 'person2',
           rosterId: 'p2',
           name: '李四',
           teamId: 't1',
           teamName: '红队',
+          teamNames: ['红队'],
           colorHex: '#ef4444',
           goals: 1,
           assists: 1,
@@ -206,7 +240,7 @@ describe('computeEventMvp', () => {
         },
       ],
     ]);
-    expect(computeEventMvp(stats)).toMatchObject({ rosterId: 'p2', goals: 1, assists: 1 });
+    expect(computeEventMvp(stats)).toMatchObject({ personId: 'person2', goals: 1, assists: 1 });
   });
 
   it('returns undefined when no contributions', () => {

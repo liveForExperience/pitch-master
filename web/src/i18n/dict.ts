@@ -24,6 +24,7 @@ export const zh: Dict = {
   'common.next': '下一步',
   'common.retry': '重试',
   'common.save': '保存',
+  'common.saving': '保存中…',
   'common.add': '添加',
   'common.adding': '添加中…',
   'common.redirecting': '正在跳转…',
@@ -215,6 +216,20 @@ export const zh: Dict = {
   'setup.deleteTeam.processing': '删除中…',
   'setup.deleteTeam.cannotDelete': '该球队已被某场比赛使用，请先删除对应比赛再删除球队',
   'setup.deleteTeam.error': '删除球队失败',
+  'setup.tabManual': '手动输入',
+  'setup.tabRegulars': '常客',
+  'setup.addRegular': '加入常客',
+
+  // ── person picker / rename ───────────────────────────────────────────
+  'personPicker.title': '从常客加入 {team}',
+  'personPicker.search': '搜索球员…',
+  'personPicker.loading': '加载常客…',
+  'personPicker.empty': '暂无常客，请先手动添加球员',
+  'personPicker.noMatch': '没有匹配的球员',
+  'personRename.title': '修改球员名称',
+  'personRename.desc': '改名后，该球员在所有队伍和战报中的显示名称都会更新。',
+  'personRename.aria': '修改 {name} 的名称',
+  'personRename.error': '改名失败',
 
   // ── roster import ────────────────────────────────────────────────────
   'roster.title': '快速导入报名名单',
@@ -427,7 +442,7 @@ export const zh: Dict = {
     '把分享码发给队友/家长就能只读观看；PIN 是换设备恢复管理权限的钥匙，建议截图保存。',
   'tour.event.setup.title': '配置队伍与队员',
   'tour.event.setup.desc':
-    '点这里去改队名、加队员、批量从微信接龙文本导入名单——比赛过程中也能反复进出调整。',
+    '点这里改队名、加队员——可从微信接龙批量导入，或用「常客」快速点选；同一人可加入多支队伍，战报按人合并统计。比赛过程中也能反复进出调整。',
   'tour.event.newGame.title': '新建场次',
   'tour.event.newGame.desc': '选好两支队伍、比赛时长即可开赛。每场比赛独立计分、独立战报。',
   'tour.event.gamesList.title': '比赛列表',
@@ -439,15 +454,18 @@ export const zh: Dict = {
 
   'tour.setup.welcome.title': '队伍配置',
   'tour.setup.welcome.desc':
-    '这里管理参赛队伍和队员。可以反复进出，比赛过程中也能补加人——已经有比赛记录的球员才不能直接移出。',
+    '这里管理参赛队伍和队员，可随时补人。球员旁的铅笔可改名（全活动同步）；已有比赛记录的不能移出。',
   'tour.setup.import.title': '批量导入：粘贴微信接龙',
   'tour.setup.import.desc':
     '面板已展开，顶部就是示例：从微信群把整段接龙文本复制粘贴到下方文本框即可。emoji、「+1」、「门将」等后缀全部原样保留，「人满截止」之类元信息会自动跳过。点「用此示例试一下」可以立刻看到效果。',
   'tour.setup.newTeam.title': '新建一支队伍',
   'tour.setup.newTeam.desc': '需要加新队伍时填名字、点添加，颜色会自动分配，之后还能改名。',
-  'tour.setup.teamCard.title': '队伍卡片',
+  'tour.setup.addPlayers.title': '添加队员：手动 or 常客',
+  'tour.setup.addPlayers.desc':
+    '「手动输入」从上方待分配池勾选，或直接输入新名字（逗号/换行可一次加多人）。「常客」从本机最近用过的人里勾选调入，适合固定班底。同一人可加入多支队伍，活动战报会按人合并进球与助攻。',
+  'tour.setup.teamCard.title': '队伍卡片与名单',
   'tour.setup.teamCard.desc':
-    '每张卡片支持：改队名（铅笔）、删除整支队伍（垃圾桶，仅当该队还没参加任何比赛时可用）、从待分配池勾选加入、手动输入名字（逗号/换行分隔多人）、单个移出队员。',
+    '卡片顶部可改队名（铅笔）、删整队（垃圾桶，仅当该队还没参加任何比赛时可用）。名单里每位球员可改名或移出；移出失败说明该球员本场已有进球等记录。',
   'tour.setup.done.title': '完成返回',
   'tour.setup.done.desc': '配置好后点这里回到活动主页，就可以开始新建场次了。',
 
@@ -495,6 +513,7 @@ export const en: Dict = {
   'common.next': 'Next',
   'common.retry': 'Retry',
   'common.save': 'Save',
+  'common.saving': 'Saving…',
   'common.add': 'Add',
   'common.adding': 'Adding…',
   'common.redirecting': 'Redirecting…',
@@ -700,6 +719,20 @@ export const en: Dict = {
   'setup.deleteTeam.cannotDelete':
     'This team is already used by a game. Delete that game first, then retry.',
   'setup.deleteTeam.error': 'Failed to delete team',
+  'setup.tabManual': 'Manual',
+  'setup.tabRegulars': 'Regulars',
+  'setup.addRegular': 'Add regulars',
+
+  // ── person picker / rename ───────────────────────────────────────────
+  'personPicker.title': 'Add regulars to {team}',
+  'personPicker.search': 'Search players…',
+  'personPicker.loading': 'Loading regulars…',
+  'personPicker.empty': 'No regulars yet — add players manually first',
+  'personPicker.noMatch': 'No matching players',
+  'personRename.title': 'Rename player',
+  'personRename.desc': 'The new name will appear on all teams and reports for this player.',
+  'personRename.aria': 'Rename {name}',
+  'personRename.error': 'Failed to rename',
 
   // ── roster import ────────────────────────────────────────────────────
   'roster.title': 'Quick import from signup text',
@@ -923,7 +956,7 @@ export const en: Dict = {
     'Share the code with viewers; keep the PIN — that\'s how you restore admin on another device. A screenshot is the safest backup.',
   'tour.event.setup.title': 'Configure teams & roster',
   'tour.event.setup.desc':
-    'Open this to rename teams, add players manually, or bulk-import from a WeChat signup list. Safe to revisit mid-event.',
+    'Tap here to rename teams and add players — bulk paste from WeChat, or pick from "Regulars". One person can join multiple teams; the event report merges their stats. You can revisit anytime, even mid-event.',
   'tour.event.newGame.title': 'Start a new game',
   'tour.event.newGame.desc':
     'Pick two teams and a match length to kick off. Each game is scored and reported independently.',
@@ -936,16 +969,19 @@ export const en: Dict = {
 
   'tour.setup.welcome.title': 'Roster setup',
   'tour.setup.welcome.desc':
-    'Manage teams and players. Come back any time — even mid-event you can add players; only those with recorded goals are protected from removal.',
+    'Manage teams and players. Add anyone anytime; the pencil next to a player renames them across the whole event. Players with recorded goals cannot be removed.',
   'tour.setup.import.title': 'Bulk import: paste a WeChat signup',
   'tour.setup.import.desc':
     'The panel is now open — the dashed card on top shows the exact format. Copy your group-chat signup block into the textarea below; emojis, "+1", and GK suffixes are preserved, and meta lines like "人满截止 / list closed" are auto-skipped. Tap "Try this sample" to see it parse live.',
   'tour.setup.newTeam.title': 'Add a new team',
   'tour.setup.newTeam.desc':
     'Need another team? Type a name and tap Add. Colours are auto-assigned and the name can be edited later.',
-  'tour.setup.teamCard.title': 'Team card',
+  'tour.setup.addPlayers.title': 'Add players: Manual or Regulars',
+  'tour.setup.addPlayers.desc':
+    '"Manual" picks from the pending pool above or types new names (comma/newline for several at once). "Regulars" picks from recently used players on this device — handy for a fixed squad. The same person can join multiple teams; the event report merges goals and assists by person.',
+  'tour.setup.teamCard.title': 'Team card & roster',
   'tour.setup.teamCard.desc':
-    'Each card lets you rename the team (pencil), delete the whole team (trash — only when it has not played any game yet), pick players from the pending pool, type names manually (comma/newline separated), and remove individual players.',
+    'Rename the team (pencil) or delete it (trash — only if the team has not played yet). Each player can be renamed or removed; removal fails if they already have goals or other recorded events.',
   'tour.setup.done.title': 'Done — back to event',
   'tour.setup.done.desc': 'When you\'re happy with the rosters, tap here to return and start a new game.',
 
