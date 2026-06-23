@@ -18,9 +18,9 @@ export const colors = {
 } as const;
 
 export const fonts = {
-  // PosterCJK (Noto SC) + PosterCJKExt (Noto JP chunks) cover user-typed names;
-  // static NotoSC covers baked-in template keywords.
-  sans: 'PosterCJK, PosterCJKExt, NotoSC',
+  // PosterCJK (Noto SC) + PosterCJKExt (Noto JP) + PosterLatinExt (diacritics);
+  // static NotoSC covers baked-in template keywords and basic Latin.
+  sans: 'PosterCJK, PosterCJKExt, PosterLatinExt, NotoSC',
   mono: 'GeistMono, NotoSC',
   serif: 'Newsreader, NotoSC',
 } as const;
