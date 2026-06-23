@@ -1,8 +1,8 @@
 /**
- * Runtime CJK font subsetting for posters.
+ * Runtime font subsetting for posters.
  *
- * Primary: Noto Sans SC (simplified). Extension fallback: Noto Sans JP chunks for
- * glyphs absent from SC (e.g. Extension B name variants like 𠮷).
+ * Primary: Noto Sans SC. CJK extension: Noto Sans JP chunks. Latin extension:
+ * Noto Sans latin / latin-ext for diacritics absent from SC (e.g. ş, ų, ġ).
  */
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
@@ -24,6 +24,7 @@ const jpGlyphChunkCache = new Map<string, string | null>();
 export type DynamicCjkFonts = {
   primary: Buffer | null;
   extension: Buffer[];
+  latin: Buffer[];
 };
 
 function locateFullNotoSCBold(): string | null {
@@ -42,6 +43,22 @@ function locateFullNotoSCBold(): string | null {
     // ignored
   }
   return null;
+}
+
+function locateNotoSansLatinSources(): string[] {
+  const candidates = [
+    'noto-sans-latin-ext-700-normal.woff',
+    'noto-sans-latin-700-normal.woff',
+  ];
+  try {
+    const pkgJsonPath = require_.resolve('@fontsource/noto-sans/package.json');
+    const pkgDir = path.join(path.dirname(pkgJsonPath), 'files');
+    return candidates
+      .map((name) => path.join(pkgDir, name))
+      .filter((p) => fs.existsSync(p));
+  } catch {
+    return [];
+  }
 }
 
 function locateJpChunkPaths(): string[] {
@@ -150,14 +167,30 @@ async function subsetSource(source: Buffer, charset: string): Promise<Buffer> {
   return Buffer.from(buf);
 }
 
+async function buildLatinExtensionSubsets(remainder: string): Promise<Buffer[]> {
+  const latin: Buffer[] = [];
+  let pending = remainder;
+
+  for (const sourcePath of locateNotoSansLatinSources()) {
+    if (!pending) break;
+    const source = fs.readFileSync(sourcePath);
+    const supported = filterSupportedGlyphs(source, pending);
+    if (!supported) continue;
+    latin.push(await subsetSource(source, supported));
+    pending = subtractCharset(pending, supported);
+  }
+
+  return latin;
+}
+
 /**
- * Builds dynamic PosterCJK (SC) and PosterCJKExt (JP) subset buffers for poster text.
+ * Builds dynamic poster font subsets for user-typed names on the canvas.
  */
 export async function buildDynamicCjkFonts(
   texts: ReadonlyArray<string | null | undefined>,
 ): Promise<DynamicCjkFonts> {
   const charset = uniqueSubsetChars(texts);
-  if (!charset) return { primary: null, extension: [] };
+  if (!charset) return { primary: null, extension: [], latin: [] };
 
   const cacheKey = createHash('sha1').update(charset).digest('hex');
   const cached = dynamicCache.get(cacheKey);
@@ -166,25 +199,34 @@ export async function buildDynamicCjkFonts(
   const scSource = loadScFont();
   let primary: Buffer | null = null;
   const extension: Buffer[] = [];
+  let latin: Buffer[] = [];
+  let remainder = charset;
 
   if (scSource) {
     const scSupported = filterSupportedGlyphs(scSource, charset);
     if (scSupported) primary = await subsetSource(scSource, scSupported);
+    remainder = subtractCharset(charset, scSupported);
 
-    const remainder = subtractCharset(charset, scSupported);
     if (remainder) {
       const byChunk = groupExtensionCharsByJpChunk(remainder);
+      let jpCovered = '';
       for (const [chunkPath, chunkChars] of byChunk) {
         const chunkSource = fs.readFileSync(chunkPath);
         const supported = filterSupportedGlyphs(chunkSource, chunkChars);
         if (!supported) continue;
         extension.push(await subsetSource(chunkSource, supported));
+        jpCovered += supported;
       }
+      remainder = subtractCharset(remainder, jpCovered);
     }
   }
 
-  const out: DynamicCjkFonts = { primary, extension };
-  if (primary || extension.length > 0) {
+  if (remainder) {
+    latin = await buildLatinExtensionSubsets(remainder);
+  }
+
+  const out: DynamicCjkFonts = { primary, extension, latin };
+  if (primary || extension.length > 0 || latin.length > 0) {
     if (dynamicCache.size >= MAX_CACHE_ENTRIES) {
       const first = dynamicCache.keys().next().value;
       if (first) dynamicCache.delete(first);
@@ -221,6 +263,12 @@ export function dynamicCjkToSatoriFonts(fonts: DynamicCjkFonts): PosterCjkSatori
     out.push(
       { name: 'PosterCJKExt', data: ext, weight: 400, style: 'normal' },
       { name: 'PosterCJKExt', data: ext, weight: 700, style: 'normal' },
+    );
+  }
+  for (const ext of fonts.latin) {
+    out.push(
+      { name: 'PosterLatinExt', data: ext, weight: 400, style: 'normal' },
+      { name: 'PosterLatinExt', data: ext, weight: 700, style: 'normal' },
     );
   }
   return out;

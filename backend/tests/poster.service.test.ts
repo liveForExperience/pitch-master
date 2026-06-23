@@ -122,4 +122,36 @@ describe('poster.service', () => {
     expect(isPngBuffer(png)).toBe(true);
     expect(png.byteLength).toBeGreaterThan(1000);
   });
+
+  it('renders poster with stylized Latin emoji player name', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () =>
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><circle cx="18" cy="18" r="18" fill="#f00"/></svg>',
+      }),
+    );
+    const { db } = setupTestDb();
+    resetPosterCacheForTests();
+    const evt = await createEvent(db, '拉丁名测试');
+    const teamA = await createTeam(db, evt.id, { name: '红队' });
+    const teamB = await createTeam(db, evt.id, { name: '蓝队' });
+    const [player] = await addRosterMembers(db, teamA.id, { names: ['🦂 mórş ýøųñġ 🦂'] });
+    await addRosterMembers(db, teamB.id, { names: ['李雷'] });
+    const game = await createGame(db, evt.id, { teamAId: teamA.id, teamBId: teamB.id });
+    await startGame(db, game.id);
+    await recordGameEvent(db, game.id, {
+      clientEventId: 'pg-latin',
+      type: 'GOAL',
+      teamSide: 'A',
+      scorerRosterId: player!.id,
+      clientTs: Date.now(),
+    });
+    await finishGame(db, game.id);
+
+    const png = await renderEventPosterPng(db, evt.shortCode, 5);
+    expect(isPngBuffer(png)).toBe(true);
+    expect(png.byteLength).toBeGreaterThan(1000);
+  });
 });

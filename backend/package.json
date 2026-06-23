@@ -21,6 +21,7 @@
     "db:migrate": "tsx src/db/migrate-cli.ts"
   },
   "dependencies": {
+    "@fontsource/noto-sans": "^5.2.10",
     "@fontsource/noto-sans-jp": "^5.2.9",
     "@fontsource/noto-sans-sc": "^5.2.9",
     "@hono/node-server": "^1.13.7",
