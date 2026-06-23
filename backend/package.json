@@ -21,6 +21,8 @@
     "db:migrate": "tsx src/db/migrate-cli.ts"
   },
   "dependencies": {
+    "@fontsource/noto-sans-jp": "^5.2.9",
+    "@fontsource/noto-sans-sc": "^5.2.9",
     "@hono/node-server": "^1.13.7",
     "@resvg/resvg-js": "^2.6.2",
     "better-sqlite3": "^11.8.1",
@@ -29,7 +31,6 @@
     "react": "^18.3.1",
     "satori": "^0.26.0",
     "subset-font": "^2.5.0",
-    "@fontsource/noto-sans-sc": "^5.2.9",
     "ulid": "^2.3.0"
   },
   "devDependencies": {

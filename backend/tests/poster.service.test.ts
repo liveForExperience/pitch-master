@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createEvent } from '../src/services/event.service.js';
 import {
   addRosterMembers,
@@ -16,9 +16,14 @@ import {
   renderGamePosterPng,
 } from '../src/services/poster.service.js';
 import { resetPosterCacheForTests } from '../src/lib/poster-cache.js';
+import { resetPosterEmojiCacheForTests } from '../src/services/poster-emoji.js';
 import { setupTestDb } from './helpers/test-db.js';
 
 describe('poster.service', () => {
+  afterEach(() => {
+    resetPosterEmojiCacheForTests();
+    vi.restoreAllMocks();
+  });
   async function seedFinishedMatch() {
     const { db } = setupTestDb();
     resetPosterCacheForTests();
@@ -91,5 +96,30 @@ describe('poster.service', () => {
     const report = await getEventReport(db, evt.shortCode, 5);
     expect(report.topScorers.length).toBeGreaterThan(0);
     expect(report.standings.length).toBe(2);
+  });
+
+  it('renders poster with emoji and special Chinese characters in event name', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () =>
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><circle cx="18" cy="18" r="18" fill="#f00"/></svg>',
+      }),
+    );
+    const { db } = setupTestDb();
+    resetPosterCacheForTests();
+    const evt = await createEvent(db, '《周末赛》𠮷太郎🎉');
+    const teamA = await createTeam(db, evt.id, { name: '红队⚽' });
+    const teamB = await createTeam(db, evt.id, { name: '蓝队' });
+    await addRosterMembers(db, teamA.id, ['陈宇']);
+    await addRosterMembers(db, teamB.id, ['李雷']);
+    const game = await createGame(db, evt.id, { teamAId: teamA.id, teamBId: teamB.id });
+    await startGame(db, game.id);
+    await finishGame(db, game.id);
+
+    const png = await renderEventPosterPng(db, evt.shortCode, 5);
+    expect(isPngBuffer(png)).toBe(true);
+    expect(png.byteLength).toBeGreaterThan(1000);
   });
 });
