@@ -22,7 +22,7 @@ describe('game-ops.service integration', () => {
     const evt = await createEvent(db, '测试活动');
     const teamA = await createTeam(db, evt.id, { name: '红队' });
     const teamB = await createTeam(db, evt.id, { name: '蓝队' });
-    const [pA] = await addRosterMembers(db, teamA.id, ['张三']);
+    const [pA] = await addRosterMembers(db, teamA.id, { names: ['张三'] });
     const game = await createGame(db, evt.id, { teamAId: teamA.id, teamBId: teamB.id });
     return { db, game, pA: pA!, evt };
   }

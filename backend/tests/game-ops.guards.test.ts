@@ -59,7 +59,7 @@ describe('game-ops guards', () => {
     const evt = await createEvent(db, '守卫测试');
     const teamA = await createTeam(db, evt.id, { name: '红' });
     const teamB = await createTeam(db, evt.id, { name: '蓝' });
-    const [pA] = await addRosterMembers(db, teamA.id, ['甲']);
+    const [pA] = await addRosterMembers(db, teamA.id, { names: ['甲'] });
     const game = await createGame(db, evt.id, { teamAId: teamA.id, teamBId: teamB.id });
     return { db, game, pA: pA!, evt };
   }
@@ -134,7 +134,7 @@ describe('game-ops guards', () => {
   it('deletes a team with no game references (rosters cascade)', async () => {
     const { db, evt } = await seed();
     const spareTeam = await createTeam(db, evt.id, { name: '绿' });
-    await addRosterMembers(db, spareTeam.id, ['临时1', '临时2']);
+    await addRosterMembers(db, spareTeam.id, { names: ['临时1', '临时2'] });
 
     const result = await deleteTeam(db, spareTeam.id);
     expect(result.id).toBe(spareTeam.id);

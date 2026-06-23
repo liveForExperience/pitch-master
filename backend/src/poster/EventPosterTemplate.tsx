@@ -222,7 +222,7 @@ function ZigzagLeaderboards({
           if (!row) return <HairlineRow key={`s-${i}`} height={TOP_ROW_H} last={i === rows - 1}><span /></HairlineRow>;
           return (
             <TopRow
-              key={row.rosterId}
+              key={row.personId}
               rank={i + 1}
               name={row.name}
               value={row.goals}
@@ -255,7 +255,7 @@ function ZigzagLeaderboards({
           if (!row) return <HairlineRow key={`a-${i}`} height={TOP_ROW_H} last={i === rows - 1}><span /></HairlineRow>;
           return (
             <TopRow
-              key={row.rosterId}
+              key={row.personId}
               rank={i + 1}
               name={row.name}
               value={row.assists}

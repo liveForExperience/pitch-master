@@ -18,6 +18,7 @@ import { ConfirmDangerDialog } from '../components/ui/confirm-danger-dialog';
 import { PageShell } from '../components/ui/layout';
 import { useT } from '../i18n';
 import { mergeIntoPool, nameReturnsToPool } from '../lib/roster-pool';
+import { pushRecentPerson } from '../lib/person-store';
 import {
   clearRosterImportPool,
   loadRosterImportPool,
@@ -102,7 +103,7 @@ export function EventSetupPage() {
     const allNames = [...chipNames, ...manualNames];
     if (!allNames.length) return;
 
-    await addRoster(teamId, allNames, token);
+    await addRoster(teamId, { names: allNames }, token);
 
     if (chipNames.length) {
       setImportPool((prev) => {
@@ -114,6 +115,13 @@ export function EventSetupPage() {
     if (manualNames.length) {
       setDraftNames((d) => ({ ...d, [teamId]: '' }));
     }
+    await reload();
+  };
+
+  const addPersonIds = async (teamId: string, personIds: string[]) => {
+    if (!personIds.length) return;
+    await addRoster(teamId, { personIds }, token!);
+    for (const id of personIds) pushRecentPerson(id);
     await reload();
   };
 
@@ -134,7 +142,12 @@ export function EventSetupPage() {
       }
       await reload();
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('setup.removePlayerError');
+      const message =
+        err instanceof ApiError && err.code === 'conflict'
+          ? t('setup.removePlayerError')
+          : err instanceof Error
+            ? err.message
+            : t('setup.removePlayerError');
       setError(message);
     }
   };
@@ -241,8 +254,11 @@ export function EventSetupPage() {
               onDraftChange={(value) => setDraftNames((d) => ({ ...d, [team.id]: value }))}
               onRename={renameTeam}
               onAddPlayers={addPlayers}
+              onAddPersonIds={addPersonIds}
               onRemovePlayer={removePlayer}
+              onPlayerRenamed={reload}
               onDeleteTeam={requestDeleteTeam}
+              tourAddPlayers={idx === 0}
             />
           </div>
         ))}

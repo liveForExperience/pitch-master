@@ -8,13 +8,13 @@ describe('roster-pool', () => {
       id: 't1',
       name: 'A',
       colorHex: '#000',
-      roster: [{ id: 'p1', name: '张三', jerseyNumber: null }],
+      roster: [{ id: 'p1', name: '张三', personId: 'person1', jerseyNumber: null }],
     },
     {
       id: 't2',
       name: 'B',
       colorHex: '#fff',
-      roster: [{ id: 'p2', name: '李四', jerseyNumber: null }],
+      roster: [{ id: 'p2', name: '李四', personId: 'person2', jerseyNumber: null }],
     },
   ];
 
@@ -28,8 +28,8 @@ describe('roster-pool', () => {
       {
         ...teams[1],
         roster: [
-          { id: 'p2', name: '李四', jerseyNumber: null },
-          { id: 'p3', name: '张三', jerseyNumber: null },
+          { id: 'p2', name: '李四', personId: 'person2', jerseyNumber: null },
+          { id: 'p3', name: '张三', personId: 'person3', jerseyNumber: null },
         ],
       },
     ];

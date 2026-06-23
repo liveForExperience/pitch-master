@@ -54,10 +54,12 @@ export type TeamStanding = {
 };
 
 export type PlayerStatRow = {
+  personId: string;
   rosterId: string;
   name: string;
   teamId: string;
   teamName: string;
+  teamNames: string[];
   colorHex: string;
   goals: number;
   assists: number;
@@ -66,9 +68,11 @@ export type PlayerStatRow = {
 };
 
 export type MvpRow = {
+  personId: string;
   rosterId: string;
   name: string;
   teamName: string;
+  teamNames: string[];
   colorHex: string;
   goals: number;
   assists: number;
@@ -178,18 +182,25 @@ function collectFinishedGoalEvents(finishedGames: ReportGameInput[]) {
   return rows;
 }
 
+type RosterLookupEntry = {
+  id: string;
+  name: string;
+  personId: string;
+  teamId: string;
+  teamName: string;
+  colorHex: string;
+};
+
 function buildRosterLookup(
-  eventTeams: Array<ReportTeam & { roster: Array<{ id: string; name: string }> }>,
+  eventTeams: Array<ReportTeam & { roster: Array<{ id: string; name: string; personId: string }> }>,
 ) {
-  const rosterById = new Map<
-    string,
-    { id: string; name: string; teamId: string; teamName: string; colorHex: string }
-  >();
+  const rosterById = new Map<string, RosterLookupEntry>();
   for (const team of eventTeams) {
     for (const player of team.roster) {
       rosterById.set(player.id, {
         id: player.id,
         name: player.name,
+        personId: player.personId,
         teamId: team.id,
         teamName: team.name,
         colorHex: team.colorHex,
@@ -197,6 +208,31 @@ function buildRosterLookup(
     }
   }
   return rosterById;
+}
+
+function ensureStatRow(stats: Map<string, PlayerStatRow>, roster: RosterLookupEntry): PlayerStatRow {
+  const existing = stats.get(roster.personId);
+  if (existing) {
+    if (!existing.teamNames.includes(roster.teamName)) {
+      existing.teamNames.push(roster.teamName);
+    }
+    return existing;
+  }
+  const row: PlayerStatRow = {
+    personId: roster.personId,
+    rosterId: roster.id,
+    name: roster.name,
+    teamId: roster.teamId,
+    teamName: roster.teamName,
+    teamNames: [roster.teamName],
+    colorHex: roster.colorHex,
+    goals: 0,
+    assists: 0,
+    firstGoalAt: Number.MAX_SAFE_INTEGER,
+    firstAssistAt: Number.MAX_SAFE_INTEGER,
+  };
+  stats.set(roster.personId, row);
+  return row;
 }
 
 function aggregatePlayerStats(
@@ -218,45 +254,19 @@ function aggregatePlayerStats(
 
     for (const event of game.events) {
       if (isActiveGoal(event, undone) && event.scorerRosterId) {
-        const player = rosterById.get(event.scorerRosterId);
-        if (!player) continue;
-        const row =
-          stats.get(player.id) ??
-          ({
-            rosterId: player.id,
-            name: player.name,
-            teamId: player.teamId,
-            teamName: player.teamName,
-            colorHex: player.colorHex,
-            goals: 0,
-            assists: 0,
-            firstGoalAt: Number.MAX_SAFE_INTEGER,
-            firstAssistAt: Number.MAX_SAFE_INTEGER,
-          } satisfies PlayerStatRow);
+        const roster = rosterById.get(event.scorerRosterId);
+        if (!roster) continue;
+        const row = ensureStatRow(stats, roster);
         row.goals++;
         row.firstGoalAt = Math.min(row.firstGoalAt, event.serverTs);
-        stats.set(player.id, row);
       }
 
       if (isActiveGoal(event, undone) && event.assistantRosterId) {
-        const player = rosterById.get(event.assistantRosterId);
-        if (!player) continue;
-        const row =
-          stats.get(player.id) ??
-          ({
-            rosterId: player.id,
-            name: player.name,
-            teamId: player.teamId,
-            teamName: player.teamName,
-            colorHex: player.colorHex,
-            goals: 0,
-            assists: 0,
-            firstGoalAt: Number.MAX_SAFE_INTEGER,
-            firstAssistAt: Number.MAX_SAFE_INTEGER,
-          } satisfies PlayerStatRow);
+        const roster = rosterById.get(event.assistantRosterId);
+        if (!roster) continue;
+        const row = ensureStatRow(stats, roster);
         row.assists++;
         row.firstAssistAt = Math.min(row.firstAssistAt, event.serverTs);
-        stats.set(player.id, row);
       }
     }
   }
@@ -287,15 +297,19 @@ export function topScorers(stats: Map<string, PlayerStatRow>, topN = REPORT_TOP_
     .filter((s) => s.goals > 0)
     .sort(compareScorers)
     .slice(0, topN)
-    .map(({ rosterId, name, teamId, teamName, colorHex, goals, firstGoalAt }) => ({
-      rosterId,
-      name,
-      teamId,
-      teamName,
-      colorHex,
-      goals,
-      firstGoalAt: firstGoalAt === Number.MAX_SAFE_INTEGER ? 0 : firstGoalAt,
-    }));
+    .map(
+      ({ personId, rosterId, name, teamId, teamName, teamNames, colorHex, goals, firstGoalAt }) => ({
+        personId,
+        rosterId,
+        name,
+        teamId,
+        teamName,
+        teamNames,
+        colorHex,
+        goals,
+        firstGoalAt: firstGoalAt === Number.MAX_SAFE_INTEGER ? 0 : firstGoalAt,
+      }),
+    );
 }
 
 export function topAssists(stats: Map<string, PlayerStatRow>, topN = REPORT_TOP_N) {
@@ -303,15 +317,19 @@ export function topAssists(stats: Map<string, PlayerStatRow>, topN = REPORT_TOP_
     .filter((s) => s.assists > 0)
     .sort(compareAssists)
     .slice(0, topN)
-    .map(({ rosterId, name, teamId, teamName, colorHex, assists, firstAssistAt }) => ({
-      rosterId,
-      name,
-      teamId,
-      teamName,
-      colorHex,
-      assists,
-      firstAssistAt: firstAssistAt === Number.MAX_SAFE_INTEGER ? 0 : firstAssistAt,
-    }));
+    .map(
+      ({ personId, rosterId, name, teamId, teamName, teamNames, colorHex, assists, firstAssistAt }) => ({
+        personId,
+        rosterId,
+        name,
+        teamId,
+        teamName,
+        teamNames,
+        colorHex,
+        assists,
+        firstAssistAt: firstAssistAt === Number.MAX_SAFE_INTEGER ? 0 : firstAssistAt,
+      }),
+    );
 }
 
 export function computeEventMvp(stats: Map<string, PlayerStatRow>): MvpRow | undefined {
@@ -330,9 +348,11 @@ export function computeEventMvp(stats: Map<string, PlayerStatRow>): MvpRow | und
 
   const best = candidates[0]!;
   return {
+    personId: best.personId,
     rosterId: best.rosterId,
     name: best.name,
     teamName: best.teamName,
+    teamNames: best.teamNames,
     colorHex: best.colorHex,
     goals: best.goals,
     assists: best.assists,

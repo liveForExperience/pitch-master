@@ -30,9 +30,9 @@ describe('poster.service', () => {
     const evt = await createEvent(db, '海报测试活动');
     const teamA = await createTeam(db, evt.id, { name: '红队' });
     const teamB = await createTeam(db, evt.id, { name: '蓝队' });
-    const [scorer] = await addRosterMembers(db, teamA.id, ['陈宇']);
-    const [assist] = await addRosterMembers(db, teamA.id, ['王勇']);
-    await addRosterMembers(db, teamB.id, ['李雷']);
+    const [scorer] = await addRosterMembers(db, teamA.id, { names: ['陈宇'] });
+    const [assist] = await addRosterMembers(db, teamA.id, { names: ['王勇'] });
+    await addRosterMembers(db, teamB.id, { names: ['李雷'] });
     const game = await createGame(db, evt.id, { teamAId: teamA.id, teamBId: teamB.id });
     await startGame(db, game.id);
     await recordGameEvent(db, game.id, {
@@ -112,8 +112,8 @@ describe('poster.service', () => {
     const evt = await createEvent(db, '《周末赛》𠮷太郎🎉');
     const teamA = await createTeam(db, evt.id, { name: '红队⚽' });
     const teamB = await createTeam(db, evt.id, { name: '蓝队' });
-    await addRosterMembers(db, teamA.id, ['陈宇']);
-    await addRosterMembers(db, teamB.id, ['李雷']);
+    await addRosterMembers(db, teamA.id, { names: ['陈宇'] });
+    await addRosterMembers(db, teamB.id, { names: ['李雷'] });
     const game = await createGame(db, evt.id, { teamAId: teamA.id, teamBId: teamB.id });
     await startGame(db, game.id);
     await finishGame(db, game.id);

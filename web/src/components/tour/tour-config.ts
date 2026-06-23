@@ -7,7 +7,7 @@ import type { TourStep } from './Tour';
 export const TOUR_IDS = {
   home: 'home@1',
   eventAdmin: 'event-admin@2',
-  eventSetup: 'event-setup@1',
+  eventSetup: 'event-setup@2',
   gameDetail: 'game-detail@1',
   record: 'record@1',
 } as const;
@@ -83,6 +83,11 @@ export const EVENT_SETUP_TOUR_STEPS: TourStep[] = [
     selector: '[data-tour="setup-new-team"]',
     titleKey: 'tour.setup.newTeam.title',
     descKey: 'tour.setup.newTeam.desc',
+  },
+  {
+    selector: '[data-tour="setup-add-players"]',
+    titleKey: 'tour.setup.addPlayers.title',
+    descKey: 'tour.setup.addPlayers.desc',
   },
   {
     selector: '[data-tour="setup-team-card"]',

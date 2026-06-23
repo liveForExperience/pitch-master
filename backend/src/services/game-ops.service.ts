@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, or } from 'drizzle-orm';
 import type { AppDb } from '../db/client.js';
-import { events, gameEvents, games, rosters, teams } from '../db/schema.js';
+import { events, gameEvents, games, persons, rosters, teams } from '../db/schema.js';
 import { broadcast } from '../lib/sse-broker.js';
 import { newId, nowMs } from '../lib/id.js';
 import { deriveScore } from './game.service.js';
@@ -66,6 +66,7 @@ export async function getEventByShortCode(db: AppDb, shortCode: string) {
       roster: roster.map((r) => ({
         id: r.id,
         name: r.name,
+        personId: r.personId,
         jerseyNumber: r.jerseyNumber,
       })),
     })),
@@ -105,20 +106,63 @@ export async function createTeam(
   return { id, eventId, name: input.name, colorHex };
 }
 
-export async function addRosterMembers(db: AppDb, teamId: string, names: string[]) {
-  const created = [];
-  for (const name of names) {
-    const trimmed = name.trim();
-    if (!trimmed) continue;
-    const id = newId();
-    await db.insert(rosters).values({
-      id,
-      teamId,
-      name: trimmed,
-      createdAt: nowMs(),
-    });
-    created.push({ id, teamId, name: trimmed });
+export type AddRosterInput = {
+  names?: string[];
+  personIds?: string[];
+};
+
+export async function addRosterMembers(db: AppDb, teamId: string, input: AddRosterInput) {
+  const created: Array<{ id: string; teamId: string; personId: string; name: string }> = [];
+
+  if (input.names) {
+    for (const name of input.names) {
+      const trimmed = name.trim();
+      if (!trimmed) continue;
+      const personId = newId();
+      const now = nowMs();
+      await db.insert(persons).values({
+        id: personId,
+        displayName: trimmed,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const rosterId = newId();
+      await db.insert(rosters).values({
+        id: rosterId,
+        teamId,
+        personId,
+        name: trimmed,
+        createdAt: now,
+      });
+      created.push({ id: rosterId, teamId, personId, name: trimmed });
+    }
   }
+
+  if (input.personIds) {
+    for (const personId of input.personIds) {
+      const [person] = await db.select().from(persons).where(eq(persons.id, personId)).limit(1);
+      if (!person) throw new NotFoundError(`Person ${personId} not found`);
+
+      const [dup] = await db
+        .select()
+        .from(rosters)
+        .where(and(eq(rosters.teamId, teamId), eq(rosters.personId, personId)))
+        .limit(1);
+      if (dup) throw new ConflictError('Person already on this team');
+
+      const rosterId = newId();
+      const now = nowMs();
+      await db.insert(rosters).values({
+        id: rosterId,
+        teamId,
+        personId,
+        name: person.displayName,
+        createdAt: now,
+      });
+      created.push({ id: rosterId, teamId, personId, name: person.displayName });
+    }
+  }
+
   return created;
 }
 
@@ -443,11 +487,12 @@ export async function getGameDetail(db: AppDb, gameId: string) {
           id: team.id,
           name: team.name,
           colorHex: team.colorHex,
-          roster: roster.map((r) => ({
-            id: r.id,
-            name: r.name,
-            jerseyNumber: r.jerseyNumber,
-          })),
+        roster: roster.map((r) => ({
+          id: r.id,
+          name: r.name,
+          personId: r.personId,
+          jerseyNumber: r.jerseyNumber,
+        })),
         }
       : undefined;
 

@@ -15,7 +15,19 @@ export type CreatedEvent = {
   createdAt: number;
 };
 
-export type RosterMember = { id: string; name: string; jerseyNumber: number | null };
+export type Person = {
+  id: string;
+  displayName: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type RosterMember = {
+  id: string;
+  name: string;
+  personId: string;
+  jerseyNumber: number | null;
+};
 export type Team = {
   id: string;
   name: string;
@@ -94,10 +106,12 @@ export type TeamStanding = {
 };
 
 export type PlayerRankRow = {
+  personId: string;
   rosterId: string;
   name: string;
   teamId: string;
   teamName: string;
+  teamNames: string[];
   colorHex: string;
   goals?: number;
   assists?: number;
@@ -106,9 +120,11 @@ export type PlayerRankRow = {
 };
 
 export type MvpRow = {
+  personId: string;
   rosterId: string;
   name: string;
   teamName: string;
+  teamNames: string[];
   colorHex: string;
   goals: number;
   assists: number;

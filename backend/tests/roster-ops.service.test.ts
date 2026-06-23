@@ -12,6 +12,7 @@ import {
   updateTeam,
 } from '../src/services/game-ops.service.js';
 import { setupTestDb } from './helpers/test-db.js';
+import { createPerson } from '../src/services/person.service.js';
 
 describe('roster-ops.service', () => {
   it('updates team name', async () => {
@@ -30,7 +31,7 @@ describe('roster-ops.service', () => {
     const { db } = setupTestDb();
     const evt = await createEvent(db, '移除测试');
     const team = await createTeam(db, evt.id, { name: 'A' });
-    const [player] = await addRosterMembers(db, team.id, ['张三']);
+    const [player] = await addRosterMembers(db, team.id, { names: ['张三'] });
 
     const removed = await removeRosterMember(db, player!.id);
     expect(removed).toMatchObject({ id: player!.id, name: '张三', teamId: team.id });
@@ -44,7 +45,7 @@ describe('roster-ops.service', () => {
     const evt = await createEvent(db, '引用测试');
     const teamA = await createTeam(db, evt.id, { name: '红' });
     const teamB = await createTeam(db, evt.id, { name: '蓝' });
-    const [player] = await addRosterMembers(db, teamA.id, ['甲']);
+    const [player] = await addRosterMembers(db, teamA.id, { names: ['甲'] });
     const game = await createGame(db, evt.id, { teamAId: teamA.id, teamBId: teamB.id });
     await startGame(db, game.id);
     await recordGameEvent(db, game.id, {
@@ -57,6 +58,17 @@ describe('roster-ops.service', () => {
 
     await expect(removeRosterMember(db, player!.id)).rejects.toThrow(
       'Cannot remove player with recorded game events',
+    );
+  });
+
+  it('blocks adding same person twice on one team', async () => {
+    const { db } = setupTestDb();
+    const evt = await createEvent(db, '重复测试');
+    const team = await createTeam(db, evt.id, { name: 'A' });
+    const person = await createPerson(db, '张三');
+    await addRosterMembers(db, team.id, { personIds: [person.id] });
+    await expect(addRosterMembers(db, team.id, { personIds: [person.id] })).rejects.toThrow(
+      'Person already on this team',
     );
   });
 });

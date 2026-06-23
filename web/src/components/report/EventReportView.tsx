@@ -65,7 +65,15 @@ function StandingsTable({
   );
 }
 
-function LeaderColumn<T extends { rosterId: string; name: string; teamName: string; colorHex: string }>({
+function LeaderColumn<
+  T extends {
+    personId: string;
+    name: string;
+    teamName: string;
+    teamNames?: string[];
+    colorHex: string;
+  },
+>({
   label,
   rows,
   valueOf,
@@ -86,17 +94,21 @@ function LeaderColumn<T extends { rosterId: string; name: string; teamName: stri
       {rows.length === 0 && (
         <p className="py-3 text-caption text-textSec">{emptyLabel}</p>
       )}
-      {rows.map((row, i) => (
-        <div
-          key={row.rosterId}
-          className={`grid grid-cols-[1.75rem_4px_1fr_auto] items-center gap-x-3 py-3 ${i === Math.min(rows.length, rowsCap) - 1 ? '' : 'border-b border-border'}`}
-        >
-          <RankNumeral rank={i + 1} dim={i + 1 > 3} />
-          <TeamBar colorHex={row.colorHex} height={20} />
-          <div className="min-w-0">
-            <p className="truncate text-body font-semibold text-textPri">{row.name}</p>
-            <p className="truncate text-caption text-textSec">{row.teamName}</p>
-          </div>
+        {rows.map((row, i) => (
+          <div
+            key={row.personId}
+            className={`grid grid-cols-[1.75rem_4px_1fr_auto] items-center gap-x-3 py-3 ${i === Math.min(rows.length, rowsCap) - 1 ? '' : 'border-b border-border'}`}
+          >
+            <RankNumeral rank={i + 1} dim={i + 1 > 3} />
+            <TeamBar colorHex={row.colorHex} height={20} />
+            <div className="min-w-0">
+              <p className="truncate text-body font-semibold text-textPri">{row.name}</p>
+              <p className="truncate text-caption text-textSec">
+                {row.teamNames && row.teamNames.length > 1
+                  ? row.teamNames.join(' / ')
+                  : row.teamName}
+              </p>
+            </div>
           <MonoNumber size="md">{valueOf(row)}</MonoNumber>
         </div>
       ))}
