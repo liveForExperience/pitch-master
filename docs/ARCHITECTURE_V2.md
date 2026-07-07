@@ -193,9 +193,9 @@ erDiagram
         TEXT id PK "ulid"
         TEXT game_id FK
         TEXT client_event_id "客户端 UUID 幂等键"
-        TEXT type "GOAL/OWN_GOAL/ASSIST/UNDO/PAUSE/RESUME/START/FINISH"
+        TEXT type "GOAL/OWN_GOAL/ASSIST/UNDO/PAUSE/RESUME/START/FINISH/PENALTY_MADE/PENALTY_MISSED/SHOOTOUT_END"
         TEXT team_side "A/B; PAUSE 等无意义事件可空"
-        TEXT scorer_roster_id "GOAL 必填"
+        TEXT scorer_roster_id "GOAL / PENALTY_* 必填"
         TEXT assistant_roster_id "ASSIST 可空"
         TEXT undo_target_event_id "UNDO 必填"
         INTEGER client_ts "客户端时间戳"
@@ -231,13 +231,18 @@ CREATE UNIQUE INDEX idx_roster_team_person ON roster(team_id, person_id);
 
 | 派生项 | 公式 |
 |---|---|
-| 当前比分 | `count(GOAL where team_side=A and not undone) + count(OWN_GOAL where team_side=B and not undone) - ...` |
+| 当前比分（常规） | `count(GOAL where team_side=A and not undone) + count(OWN_GOAL where team_side=B and not undone) - ...`（`PENALTY_*` 不参与） |
 | 已用时（ms） | `now - started_at - paused_duration_ms - (pause_started_at ? now - pause_started_at : 0)` |
 | 剩余时间 | `planned_duration_ms - 已用时` |
 | MVP | 进球+助攻最多的 **person**；并列取较早出现者 |
 | 赛后修正 | Admin 可对任意有效进球写入 UNDO（不限顺序）；修改 = 撤销原事件 + 写入新进球 |
-| 射手榜 | group by **person_id**（经 scorer_roster_id → roster.person_id），count desc |
-| 助攻榜 | group by **person_id**（经 assistant_roster_id → roster.person_id），count desc |
+| 射手榜 | group by **person_id**（经 scorer_roster_id → roster.person_id），仅统计 `GOAL`；同分按名字 `localeCompare('zh-Hans')` |
+| 助攻榜 | group by **person_id**（经 assistant_roster_id → roster.person_id），仅统计 `GOAL` 的助攻；同分按名字 |
+| 积分榜排序 | ①积分 ②净胜球 ③进球数 ④同分组内 head-to-head 迷你联赛（②/③ 再走一遍）⑤仍相同则并列（共享 rank） |
+| 点球大战比分 | `count(PENALTY_MADE where team_side=A and not undone)` 分别对 A/B；胜者按 5 轮规则决定，超过 5 轮进入 sudden-death |
+| 点球大战首罚方 | 由 `kicks[0].teamSide` 派生；开始前由 UI 本地状态选择，写入首脚后固定 |
+| 点球大战结束 | 管理员显式 `SHOOTOUT_END` 事件（可 UNDO 重开）；写入前守卫必须 `attemptsA==attemptsB && decided` |
+| 最终比分展示 | 常规时间比分不变；若点球大战有 kicks 则展示 `A(madeA):B(madeB)`（如 1(5):1(4)） |
 
 ---
 
@@ -446,7 +451,7 @@ interface OutboxItem {
   eventId: string;         // 父活动 id，flush 时解析 adminToken
   payload: {
     clientEventId: string;
-    type: 'GOAL' | 'UNDO';
+    type: 'GOAL' | 'OWN_GOAL' | 'UNDO' | 'PENALTY_MADE' | 'PENALTY_MISSED' | 'SHOOTOUT_END';
     teamSide?: 'A' | 'B';
     scorerRosterId?: string;
     assistantRosterId?: string;
@@ -552,28 +557,22 @@ function computeStandings(event): TeamStanding[] {
     s.goalDiff = s.goalsFor - s.goalsAgainst
   }
 
-  // 排序：积分 desc → 净胜球 desc → 进球数 desc → 队名 asc
-  const sorted = [...acc.values()].sort((x, y) =>
-    y.points - x.points
-    || y.goalDiff - x.goalDiff
-    || y.goalsFor - x.goalsFor
-    || x.teamName.localeCompare(y.teamName, 'zh-Hans')
-  )
-  sorted.forEach((s, i) => s.rank = i + 1)
-  return sorted
-}
+  // 排序：①积分 desc → ②净胜球 desc → ③进球数 desc → ④同分组内 head-to-head
+  //       迷你联赛（重复 ①/②/③）→ 仍并列则共享 rank，UI 内按队名稳定展示。
+  // 见 backend/src/services/report.service.ts computeStandings（含
+  // miniLeague() / headToHeadRank() 实现）。
 ```
 
 **射手榜（top scorers）**：
-- 统计所有 `FINISHED` 场次中、未被 `UNDO` 的 `GOAL` 事件
+- 统计所有 `FINISHED` 场次中、未被 `UNDO` 的 `GOAL` 事件（`PENALTY_MADE` **不计入**）
 - 解析 `scorer_roster_id` → `roster.person_id`，按 **person_id** group by，count desc
-- 同分按「首次进球时间」升序（先进者靠前）
+- 同分按 `name.localeCompare('zh-Hans')` 升序（字母/拼音字典序）
 - 展示 `person.display_name`；`teamNames[]` 收集该 person 在本活动内所有贡献过的队伍（去重）
 - 截断至 `REPORT_TOP_N`（5）
 
 **助攻榜（top assists）**：
-- 统计所有 `FINISHED` 场次中、未被 `UNDO` 且 `assistant_roster_id` 非空的事件
-- 按 `assistant_roster_id` → `person_id` group by；其余同射手榜
+- 统计所有 `FINISHED` 场次中、未被 `UNDO` 且 `assistant_roster_id` 非空的 `GOAL` 事件
+- 按 `assistant_roster_id` → `person_id` group by；同分同样按名字字母序
 
 **活动 MVP**：
 - 每个 **person** 计算 `goals + assists` 总分（跨其在本活动内全部 roster 出场）
@@ -633,9 +632,27 @@ interface GameReport {
     assistantName?: string,
     type: 'GOAL' | 'OWN_GOAL'
   }>
+  shootout: null | {                     // 有点球大战数据时才返回
+    madeA: number, madeB: number,
+    attemptsA: number, attemptsB: number,
+    winner: 'A' | 'B' | null,            // 由 shootout.service 派生
+    decided: boolean,                    // 数学上是否已分出胜负
+    ended: boolean                       // 管理员是否已显式写入 SHOOTOUT_END
+  }
   gameMvp?: { rosterId, name, teamName, colorHex, goals, assists }
 }
 ```
+
+`GET /api/events/:shortCode` 与 `GET /api/events/:shortCode/report` 返回的 `games[]` 也带 `shootout: { madeA, madeB, winner, ended } | null`，供前端合并展示 `A(madeA):B(madeB)`。
+
+**点球大战（`PENALTY_MADE` / `PENALTY_MISSED` / `SHOOTOUT_END`）**：
+- 仅在 `game.status === 'FINISHED'` 且常规时间平局时允许写入（后端 guard）
+- 不参与 `deriveScore()`，不进入射手/助攻榜、不影响积分榜
+- `SHOOTOUT_END`：显式"结束点球大战"信号；写入前 guard 必须 `canEndShootout(state)`（轮数相等 + 已分胜负）；可被 `UNDO` 重开
+- 胜负判定见 `backend/src/services/shootout.service.ts`：5 轮 + sudden-death；数学淘汰即刻结束
+- 首罚方由 `kicks[0].teamSide` 派生；未开始前由前端 UI 本地状态选择
+- 乌龙球（`OWN_GOAL`）：`teamSide` 存**踢入自家门的一方**；DB 中 scorer_roster_id 可选，若填则来自 `teamSide` 那一队；`deriveScore()` 将该事件计入对方比分
+- 前端在 `record` 页 FINISHED 平局时展示「进入点球大战」入口 → `ShootoutPanel`
 
 ### 7.4 渲染管线（服务端 satori）
 

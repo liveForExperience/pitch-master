@@ -2,7 +2,13 @@ export type OutboxItemStatus = 'PENDING' | 'SENDING' | 'FAILED';
 
 export type OutboxGameEventPayload = {
   clientEventId: string;
-  type: 'GOAL' | 'UNDO';
+  type:
+    | 'GOAL'
+    | 'OWN_GOAL'
+    | 'UNDO'
+    | 'PENALTY_MADE'
+    | 'PENALTY_MISSED'
+    | 'SHOOTOUT_END';
   teamSide?: 'A' | 'B';
   scorerRosterId?: string;
   assistantRosterId?: string;

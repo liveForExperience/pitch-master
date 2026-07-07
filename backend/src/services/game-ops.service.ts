@@ -4,6 +4,7 @@ import { events, gameEvents, games, persons, rosters, teams } from '../db/schema
 import { broadcast } from '../lib/sse-broker.js';
 import { newId, nowMs } from '../lib/id.js';
 import { deriveScore } from './game.service.js';
+import { canEndShootout, deriveShootoutState } from './shootout.service.js';
 import { buildTimerState } from './timer.service.js';
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js';
 import { DEFAULT_PLANNED_DURATION_MS } from '../lib/game-defaults.js';
@@ -72,7 +73,18 @@ export async function getEventByShortCode(db: AppDb, shortCode: string) {
     })),
     games: eventGames.map((g) => {
       const rows = rowsByGame.get(g.id) ?? [];
-      const { scoreA, scoreB } = deriveScore(mapScoreEvents(rows));
+      const scoreEvents = mapScoreEvents(rows);
+      const { scoreA, scoreB } = deriveScore(scoreEvents);
+      const state = deriveShootoutState(scoreEvents);
+      const shootout =
+        state.attemptsA + state.attemptsB > 0
+          ? {
+              madeA: state.madeA,
+              madeB: state.madeB,
+              winner: state.winner,
+              ended: state.ended,
+            }
+          : null;
       return {
         id: g.id,
         teamAId: g.teamAId,
@@ -83,6 +95,7 @@ export async function getEventByShortCode(db: AppDb, shortCode: string) {
         plannedDurationMs: g.plannedDurationMs,
         scoreA,
         scoreB,
+        shootout,
       };
     }),
   };
@@ -347,7 +360,13 @@ export async function deleteGame(db: AppDb, gameId: string) {
 
 export type RecordEventInput = {
   clientEventId: string;
-  type: 'GOAL' | 'OWN_GOAL' | 'ASSIST';
+  type:
+    | 'GOAL'
+    | 'OWN_GOAL'
+    | 'ASSIST'
+    | 'PENALTY_MADE'
+    | 'PENALTY_MISSED'
+    | 'SHOOTOUT_END';
   teamSide?: 'A' | 'B';
   scorerRosterId?: string;
   assistantRosterId?: string;
@@ -356,7 +375,42 @@ export type RecordEventInput = {
 
 export async function recordGameEvent(db: AppDb, gameId: string, input: RecordEventInput) {
   const game = await loadGame(db, gameId);
-  if (game.status !== 'PLAYING' && game.status !== 'PAUSED' && game.status !== 'FINISHED') {
+  const isPenaltyKick = input.type === 'PENALTY_MADE' || input.type === 'PENALTY_MISSED';
+  const isShootoutEnd = input.type === 'SHOOTOUT_END';
+  if (isPenaltyKick || isShootoutEnd) {
+    // Shootout events are only meaningful after regulation ends on a draw.
+    if (game.status !== 'FINISHED') {
+      throw new ConflictError(
+        'Shootout events can only be recorded after the game is finished',
+      );
+    }
+    const currentEvents = await loadGameEvents(db, gameId);
+    const currentScore = deriveScore(mapScoreEvents(currentEvents));
+    if (currentScore.scoreA !== currentScore.scoreB) {
+      throw new ConflictError('Penalty shootout requires a drawn regulation score');
+    }
+    if (isShootoutEnd) {
+      const state = deriveShootoutState(
+        currentEvents.map((e) => ({
+          id: e.id,
+          type: e.type,
+          teamSide: e.teamSide,
+          undoTargetEventId: e.undoTargetEventId,
+        })),
+      );
+      // Reject if rounds unequal or nobody has won yet — matches UI guard
+      // so this stays true regardless of client-side race conditions.
+      if (!canEndShootout(state)) {
+        throw new ConflictError(
+          'Cannot end shootout unless both sides have taken the same number of kicks and a winner has emerged',
+        );
+      }
+    }
+  } else if (
+    game.status !== 'PLAYING' &&
+    game.status !== 'PAUSED' &&
+    game.status !== 'FINISHED'
+  ) {
     throw new ConflictError('Cannot record events unless game has started');
   }
 
@@ -375,6 +429,9 @@ export async function recordGameEvent(db: AppDb, gameId: string, input: RecordEv
   }
   if (input.type === 'OWN_GOAL' && !input.teamSide) {
     throw new ValidationError('OWN_GOAL requires teamSide');
+  }
+  if (isPenaltyKick && (!input.teamSide || !input.scorerRosterId)) {
+    throw new ValidationError('Penalty kicks require teamSide and scorerRosterId');
   }
 
   const id = newId();

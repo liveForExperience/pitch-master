@@ -6,7 +6,10 @@ export type GameEventType =
   | 'PAUSE'
   | 'RESUME'
   | 'START'
-  | 'FINISH';
+  | 'FINISH'
+  | 'PENALTY_MADE'
+  | 'PENALTY_MISSED'
+  | 'SHOOTOUT_END';
 
 export type TeamSide = 'A' | 'B';
 

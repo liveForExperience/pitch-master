@@ -5,7 +5,7 @@ import {
   buildRosterNameMap,
   formatGameEventLabel,
   getUndoneEventIds,
-  listActiveScorableEvents,
+  listActiveFeedEvents,
 } from '../lib/game-events';
 
 type GameEventRow = GameDetail['events'][number];
@@ -29,11 +29,14 @@ function EditableEventRow({
   time,
   onEdit,
   onDelete,
+  editable = true,
 }: {
   label: string;
   time: string;
   onEdit: () => void;
   onDelete: () => void;
+  /** Show the pencil button. False for penalties — the ShootoutPanel is the source of truth. */
+  editable?: boolean;
 }) {
   const t = useT();
 
@@ -41,14 +44,16 @@ function EditableEventRow({
     <li className="flex items-center gap-2 rounded-xl border border-border px-3 py-2.5">
       <p className="min-w-0 flex-1 truncate text-sm font-medium text-textPri">{label}</p>
       <time className="shrink-0 font-mono text-xs tabular-nums text-textSec">{time}</time>
-      <button
-        type="button"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-textSec transition-colors active:bg-elevated/80"
-        aria-label={t('common.edit')}
-        onClick={onEdit}
-      >
-        <PencilSimple size={18} weight="bold" aria-hidden />
-      </button>
+      {editable && (
+        <button
+          type="button"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-textSec transition-colors active:bg-elevated/80"
+          aria-label={t('common.edit')}
+          onClick={onEdit}
+        >
+          <PencilSimple size={18} weight="bold" aria-hidden />
+        </button>
+      )}
       <button
         type="button"
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-danger transition-colors active:bg-elevated/80"
@@ -87,11 +92,16 @@ export function GameEventFeed({
   const teamB = game.teamB?.name;
 
   const visible = editable
-    ? listActiveScorableEvents(game.events)
+    ? listActiveFeedEvents(game.events)
     : game.events.filter((e) => {
         if (!scorableOnly) return true;
         if (e.type === 'UNDO') return true;
-        return e.type === 'GOAL' || e.type === 'OWN_GOAL';
+        return (
+          e.type === 'GOAL' ||
+          e.type === 'OWN_GOAL' ||
+          e.type === 'PENALTY_MADE' ||
+          e.type === 'PENALTY_MISSED'
+        );
       });
 
   if (visible.length === 0) {
@@ -104,15 +114,19 @@ export function GameEventFeed({
   if (editable) {
     return (
       <ul className="space-y-2">
-        {rows.map((e) => (
-          <EditableEventRow
-            key={e.id}
-            label={formatGameEventLabel(e, names, teamA, teamB, t)}
-            time={formatTime(e.serverTs)}
-            onEdit={() => onEdit?.(e)}
-            onDelete={() => onDelete?.(e)}
-          />
-        ))}
+        {rows.map((e) => {
+          const isPenalty = e.type === 'PENALTY_MADE' || e.type === 'PENALTY_MISSED';
+          return (
+            <EditableEventRow
+              key={e.id}
+              label={formatGameEventLabel(e, names, teamA, teamB, t)}
+              time={formatTime(e.serverTs)}
+              editable={!isPenalty}
+              onEdit={() => onEdit?.(e)}
+              onDelete={() => onDelete?.(e)}
+            />
+          );
+        })}
       </ul>
     );
   }

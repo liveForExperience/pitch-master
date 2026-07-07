@@ -12,6 +12,7 @@ import {
 import type { GameDetail } from '../api/types';
 import { GameEventFeed } from '../components/GameEventFeed';
 import { GoalPickPanel, type PickPhase } from '../components/GoalPickPanel';
+import { ShootoutPanel } from '../components/ShootoutPanel';
 import { InlineAlert } from '../components/ui/inline-alert';
 import { PagePanel, PagePanelBody, PagePanelHeader } from '../components/ui/page-panel';
 import { Tour } from '../components/tour/Tour';
@@ -19,7 +20,9 @@ import { RECORD_TOUR_STEPS, TOUR_IDS } from '../components/tour/tour-config';
 import { usePageTour } from '../components/tour/use-page-tour';
 import { useT } from '../i18n';
 import { PageShell, PrimaryButton } from '../components/ui/layout';
+import { deriveShootoutView } from '../lib/game-events';
 import { mergeGameWithOutbox, resolveUndoTarget } from '../lib/outbox/merge-game';
+import { formatShootoutBadge } from '../lib/report-display';
 import { formatMs } from '../lib/time-format';
 import { useGameStream } from '../lib/use-game-stream';
 import { useLiveGameTimer, useServerOffset } from '../lib/use-live-game-timer';
@@ -33,14 +36,23 @@ type EditingGoal = { eventId: string; side: 'A' | 'B' };
 function RecordScoreHero({
   game,
   timer,
+  shootoutSummary,
 }: {
   game: GameDetail;
   timer: ReturnType<typeof useLiveGameTimer>;
+  shootoutSummary: {
+    madeA: number;
+    madeB: number;
+    winner: 'A' | 'B' | null;
+    ended: boolean;
+  } | null;
 }) {
   const t = useT();
   const teamA = game.teamA ?? { name: 'A', colorHex: '#64748b' };
   const teamB = game.teamB ?? { name: 'B', colorHex: '#64748b' };
   const finished = game.game.status === 'FINISHED';
+
+  const shootoutBadge = formatShootoutBadge(shootoutSummary, t);
 
   const statusLine = finished
     ? `${t('record.statusFinished').toUpperCase()} · ${formatMs(timer?.elapsedMs ?? 0)}`
@@ -73,6 +85,12 @@ function RecordScoreHero({
         <span className="text-[168px] leading-none text-textPri">{game.scoreB}</span>
       </div>
 
+      {shootoutBadge && (
+        <p className="mb-2 text-center font-mono text-[13px] font-semibold uppercase tracking-[0.18em] text-textSec">
+          {shootoutBadge}
+        </p>
+      )}
+
       <p className="text-center font-mono text-[11px] uppercase tracking-[0.14em] text-textSec">
         {statusLine}
       </p>
@@ -90,6 +108,7 @@ export function GameRecordPage() {
   const [error, setError] = useState('');
   const [pick, setPick] = useState<PickPhase>(null);
   const [editing, setEditing] = useState<EditingGoal | null>(null);
+  const [shootoutOpen, setShootoutOpen] = useState(false);
 
   const outboxItems = useOutboxStore((s) => s.items);
   const enqueue = useOutboxStore((s) => s.enqueue);
@@ -137,6 +156,12 @@ export function GameRecordPage() {
     if (!game) return [];
     const team = side === 'A' ? game.teamA : game.teamB;
     return team?.roster ?? [];
+  };
+
+  const teamNameForSide = (side: 'A' | 'B') => {
+    if (!game) return side;
+    const team = side === 'A' ? game.teamA : game.teamB;
+    return team?.name ?? side;
   };
 
   const onStart = async () => {
@@ -199,6 +224,94 @@ export function GameRecordPage() {
     }
   };
 
+  /**
+   * `side` = the team that receives the point (the panel the admin opened).
+   * The DB event has `teamSide` = opposite of `side` because that side is
+   * the team who scored into their own net. `scorerRosterId` is the
+   * offending player on the opposing team (optional; may be unknown).
+   */
+  const submitOwnGoal = async (side: 'A' | 'B', scorerRosterId?: string) => {
+    if (!token || !serverGame) return;
+    const clientTs = Date.now() + serverOffset;
+    const guiltyTeam: 'A' | 'B' = side === 'A' ? 'B' : 'A';
+    try {
+      await enqueue(
+        id,
+        serverGame.game.eventId,
+        {
+          clientEventId: newClientEventId(),
+          type: 'OWN_GOAL',
+          teamSide: guiltyTeam,
+          scorerRosterId,
+        },
+        clientTs,
+      );
+      setPick(null);
+      setEditing(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error.generic'));
+    }
+  };
+
+  const submitPenaltyKick = async (
+    side: 'A' | 'B',
+    scorerRosterId: string,
+    made: boolean,
+  ) => {
+    if (!token || !serverGame) return;
+    try {
+      await enqueue(
+        id,
+        serverGame.game.eventId,
+        {
+          clientEventId: newClientEventId(),
+          type: made ? 'PENALTY_MADE' : 'PENALTY_MISSED',
+          teamSide: side,
+          scorerRosterId,
+        },
+        Date.now() + serverOffset,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error.generic'));
+    }
+  };
+
+  const submitShootoutEnd = async () => {
+    if (!token || !serverGame) return;
+    try {
+      await enqueue(
+        id,
+        serverGame.game.eventId,
+        {
+          clientEventId: newClientEventId(),
+          type: 'SHOOTOUT_END',
+        },
+        Date.now() + serverOffset,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error.generic'));
+    }
+  };
+
+  const submitReopenShootout = async (endEventId: string) => {
+    if (!token || !serverGame) return;
+    try {
+      const undoTarget = resolveUndoTarget(endEventId, serverGame.events, pendingForGame);
+      await enqueue(
+        id,
+        serverGame.game.eventId,
+        {
+          clientEventId: newClientEventId(),
+          type: 'UNDO',
+          ...undoTarget,
+        },
+        Date.now() + serverOffset,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error.generic'));
+    }
+  };
+
   const onDeleteGoal = async (eventId: string) => {
     if (!token || !serverGame) return;
     try {
@@ -254,6 +367,11 @@ export function GameRecordPage() {
   const finished = game.game.status === 'FINISHED';
   const inProgress = game.game.status === 'PLAYING' || game.game.status === 'PAUSED';
   const hasPending = pendingForGame.length > 0;
+  const shootoutView = deriveShootoutView(game.events);
+  const isDrawn = game.scoreA === game.scoreB;
+  const shootoutStarted = shootoutView.kicks.length > 0;
+  const showShootoutEntry = finished && isDrawn && !shootoutStarted && !shootoutOpen;
+  const showShootoutPanel = finished && (shootoutStarted || shootoutOpen);
 
   return (
     <PageShell
@@ -268,7 +386,20 @@ export function GameRecordPage() {
       )}
 
       <div className="space-y-4 -mt-1">
-        <RecordScoreHero game={game} timer={timer} />
+        <RecordScoreHero
+          game={game}
+          timer={timer}
+          shootoutSummary={
+            shootoutStarted
+              ? {
+                  madeA: shootoutView.madeA,
+                  madeB: shootoutView.madeB,
+                  winner: shootoutView.winner,
+                  ended: shootoutView.ended,
+                }
+              : null
+          }
+        />
 
         {(game.game.status === 'READY' || inProgress) && (
           <PagePanel data-tour="record-controls">
@@ -323,15 +454,45 @@ export function GameRecordPage() {
           pick={pick}
           editing={Boolean(editing)}
           rosterForSide={rosterForSide}
+          opposingRosterForSide={(side) => rosterForSide(side === 'A' ? 'B' : 'A')}
+          teamNameForSide={teamNameForSide}
           onPickScorer={(side, scorerId, scorerName) =>
             setPick({ side, scorerId, scorerName })
           }
           onSubmitGoal={(side, scorerId, assistantId) =>
             void submitGoal(side, scorerId, assistantId)
           }
+          onSubmitOwnGoal={(side, scorerRosterId) =>
+            void submitOwnGoal(side, scorerRosterId)
+          }
+          onPickOwnGoal={(side) => setPick({ side, mode: 'own-goal' })}
           onCancel={cancelPick}
           onBackToScorerList={(side) => setPick({ side })}
         />
+
+        {showShootoutEntry && (
+          <PagePanel>
+            <PagePanelBody className="space-y-2 text-center">
+              <p className="text-sm text-textSec">{t('shootout.tiedHint')}</p>
+              <PrimaryButton onClick={() => setShootoutOpen(true)}>
+                {t('shootout.enter')}
+              </PrimaryButton>
+            </PagePanelBody>
+          </PagePanel>
+        )}
+
+        {showShootoutPanel && (
+          <ShootoutPanel
+            game={game}
+            onRecordKick={(side, scorerId, made) =>
+              void submitPenaltyKick(side, scorerId, made)
+            }
+            onUndoKick={(eventId) => void onDeleteGoal(eventId)}
+            onEndShootout={() => void submitShootoutEnd()}
+            onReopenShootout={(endId) => void submitReopenShootout(endId)}
+            onClose={shootoutStarted ? undefined : () => setShootoutOpen(false)}
+          />
+        )}
 
         <PagePanel data-tour="record-feed">
           <PagePanelHeader

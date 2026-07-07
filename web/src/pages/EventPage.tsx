@@ -8,10 +8,10 @@ import { ApiError } from '../api/client';
 import type { EventDetail } from '../api/types';
 import { EventCredentialsCard } from '../components/EventCredentialsCard';
 import { EventGameRow } from '../components/event/EventGameRow';
-import { EventSharePanel } from '../components/report/EventSharePanel';
 import { ConfirmDangerDialog } from '../components/ui/confirm-danger-dialog';
-import { Flag, Trash } from '@phosphor-icons/react';
+import { Browser, Flag, Trash } from '@phosphor-icons/react';
 import { DangerActionTile } from '../components/ui/danger-zone';
+import { eventReportPath } from '../lib/share-report';
 import { InlineAlert } from '../components/ui/inline-alert';
 import { Card, PageShell, PrimaryButton } from '../components/ui/layout';
 import { PagePanel, PagePanelBody, PagePanelHeader } from '../components/ui/page-panel';
@@ -309,6 +309,7 @@ export function EventPage() {
                         status={g.status}
                         scoreA={g.scoreA}
                         scoreB={g.scoreB}
+                        shootout={g.shootout ?? null}
                         isAdmin={showAsAdmin}
                         onDelete={showAsAdmin ? () => setDeleteGameId(g.id) : undefined}
                       />
@@ -332,33 +333,59 @@ export function EventPage() {
             )}
           </PagePanel>
 
-          {event.games.length > 0 && (
-            <EventSharePanel eventName={event.name} shortCode={event.shortCode} />
-          )}
-
           {showAsAdmin && (
             <PagePanel data-tour="event-manage">
               <PagePanelHeader
                 title={t('event.manageSection')}
                 subtitle={t('event.manageHint')}
               />
-              <PagePanelBody>
-                <div className={ended ? '' : 'grid grid-cols-2 gap-2'}>
-                  {!ended && (
-                    <DangerActionTile
-                      icon={Flag}
-                      title={t('event.finish')}
-                      tone="warning"
-                      onClick={() => setFinishOpen(true)}
-                    />
-                  )}
-                  <DangerActionTile
-                    icon={Trash}
-                    title={t('event.delete')}
-                    tone="danger"
-                    onClick={() => setDeleteOpen(true)}
-                  />
-                </div>
+              <PagePanelBody className="space-y-2">
+                {(() => {
+                  const showReport = event.games.length > 0;
+                  const showFinish = !ended;
+                  const primaryCount = (showReport ? 1 : 0) + (showFinish ? 1 : 0);
+                  if (primaryCount === 0) return null;
+                  return (
+                    <div
+                      className={
+                        primaryCount === 2 ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1'
+                      }
+                    >
+                      {showReport && (
+                        <Link
+                          to={eventReportPath(event.shortCode)}
+                          className="flex min-h-[4.5rem] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-border px-2 py-3 text-center transition-colors active:bg-elevated/80"
+                        >
+                          <Browser
+                            size={22}
+                            weight="bold"
+                            className="text-primary"
+                            aria-hidden
+                          />
+                          <span className="text-sm font-semibold leading-tight text-textPri">
+                            {t('share.previewReport')}
+                          </span>
+                        </Link>
+                      )}
+                      {showFinish && (
+                        <DangerActionTile
+                          icon={Flag}
+                          title={t('event.finish')}
+                          tone="warning"
+                          onClick={() => setFinishOpen(true)}
+                        />
+                      )}
+                    </div>
+                  );
+                })()}
+                <button
+                  type="button"
+                  onClick={() => setDeleteOpen(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface py-2.5 text-sm font-semibold text-danger transition-colors active:bg-danger/5"
+                >
+                  <Trash size={16} weight="bold" aria-hidden />
+                  {t('event.delete')}
+                </button>
               </PagePanelBody>
             </PagePanel>
           )}

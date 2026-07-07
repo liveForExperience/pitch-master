@@ -159,7 +159,13 @@ gamesRoute.post('/games/:id/events', async (c) => {
 
   const body = await readJson<{
     clientEventId?: string;
-    type?: 'GOAL' | 'OWN_GOAL' | 'ASSIST';
+    type?:
+      | 'GOAL'
+      | 'OWN_GOAL'
+      | 'ASSIST'
+      | 'PENALTY_MADE'
+      | 'PENALTY_MISSED'
+      | 'SHOOTOUT_END';
     teamSide?: 'A' | 'B';
     scorerRosterId?: string;
     assistantRosterId?: string;

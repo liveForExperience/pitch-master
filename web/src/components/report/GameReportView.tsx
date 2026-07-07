@@ -15,6 +15,7 @@ import {
   gameReportPath,
   type ShareReportInput,
 } from '../../lib/share-report';
+import { formatShootoutBadge } from '../../lib/report-display';
 import { formatMs } from '../../lib/time-format';
 import { useT } from '../../i18n';
 
@@ -75,11 +76,13 @@ function HeroScore({
   scoreB,
   teamA,
   teamB,
+  shootoutBadge,
 }: {
   scoreA: number;
   scoreB: number;
   teamA: { name: string; colorHex: string };
   teamB: { name: string; colorHex: string };
+  shootoutBadge: string | null;
 }) {
   return (
     <div className="space-y-4">
@@ -98,6 +101,11 @@ function HeroScore({
         <span className="text-[56px] leading-none text-textSec">:</span>
         <span className="text-[112px] leading-none text-textPri">{scoreB}</span>
       </div>
+      {shootoutBadge && (
+        <p className="text-center font-mono text-[13px] font-semibold uppercase tracking-[0.18em] text-textSec">
+          {shootoutBadge}
+        </p>
+      )}
     </div>
   );
 }
@@ -114,6 +122,12 @@ export function GameReportView({
   const teamA = game.teamA ?? { id: '', name: 'A', colorHex: '#64748b' };
   const teamB = game.teamB ?? { id: '', name: 'B', colorHex: '#64748b' };
 
+  const shootoutWinnerName =
+    report.shootout?.winner === 'A'
+      ? teamA.name
+      : report.shootout?.winner === 'B'
+        ? teamB.name
+        : null;
   const verdict =
     game.status !== 'FINISHED' ? (
       t('reports.gameInProgress')
@@ -124,6 +138,11 @@ export function GameReportView({
     ) : game.scoreA < game.scoreB ? (
       <>
         {teamB.name} <i className="font-serif italic">{t('reports.verdictWins')}</i>
+      </>
+    ) : shootoutWinnerName ? (
+      <>
+        {shootoutWinnerName}{' '}
+        <i className="font-serif italic">{t('reports.verdictWinsOnPenalties')}</i>
       </>
     ) : (
       <i className="font-serif italic">{t('reports.verdictDraw')}</i>
@@ -152,8 +171,59 @@ export function GameReportView({
           </span>
         }
       >
-        <HeroScore scoreA={game.scoreA} scoreB={game.scoreB} teamA={teamA} teamB={teamB} />
+        <HeroScore
+          scoreA={game.scoreA}
+          scoreB={game.scoreB}
+          teamA={teamA}
+          teamB={teamB}
+          shootoutBadge={formatShootoutBadge(
+            report.shootout
+              ? {
+                  madeA: report.shootout.madeA,
+                  madeB: report.shootout.madeB,
+                  winner: report.shootout.winner,
+                  ended: report.shootout.ended ?? false,
+                }
+              : null,
+            t,
+          )}
+        />
       </ReportHero>
+
+      {report.shootout && (
+        <ReportSection title={t('reports.shootout')}>
+          <div className="flex items-baseline justify-between gap-3 pt-1">
+            <div className="flex items-center gap-3">
+              <TeamBar colorHex={teamA.colorHex} height={28} />
+              <div>
+                <p className="text-caption text-textSec">{teamA.name}</p>
+                <p className="font-mono text-3xl font-bold text-textPri">
+                  {report.shootout.madeA}
+                </p>
+              </div>
+            </div>
+            <p className="font-mono text-xl text-textSec">:</p>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-caption text-textSec">{teamB.name}</p>
+                <p className="font-mono text-3xl font-bold text-textPri">
+                  {report.shootout.madeB}
+                </p>
+              </div>
+              <TeamBar colorHex={teamB.colorHex} height={28} />
+            </div>
+          </div>
+          <p className="mt-3 text-caption text-textSec">
+            {shootoutWinnerName
+              ? t('reports.shootout.winner', {
+                  team: shootoutWinnerName,
+                  madeA: report.shootout.madeA,
+                  madeB: report.shootout.madeB,
+                })
+              : t('reports.shootout.pending')}
+          </p>
+        </ReportSection>
+      )}
 
       <ReportSection
         title={t('reports.goals')}
