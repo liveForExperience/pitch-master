@@ -16,7 +16,7 @@ import {
   type ShareReportInput,
 } from '../../lib/share-report';
 import { PosterPreview } from './PosterPreview';
-import { getMatchResult } from '../../lib/report-display';
+import { formatShootoutBadge, getMatchResult } from '../../lib/report-display';
 import { formatMs } from '../../lib/time-format';
 import { useT } from '../../i18n';
 
@@ -159,19 +159,31 @@ function GamesTimeline({
       style={{ scrollbarWidth: 'none' }}
     >
       {games.map((game) => {
-        const result = getMatchResult(game.scoreA, game.scoreB, game.status);
+        const shootout = game.shootout ?? null;
+        const result = getMatchResult(game.scoreA, game.scoreB, game.status, shootout);
         const winner =
           result === 'A_WIN'
             ? game.teamA.name
             : result === 'B_WIN'
               ? game.teamB.name
               : null;
-        const verdict =
+        const shootoutBadge = formatShootoutBadge(shootout, t);
+        // If regulation was tied but the shootout decided it, tag the
+        // winner as "on PK" so the fixtures card mirrors the standings
+        // logic. Regulation-only wins keep the plain "wins" verdict.
+        const decidedByShootout =
+          result !== 'DRAW' &&
+          result !== 'PENDING' &&
+          game.scoreA === game.scoreB &&
+          shootout?.winner != null;
+        const verdictKey =
           result === 'DRAW'
             ? t('reports.fixtures.draw')
             : result === 'PENDING'
               ? t('reports.fixtures.pending')
-              : t('reports.fixtures.winner', { team: winner ?? '' });
+              : decidedByShootout
+                ? t('reports.fixtures.winnerPk', { team: winner ?? '' })
+                : t('reports.fixtures.winner', { team: winner ?? '' });
         return (
           <Link
             key={game.id}
@@ -197,7 +209,12 @@ function GamesTimeline({
               </div>
               <MonoNumber size="lg">{game.scoreB}</MonoNumber>
             </div>
-            <p className="text-caption text-textSec">{verdict}</p>
+            {shootoutBadge && (
+              <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-textSec">
+                {shootoutBadge}
+              </p>
+            )}
+            <p className="text-caption text-textSec">{verdictKey}</p>
           </Link>
         );
       })}

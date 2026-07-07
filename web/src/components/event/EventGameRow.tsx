@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom';
 import { StatusChip } from '../ui/status-chip';
 import { TeamBadge } from '../ui/team-badge';
 import { useT } from '../../i18n';
-import { gameStatusLabel } from '../../lib/report-display';
+import {
+  formatShootoutBadge,
+  gameStatusLabel,
+  type ShootoutSummary,
+} from '../../lib/report-display';
 import { gameStatusVariant } from '../../lib/game-status-ui';
 import { buildGameRecordHref } from '../../lib/game-routes';
 
@@ -18,6 +22,7 @@ type Props = {
   status: string;
   scoreA: number;
   scoreB: number;
+  shootout?: ShootoutSummary;
   isAdmin: boolean;
   onDelete?: () => void;
 };
@@ -33,10 +38,12 @@ export function EventGameRow({
   status,
   scoreA,
   scoreB,
+  shootout,
   isAdmin,
   onDelete,
 }: Props) {
   const t = useT();
+  const shootoutBadge = formatShootoutBadge(shootout ?? null, t);
   const href =
     isAdmin && eventId && shortCode
       ? buildGameRecordHref(gameId, { eventId, shortCode })
@@ -58,8 +65,15 @@ export function EventGameRow({
         </div>
         <div className="flex items-center justify-between gap-2">
           <TeamBadge name={teamAName} colorHex={teamAColor} className="min-w-0 flex-1" />
-          <div className="shrink-0 font-score tabular-nums text-[3.2rem] font-semibold leading-none text-textPri">
-            {scoreA} : {scoreB}
+          <div className="shrink-0 text-center">
+            <div className="font-score tabular-nums text-[3.2rem] font-semibold leading-none text-textPri">
+              {scoreA} : {scoreB}
+            </div>
+            {shootoutBadge && (
+              <div className="mt-1 font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-textSec">
+                {shootoutBadge}
+              </div>
+            )}
           </div>
           <TeamBadge
             name={teamBName}

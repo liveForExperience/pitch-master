@@ -35,6 +35,13 @@ export type Team = {
   roster: RosterMember[];
 };
 
+export type ShootoutSummaryBrief = {
+  madeA: number;
+  madeB: number;
+  winner: 'A' | 'B' | null;
+  ended: boolean;
+} | null;
+
 export type GameSummary = {
   id: string;
   teamAId: string;
@@ -45,6 +52,7 @@ export type GameSummary = {
   plannedDurationMs: number;
   scoreA: number;
   scoreB: number;
+  shootout?: ShootoutSummaryBrief;
 };
 
 export type EventDetail = {
@@ -146,6 +154,7 @@ export type EventReport = {
     scoreB: number;
     status: string;
     durationMs: number;
+    shootout?: ShootoutSummaryBrief;
   }>;
   standings: TeamStanding[];
   topScorers: Array<PlayerRankRow & { goals: number; firstGoalAt: number }>;
@@ -174,6 +183,15 @@ export type GameReport = {
     assistantName?: string;
     type: 'GOAL' | 'OWN_GOAL';
   }>;
+  shootout: {
+    madeA: number;
+    madeB: number;
+    attemptsA: number;
+    attemptsB: number;
+    winner: 'A' | 'B' | null;
+    decided: boolean;
+    ended: boolean;
+  } | null;
   gameMvp?: MvpRow;
   meta: { generatedAt: number };
 };

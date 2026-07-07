@@ -5,6 +5,7 @@ import { NotFoundError } from '../lib/errors.js';
 import { nowMs } from '../lib/id.js';
 import { normalizeShortCode } from '../lib/short-code.js';
 import { deriveScore, getUndoneEventIds } from './game.service.js';
+import { deriveShootoutState } from './shootout.service.js';
 import { deriveElapsedMs } from './timer.service.js';
 
 const POINTS = { win: 3, draw: 1, loss: 0 } as const;
@@ -94,36 +95,69 @@ function emptyStanding(team: ReportTeam): Omit<TeamStanding, 'rank'> {
   };
 }
 
-function compareStandings(
-  a: Omit<TeamStanding, 'rank'>,
-  b: Omit<TeamStanding, 'rank'>,
-): number {
-  return (
-    b.points - a.points ||
-    b.goalDiff - a.goalDiff ||
-    b.goalsFor - a.goalsFor ||
-    a.teamName.localeCompare(b.teamName, 'zh-Hans')
-  );
+type StandingCore = Omit<TeamStanding, 'rank'>;
+
+type MatchOutcome = 'A_WIN' | 'B_WIN' | 'DRAW';
+
+/**
+ * The single source of truth for "who won this finished game".
+ *
+ *   - Regulation not level  → follows the regulation score
+ *   - Regulation level      → shootout winner if the shootout has a
+ *                             current leader (equal rounds, made counts
+ *                             differ); otherwise DRAW
+ *
+ * `shootoutState.winner` is broadly defined as the current shootout
+ * leader (see shootout.service.ts::decideWinner) — it is set whenever
+ * both sides have taken the same number of kicks and one side is
+ * ahead. Requiring `SHOOTOUT_END` here would silently keep 0-0 games
+ * marked as draws whenever the admin forgot to press the button, which
+ * is the exact bug we want to avoid.
+ *
+ * Regulation goals are still counted for goalsFor/goalsAgainst — the
+ * shootout only decides win/loss/draw.
+ */
+export function resolveMatchOutcome(
+  scoreA: number,
+  scoreB: number,
+  shootoutState: { winner: 'A' | 'B' | null } | null,
+): MatchOutcome {
+  if (scoreA > scoreB) return 'A_WIN';
+  if (scoreA < scoreB) return 'B_WIN';
+  if (shootoutState?.winner === 'A') return 'A_WIN';
+  if (shootoutState?.winner === 'B') return 'B_WIN';
+  return 'DRAW';
 }
 
-export function computeStandings(
+/**
+ * Compute a per-team mini-league restricted to games between the given
+ * subset of team ids. Used for head-to-head tie-breaking: if two or more
+ * teams are level on points+GD+GF, sort them by their results against
+ * each other (mini-league on points → GD → GF).
+ */
+function miniLeague(
+  teamIds: Set<string>,
   eventTeams: ReportTeam[],
   finishedGames: ReportGameInput[],
-): TeamStanding[] {
-  const acc = new Map<string, Omit<TeamStanding, 'rank'>>();
+): Map<string, StandingCore> {
+  const acc = new Map<string, StandingCore>();
   for (const team of eventTeams) {
-    acc.set(team.id, emptyStanding(team));
+    if (teamIds.has(team.id)) acc.set(team.id, emptyStanding(team));
   }
 
   for (const game of finishedGames) {
     if (game.status !== 'FINISHED') continue;
+    if (!teamIds.has(game.teamAId) || !teamIds.has(game.teamBId)) continue;
+
     const scoreEvents = game.events.map((e) => ({
       id: e.id,
-      type: e.type as 'GOAL' | 'OWN_GOAL' | 'UNDO',
+      type: e.type as import('../types/domain.js').GameEventType,
       teamSide: e.teamSide,
       undoTargetEventId: e.undoTargetEventId,
     }));
     const { scoreA, scoreB } = deriveScore(scoreEvents);
+    const shootoutState = deriveShootoutState(scoreEvents);
+    const outcome = resolveMatchOutcome(scoreA, scoreB, shootoutState);
     const a = acc.get(game.teamAId);
     const b = acc.get(game.teamBId);
     if (!a || !b) continue;
@@ -135,10 +169,92 @@ export function computeStandings(
     b.goalsFor += scoreB;
     b.goalsAgainst += scoreA;
 
-    if (scoreA > scoreB) {
+    if (outcome === 'A_WIN') {
       a.wins++;
       b.losses++;
-    } else if (scoreA < scoreB) {
+    } else if (outcome === 'B_WIN') {
+      b.wins++;
+      a.losses++;
+    } else {
+      a.draws++;
+      b.draws++;
+    }
+  }
+
+  for (const s of acc.values()) {
+    s.points = s.wins * POINTS.win + s.draws * POINTS.draw;
+    s.goalDiff = s.goalsFor - s.goalsAgainst;
+  }
+  return acc;
+}
+
+/**
+ * Break a tie between two-or-more teams that are level on
+ * points/GD/GF using their head-to-head mini-league. If they are still
+ * level (or only played 0 games among themselves), they remain tied.
+ */
+function headToHeadRank(
+  tied: StandingCore[],
+  eventTeams: ReportTeam[],
+  finishedGames: ReportGameInput[],
+): StandingCore[][] {
+  if (tied.length <= 1) return [tied];
+  const subset = new Set(tied.map((t) => t.teamId));
+  const mini = miniLeague(subset, eventTeams, finishedGames);
+
+  const buckets = new Map<string, StandingCore[]>();
+  for (const s of tied) {
+    const m = mini.get(s.teamId)!;
+    const key = `${m.points}|${m.goalDiff}|${m.goalsFor}`;
+    const bucket = buckets.get(key) ?? [];
+    bucket.push(s);
+    buckets.set(key, bucket);
+  }
+
+  const sortedKeys = [...buckets.keys()].sort((ka, kb) => {
+    const [pa, da, fa] = ka.split('|').map(Number);
+    const [pb, db, fb] = kb.split('|').map(Number);
+    return (pb ?? 0) - (pa ?? 0) || (db ?? 0) - (da ?? 0) || (fb ?? 0) - (fa ?? 0);
+  });
+
+  return sortedKeys.map((k) => buckets.get(k)!);
+}
+
+export function computeStandings(
+  eventTeams: ReportTeam[],
+  finishedGames: ReportGameInput[],
+): TeamStanding[] {
+  const acc = new Map<string, StandingCore>();
+  for (const team of eventTeams) {
+    acc.set(team.id, emptyStanding(team));
+  }
+
+  for (const game of finishedGames) {
+    if (game.status !== 'FINISHED') continue;
+    const scoreEvents = game.events.map((e) => ({
+      id: e.id,
+      type: e.type as import('../types/domain.js').GameEventType,
+      teamSide: e.teamSide,
+      undoTargetEventId: e.undoTargetEventId,
+    }));
+    const { scoreA, scoreB } = deriveScore(scoreEvents);
+    const shootoutState = deriveShootoutState(scoreEvents);
+    const outcome = resolveMatchOutcome(scoreA, scoreB, shootoutState);
+    const a = acc.get(game.teamAId);
+    const b = acc.get(game.teamBId);
+    if (!a || !b) continue;
+
+    a.played++;
+    b.played++;
+    a.goalsFor += scoreA;
+    a.goalsAgainst += scoreB;
+    b.goalsFor += scoreB;
+    b.goalsAgainst += scoreA;
+
+    if (outcome === 'A_WIN') {
+      a.wins++;
+      b.losses++;
+    } else if (outcome === 'B_WIN') {
       b.wins++;
       a.losses++;
     } else {
@@ -153,8 +269,41 @@ export function computeStandings(
     goalDiff: s.goalsFor - s.goalsAgainst,
   }));
 
-  const sorted = withPoints.sort(compareStandings);
-  return sorted.map((s, i) => ({ ...s, rank: i + 1 }));
+  // Group by primary triple (points / GD / GF), sort groups by triple,
+  // and for each ambiguous group apply head-to-head mini-league.
+  const primaryBuckets = new Map<string, StandingCore[]>();
+  for (const s of withPoints) {
+    const key = `${s.points}|${s.goalDiff}|${s.goalsFor}`;
+    const list = primaryBuckets.get(key) ?? [];
+    list.push(s);
+    primaryBuckets.set(key, list);
+  }
+  const orderedKeys = [...primaryBuckets.keys()].sort((ka, kb) => {
+    const [pa, da, fa] = ka.split('|').map(Number);
+    const [pb, db, fb] = kb.split('|').map(Number);
+    return (pb ?? 0) - (pa ?? 0) || (db ?? 0) - (da ?? 0) || (fb ?? 0) - (fa ?? 0);
+  });
+
+  // Emit `tiedRank` groups: teams sharing the same rank end up on the
+  // same slot number (classic 1224 dense-like ranking used by leagues).
+  const ranked: TeamStanding[] = [];
+  let nextRank = 1;
+  for (const key of orderedKeys) {
+    const group = primaryBuckets.get(key)!;
+    const subgroups = headToHeadRank(group, eventTeams, finishedGames);
+    for (const sub of subgroups) {
+      // Everyone in this subgroup shares the same rank slot.
+      const rank = nextRank;
+      // Within a still-tied subgroup, keep a deterministic display order
+      // by team name (does not change the rank number they share).
+      const stable = [...sub].sort((a, b) =>
+        a.teamName.localeCompare(b.teamName, 'zh-Hans'),
+      );
+      for (const s of stable) ranked.push({ ...s, rank });
+      nextRank += sub.length;
+    }
+  }
+  return ranked;
 }
 
 function isActiveGoal(event: ReportEventRow, undone: Set<string>): boolean {
@@ -275,19 +424,14 @@ function aggregatePlayerStats(
 }
 
 function compareScorers(a: PlayerStatRow, b: PlayerStatRow): number {
-  return (
-    b.goals - a.goals ||
-    a.firstGoalAt - b.firstGoalAt ||
-    a.name.localeCompare(b.name, 'zh-Hans')
-  );
+  // Tie-break rule: when goals are equal, use player name (alphabetical /
+  // pinyin) rather than "who scored first". Product decision — same for
+  // assists below.
+  return b.goals - a.goals || a.name.localeCompare(b.name, 'zh-Hans');
 }
 
 function compareAssists(a: PlayerStatRow, b: PlayerStatRow): number {
-  return (
-    b.assists - a.assists ||
-    a.firstAssistAt - b.firstAssistAt ||
-    a.name.localeCompare(b.name, 'zh-Hans')
-  );
+  return b.assists - a.assists || a.name.localeCompare(b.name, 'zh-Hans');
 }
 
 export const REPORT_TOP_N = 5;
@@ -466,6 +610,24 @@ export async function getEventReport(
             game.finishedAt ?? nowMs(),
           );
 
+    const shootoutState = deriveShootoutState(
+      game.events.map((e) => ({
+        id: e.id,
+        type: e.type as import('../types/domain.js').GameEventType,
+        teamSide: e.teamSide,
+        undoTargetEventId: e.undoTargetEventId,
+      })),
+    );
+    const shootout =
+      shootoutState.attemptsA + shootoutState.attemptsB > 0
+        ? {
+            madeA: shootoutState.madeA,
+            madeB: shootoutState.madeB,
+            winner: shootoutState.winner,
+            ended: shootoutState.ended,
+          }
+        : null;
+
     return {
       id: game.id,
       teamA: teamA
@@ -478,6 +640,7 @@ export async function getEventReport(
       scoreB,
       status: game.status,
       durationMs,
+      shootout,
     };
   });
 
@@ -547,6 +710,32 @@ export async function getGameReport(db: AppDb, gameId: string) {
     undoTargetEventId: e.undoTargetEventId,
   }));
   const { scoreA, scoreB } = deriveScore(scoreEvents);
+  const shootoutState = deriveShootoutState(
+    reportEvents.map((e) => ({
+      id: e.id,
+      type: e.type as
+        | 'GOAL'
+        | 'OWN_GOAL'
+        | 'UNDO'
+        | 'PENALTY_MADE'
+        | 'PENALTY_MISSED'
+        | 'SHOOTOUT_END',
+      teamSide: e.teamSide,
+      undoTargetEventId: e.undoTargetEventId,
+    })),
+  );
+  const shootout =
+    shootoutState.attemptsA + shootoutState.attemptsB > 0
+      ? {
+          madeA: shootoutState.madeA,
+          madeB: shootoutState.madeB,
+          attemptsA: shootoutState.attemptsA,
+          attemptsB: shootoutState.attemptsB,
+          winner: shootoutState.winner,
+          decided: shootoutState.decided,
+          ended: shootoutState.ended,
+        }
+      : null;
   const durationMs =
     game.startedAt == null
       ? 0
@@ -610,6 +799,7 @@ export async function getGameReport(db: AppDb, gameId: string) {
       status: game.status,
     },
     goals,
+    shootout,
     gameMvp: computeGameMvp(gameInput, rosterById),
     meta: { generatedAt: nowMs() },
   };

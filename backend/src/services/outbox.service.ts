@@ -4,7 +4,13 @@ import { recordGameEvent, undoGameEvent } from './game-ops.service.js';
 
 export type BatchGameEventInput = {
   clientEventId: string;
-  type: 'GOAL' | 'OWN_GOAL' | 'UNDO';
+  type:
+    | 'GOAL'
+    | 'OWN_GOAL'
+    | 'UNDO'
+    | 'PENALTY_MADE'
+    | 'PENALTY_MISSED'
+    | 'SHOOTOUT_END';
   teamSide?: 'A' | 'B';
   scorerRosterId?: string;
   assistantRosterId?: string;

@@ -1,7 +1,8 @@
 import type { GameDetail } from '../../api/types';
 import { StatusChip } from '../ui/status-chip';
 import { useT } from '../../i18n';
-import { gameStatusLabel } from '../../lib/report-display';
+import { deriveShootoutView } from '../../lib/game-events';
+import { formatShootoutBadge, gameStatusLabel } from '../../lib/report-display';
 import { gameStatusVariant } from '../../lib/game-status-ui';
 import { formatMs } from '../../lib/time-format';
 import type { LiveTimer } from '../../lib/use-live-game-timer';
@@ -43,8 +44,28 @@ export function GameScoreHeader({
           />
           <span className="truncate text-sm font-semibold text-textPri">{teamA.name}</span>
         </div>
-        <div className="shrink-0 font-score tabular-nums text-score text-textPri">
-          {game.scoreA} : {game.scoreB}
+        <div className="shrink-0 text-center">
+          <div className="font-score tabular-nums text-score text-textPri">
+            {game.scoreA} : {game.scoreB}
+          </div>
+          {(() => {
+            const view = deriveShootoutView(game.events);
+            const shootout =
+              view.kicks.length > 0
+                ? {
+                    madeA: view.madeA,
+                    madeB: view.madeB,
+                    winner: view.winner,
+                    ended: view.ended,
+                  }
+                : null;
+            const badge = formatShootoutBadge(shootout, t);
+            return badge ? (
+              <div className="mt-1 font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-textSec">
+                {badge}
+              </div>
+            ) : null;
+          })()}
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
           <span className="truncate text-sm font-semibold text-textPri">{teamB.name}</span>

@@ -48,4 +48,20 @@ describe('deriveScore semantics', () => {
     expect(getUndoneEventIds([...events]).has('1')).toBe(true);
     expect(deriveScore([...events])).toEqual({ scoreA: 0, scoreB: 0 });
   });
+
+  it('penalty shootout kicks do not affect regular-time score', () => {
+    // Regular time draw 1-1; then 3 penalty made for A, 2 for B — regular
+    // score must still be 1-1.
+    expect(
+      deriveScore([
+        { id: '1', type: 'GOAL', teamSide: 'A', undoTargetEventId: null },
+        { id: '2', type: 'GOAL', teamSide: 'B', undoTargetEventId: null },
+        { id: '3', type: 'PENALTY_MADE', teamSide: 'A', undoTargetEventId: null },
+        { id: '4', type: 'PENALTY_MADE', teamSide: 'A', undoTargetEventId: null },
+        { id: '5', type: 'PENALTY_MADE', teamSide: 'B', undoTargetEventId: null },
+        { id: '6', type: 'PENALTY_MISSED', teamSide: 'B', undoTargetEventId: null },
+        { id: '7', type: 'PENALTY_MADE', teamSide: 'A', undoTargetEventId: null },
+      ]),
+    ).toEqual({ scoreA: 1, scoreB: 1 });
+  });
 });

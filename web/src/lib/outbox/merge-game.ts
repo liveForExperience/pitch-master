@@ -39,26 +39,26 @@ export function groupOutboxByGameId(items: OutboxItem[]): Map<string, OutboxItem
 function outboxToSyntheticEvents(items: OutboxItem[]): GameDetail['events'] {
   return sortOutboxItems(items).map((item) => {
     const { payload, clientTs } = item;
-    if (payload.type === 'GOAL') {
+    if (payload.type === 'UNDO') {
+      const targetId =
+        payload.undoTargetEventId ?? payload.undoTargetClientEventId ?? null;
       return {
         id: payload.clientEventId,
-        type: 'GOAL' as const,
-        teamSide: payload.teamSide ?? null,
-        scorerRosterId: payload.scorerRosterId ?? null,
-        assistantRosterId: payload.assistantRosterId ?? null,
-        undoTargetEventId: null,
+        type: 'UNDO' as const,
+        teamSide: null,
+        scorerRosterId: null,
+        assistantRosterId: null,
+        undoTargetEventId: targetId,
         serverTs: clientTs,
       };
     }
-    const targetId =
-      payload.undoTargetEventId ?? payload.undoTargetClientEventId ?? null;
     return {
       id: payload.clientEventId,
-      type: 'UNDO' as const,
-      teamSide: null,
-      scorerRosterId: null,
-      assistantRosterId: null,
-      undoTargetEventId: targetId,
+      type: payload.type,
+      teamSide: payload.teamSide ?? null,
+      scorerRosterId: payload.scorerRosterId ?? null,
+      assistantRosterId: payload.assistantRosterId ?? null,
+      undoTargetEventId: null,
       serverTs: clientTs,
     };
   });
@@ -86,10 +86,10 @@ export function resolveUndoTarget(
   if (serverEvents.some((e) => e.id === targetEventId)) {
     return { undoTargetEventId: targetEventId };
   }
-  const pendingGoal = pendingItems.find(
-    (i) => i.payload.type === 'GOAL' && i.payload.clientEventId === targetEventId,
+  const pending = pendingItems.find(
+    (i) => i.payload.type !== 'UNDO' && i.payload.clientEventId === targetEventId,
   );
-  if (pendingGoal) {
+  if (pending) {
     return { undoTargetClientEventId: targetEventId };
   }
   return { undoTargetEventId: targetEventId };
